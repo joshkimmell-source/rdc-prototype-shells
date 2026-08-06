@@ -21,6 +21,8 @@ interface SubnavProps {
   onSelectBuyer: (id: string) => void
   clientTab: 'active' | 'requests'
   onClientTab: (t: 'active' | 'requests') => void
+  activeCount: number
+  requestsCount: number
 
   // Tours variant
   tours: TourListItem[]
@@ -102,6 +104,8 @@ function ClientsSubnav({
   onSelectBuyer,
   clientTab,
   onClientTab,
+  activeCount,
+  requestsCount,
   onClose,
 }: SubnavProps) {
   return (
@@ -127,9 +131,13 @@ function ClientsSubnav({
       />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 12px 0 20px' }}>
-        <Tab label="Active (18)" active={clientTab === 'active'} onClick={() => onClientTab('active')} />
         <Tab
-          label="Requests (5)"
+          label={`Active (${activeCount})`}
+          active={clientTab === 'active'}
+          onClick={() => onClientTab('active')}
+        />
+        <Tab
+          label={`Requests (${requestsCount})`}
           active={clientTab === 'requests'}
           onClick={() => onClientTab('requests')}
         />

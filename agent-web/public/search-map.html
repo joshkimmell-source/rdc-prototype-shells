@@ -96,28 +96,43 @@
     <button class="overlay drawbtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>Draw</button>
     <button class="overlay listings">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D92228" stroke-width="2" stroke-linecap="round"><path d="M5 21V10M12 21V4M19 21v-8"></path></svg>
-      <span><span class="t1">5 Listings</span><br><span class="t2">View stats</span></span>
+      <span><span class="t1" id="listingCount"></span><br><span class="t2">View stats</span></span>
     </button>
     <button class="overlay layersbtn">Layers
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5Z"></path><path d="m3 12 9 5 9-5"></path><path d="m3 17 9 5 9-5"></path></svg>
     </button>
   </div>
 <script>
-  const map = L.map('map', { zoomControl: false }).setView([37.8285, -122.187], 15);
+  const map = L.map('map', { zoomControl: false });
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  // Mirrors all ten listings in src/data/sample/sample-data.json. This file is served
+  // from public/, so it cannot import the dataset; if the sample data changes, these
+  // rows have to be updated by hand.
+  //
+  // The dataset's cities are fictional and carry no coordinates. The lat/lngs below are
+  // arbitrary map positions, spread only so the pins don't overlap.
   const LISTINGS = [
-    { price: '1.5m',  full: '$1,500,000', meta: '4 bd · 3 ba · 2,610 sqft', addr: '6224 Girvin Dr',      ll: [37.8422, -122.1948] },
-    { price: '1.84m', full: '$1,840,000', meta: '5 bd · 4 ba · 3,180 sqft', addr: '6461 Girvin Dr',      ll: [37.8398, -122.1912] },
-    { price: '1.4m',  full: '$1,400,000', meta: '4 bd · 2.5 ba · 2,340 sqft', addr: '6864 Chelton Dr',   ll: [37.8318, -122.1898] },
-    { price: '995k',  full: '$995,000',   meta: '3 bd · 2 ba · 1,820 sqft', addr: '2842 Holyrood Dr',    ll: [37.8288, -122.1778] },
-    { price: '990k',  full: '$990,000',   meta: '3 bd · 2 ba · 1,760 sqft', addr: '6929 Mastlands Dr',   ll: [37.8218, -122.1998] }
+    { price: '615k',  full: '$615,000',   meta: '2 bd · 1 ba · 1,015 sqft',    addr: '142 Larkspur Ave',  city: 'Rivertown, ST',     status: 'New',          ll: [37.8422, -122.1948] },
+    { price: '1.13m', full: '$1,130,000', meta: '4 bd · 2 ba · 1,675 sqft',    addr: '58 Blackwood Lane', city: 'Maple Heights, ST', status: 'New',          ll: [37.8398, -122.1832] },
+    { price: '450k',  full: '$450,000',   meta: '1 bd · 1 ba · 603 sqft',      addr: '410 3rd St # 202',  city: 'Old Quarter, ST',   status: 'Active',       ll: [37.8351, -122.1902] },
+    { price: '615k',  full: '$615,000',   meta: '4 bd · 2.5 ba · 1,835 sqft',  addr: '3975 Turnley Ct',   city: 'Cedar Vale, ST',    status: 'New',          ll: [37.8318, -122.1791] },
+    { price: '630k',  full: '$630,000',   meta: '1 bd · 1.5 ba · 1,068 sqft',  addr: '4902 Bayview # 203', city: 'Harborline, ST',   status: 'Active',       ll: [37.8288, -122.1968] },
+    { price: '750k',  full: '$749,888',   meta: '3 bd · 2 ba · 1,911 sqft',    addr: '1678 Wallace Ave',  city: 'Old Quarter, ST',   status: 'Price Change', ll: [37.8261, -122.1861] },
+    { price: '1.13m', full: '$1,125,000', meta: '3 bd · 2 ba · 2,008 sqft',    addr: '195 Stanton Way',   city: 'Summit Grove, ST',  status: 'Price Change', ll: [37.8238, -122.1772] },
+    { price: '1.9m',  full: '$1,899,000', meta: '4 bd · 2.5 ba · 2,073 sqft',  addr: '34 Salinas Pl',     city: 'Willowmere, ST',    status: 'Coming Soon',  ll: [37.8202, -122.1931] },
+    { price: '540k',  full: '$540,000',   meta: '2 bd · 0 ba',                 addr: '1442 92nd Court',   city: 'Rivertown, ST',     status: 'Price Change', ll: [37.8188, -122.1848] },
+    { price: '1m',    full: '$1,000,000', meta: '4 bd · 2 ba · 1,776 sqft',    addr: '155 Sunset Blvd',   city: 'Maple Heights, ST', status: 'Closed',       ll: [37.8165, -122.1758] }
   ];
   LISTINGS.forEach(l => {
     const icon = L.divIcon({ className: 'price-pin', html: '<span class="pill">' + l.price + '</span>', iconSize: [0, 0] });
     L.marker(l.ll, { icon }).addTo(map)
-      .bindPopup('<div class="pop"><div class="price">' + l.full + '</div><div class="meta">' + l.meta + '</div><div class="meta">' + l.addr + ', Oakland, CA</div></div>');
+      .bindPopup('<div class="pop"><div class="price">' + l.full + '</div><div class="meta">' + l.meta + '</div><div class="meta">' + l.addr + ', ' + l.city + '</div><div class="meta">' + l.status + '</div></div>');
   });
+  map.fitBounds(L.latLngBounds(LISTINGS.map(l => l.ll)).pad(0.25));
+  document.getElementById('listingCount').textContent =
+    LISTINGS.length + (LISTINGS.length === 1 ? ' Listing' : ' Listings');
 </script>
 </body>
 </html>

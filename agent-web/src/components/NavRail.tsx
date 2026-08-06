@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { token } from 'styled-system/tokens'
 import { C, DISPLAY_FONT, EASE } from '../theme'
 import { HoverButton } from './primitives'
+import { AGENT_FULL_NAME, AGENT_INITIALS } from '../data'
 import { IconBell, IconCalendar, IconChat, IconClients, IconHome, IconSearch, IconSupport } from '../icons'
 
 export type NavId = 'home' | 'clients' | 'search' | 'tours'
@@ -170,6 +171,7 @@ export function NavRail({ expanded, activeNav, onNavigate, onEnter, onLeave, onC
         }}
       >
         <div
+          title={AGENT_FULL_NAME}
           style={{
             width: 34,
             height: 34,
@@ -185,8 +187,19 @@ export function NavRail({ expanded, activeNav, onNavigate, onEnter, onLeave, onC
             fontSize: 12,
           }}
         >
-          GB
+          {AGENT_INITIALS}
         </div>
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+            opacity: labelOp,
+            transition: 'opacity 180ms',
+          }}
+        >
+          {AGENT_FULL_NAME}
+        </span>
       </div>
     </nav>
   )

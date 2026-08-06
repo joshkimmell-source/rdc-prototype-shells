@@ -18,12 +18,20 @@ import { ClientsScreen, type ClientsView } from './screens/ClientsScreen'
 import { AssistantPanel, type Msg } from './panels/AssistantPanel'
 import { runAssistant } from './assistant'
 import {
+  AGENT_FEED_ID,
   BUYERS,
   CLIENTS,
+  DEFAULT_BUYER_ID,
+  DEFAULT_TOUR_ID,
   INITIAL_UPCOMING_TOURS,
   STAGES,
   THREADS,
   TOURS,
+  activeClientCount,
+  clientNeeds,
+  invitedClientCount,
+  requestClientCount,
+  tourRequestsTotal,
   type Client,
   type UpcomingTour,
 } from './data'
@@ -77,17 +85,19 @@ export function Shell() {
 
   // Subnav — clients
   const [clientQ, setClientQ] = useState('')
-  const [selectedBuyer, setSelectedBuyer] = useState('jessica')
+  const [selectedBuyer, setSelectedBuyer] = useState(DEFAULT_BUYER_ID)
   const [clientTab, setClientTab] = useState<'active' | 'requests'>('active')
 
   // Subnav — tours
   const [tourQ, setTourQ] = useState('')
   const [toursTab, setToursTab] = useState<'upcoming' | 'past' | 'all'>('upcoming')
-  const [selectedTour, setSelectedTour] = useState('josh')
+  const [selectedTour, setSelectedTour] = useState(DEFAULT_TOUR_ID)
 
   // Clients screen
   const [clientFilter, setClientFilter] = useState('active')
-  const [viewMode, setViewMode] = useState<ClientsView>('map')
+  // Grid, not map: the Clients screen renders a grid of listing cards, and the
+  // segmented control has to agree with what is actually below it.
+  const [viewMode, setViewMode] = useState<ClientsView>('grid')
 
   // Home screen
   const [clients, setClients] = useState<Client[]>(CLIENTS)
@@ -177,9 +187,14 @@ export function Shell() {
     setBusy(false)
 
     if (result.scheduled) {
-      const { client, address, when } = result.scheduled
+      const { client, address, when, at } = result.scheduled
       setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, nextTour: when } : c)))
-      setUpcomingTours((prev) => [...prev, { when, address, client: client.name, type: 'Buyer tour' }])
+      // Sorted in by date — appending would put a nearer tour below a later one.
+      setUpcomingTours((prev) =>
+        [...prev, { when, address, client: client.name, type: 'Buyer tour · 1 stop', at }].sort(
+          (a, b) => a.at - b.at
+        )
+      )
     }
   }
 
@@ -202,30 +217,17 @@ export function Shell() {
     onClick: () => setFilter(id),
   }))
 
-  const needs: NeedItem[] = [
-    {
-      client: 'Sofia Reyes',
-      text: 'Offer window on 2204 Vaughn St closes tomorrow',
-      dot: C.brand,
-      ask: () => send('What should we do about Sofia’s offer on 2204 Vaughn St?'),
-    },
-    {
-      client: 'Devon Park',
-      text: 'Not pre-approved yet — needs a lender intro',
-      dot: C.amber,
-      ask: () => send('Draft a lender intro note for Devon Park'),
-    },
-    {
-      client: 'James & Priya Nair',
-      text: 'Pre-approval expired — renewal before touring',
-      dot: C.amber,
-      ask: () => send('How should I get James and Priya Nair re-approved and re-engaged?'),
-    },
-  ]
+  // Derived from the dataset — open tour requests lead, dormant invites follow.
+  const needs: NeedItem[] = clientNeeds.map((n) => ({
+    client: n.client,
+    text: n.text,
+    dot: n.tone === 'brand' ? C.brand : C.amber,
+    ask: () => send(n.prompt),
+  }))
 
   const selectedBuyerRecord = BUYERS.find((b) => b.id === selectedBuyer) ?? BUYERS[1]
   const pageTitle = isClients
-    ? selectedBuyerRecord.id === 'georgia'
+    ? selectedBuyerRecord.id === AGENT_FEED_ID
       ? 'My feed'
       : selectedBuyerRecord.name
     : isSearch
@@ -235,7 +237,7 @@ export function Shell() {
   const countLabel =
     isClients || isSearch
       ? ''
-      : `${filtered.length}${filter === 'all' ? ' active buyers' : ` of ${clients.length} buyers`}`
+      : `${filtered.length}${filter === 'all' ? ' clients' : ` of ${clients.length} clients`}`
 
   const buyerQuery = clientQ.trim().toLowerCase()
   const buyers = BUYERS.filter((b) => b.name.toLowerCase().includes(buyerQuery))
@@ -304,6 +306,8 @@ export function Shell() {
           onSelectBuyer={setSelectedBuyer}
           clientTab={clientTab}
           onClientTab={setClientTab}
+          activeCount={activeClientCount}
+          requestsCount={requestClientCount}
           tours={tourList}
           tourQ={tourQ}
           onTourQ={setTourQ}
@@ -406,10 +410,10 @@ export function Shell() {
           {isHome && (
             <HomeScreen
               stats={[
-                { value: clients.length, label: 'Active buyers' },
+                { value: activeClientCount, label: 'Active clients' },
                 { value: upcomingTours.length, label: 'Upcoming tours' },
-                { value: 1, label: 'Offers out' },
-                { value: 1, label: 'New leads' },
+                { value: tourRequestsTotal, label: 'Tour requests' },
+                { value: invitedClientCount, label: 'Invites pending' },
               ]}
               tours={upcomingTours}
               needs={needs}

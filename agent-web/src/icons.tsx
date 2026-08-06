@@ -290,6 +290,50 @@ export function IconSend({ size = 15, ...p }: S) {
 }
 
 /**
+ * Paper plane — "send this listing to a client", the middle action on a listing card.
+ * Distinct from `IconSend`, which is the chat composer's submit arrow.
+ */
+export function IconShare({ size = 15, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={1.7} {...stroke} {...p}>
+      <path d="M21.5 2.5 2.8 9.4a.5.5 0 0 0-.05.92l7.3 3.63 3.63 7.3a.5.5 0 0 0 .92-.05Z" />
+      <path d="M21.5 2.5 10.05 13.95" />
+    </svg>
+  )
+}
+
+/**
+ * The save affordance on a listing card. Haven ships no icon set and the shell's own
+ * set had no heart, so this is drawn to the same 24-box grid as the other stroke icons.
+ * `filled` is the saved state — the screenshot shows a solid heart on saved cards.
+ */
+export function IconHeart({ size = 15, filled = false, ...p }: S & { filled?: boolean }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      strokeWidth={1.8}
+      {...stroke}
+      {...(filled ? { fill: 'currentColor' } : null)}
+      {...p}
+    >
+      <path d="M12 20.6 3.9 12.5a5.1 5.1 0 0 1 0-7.2 5.1 5.1 0 0 1 7.2 0l.9.9.9-.9a5.1 5.1 0 0 1 7.2 0 5.1 5.1 0 0 1 0 7.2Z" />
+    </svg>
+  )
+}
+
+/** Down arrow beside a reduced price, as on the price-drop pill. */
+export function IconArrowDown({ size = 11, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2.6} {...stroke} {...p}>
+      <path d="M12 4v16" />
+      <path d="M19 13l-7 7-7-7" />
+    </svg>
+  )
+}
+
+/**
  * RealAssist+ FAB — ported from components/FAB.jsx (figma node 21:212).
  * `aura` is omitted; the shell mounts it with aura=false.
  */
