@@ -11,14 +11,26 @@
  * Usage: npm run deploy   (runs the build first)
  */
 import { execFileSync } from 'node:child_process'
-import { cpSync, mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs'
-import { dirname, resolve, join } from 'node:path'
+import { cpSync, mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs'
+import { dirname, resolve, join, extname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const dist = resolve(root, 'dist')
 const BRANCH = 'gh-pages'
+
+/**
+ * Font binaries are never published.
+ *
+ * The licensed Galano faces live in `public/haven/fonts/`, so Vite copies any local
+ * copies into `dist/` even though git ignores them — and `dist/` is copied wholesale to
+ * the public `gh-pages` branch. Root `.gitignore` does not protect that branch, so the
+ * filter has to happen here. The stylesheet loads these faces from the public CDN, so
+ * dropping them changes nothing visually.
+ */
+const BLOCKED_EXT = new Set(['.otf', '.ttf', '.woff', '.woff2'])
+const publishable = (src) => !BLOCKED_EXT.has(extname(src).toLowerCase())
 
 const git = (args, opts = {}) =>
   execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: 'pipe', ...opts }).trim()
@@ -42,10 +54,24 @@ try {
   // Fresh orphan branch each deploy: this is a build artifact, so history has no value
   // and keeping it would grow the repo with every publish.
   git(['worktree', 'add', '--detach', worktree])
-  execFileSync('git', ['checkout', '--orphan', BRANCH], { cwd: worktree, stdio: 'pipe' })
+  // `--orphan` fails if the branch already exists locally from an earlier deploy, so
+  // build the orphan under a scratch name and push it to BRANCH by refspec below.
+  execFileSync('git', ['checkout', '--orphan', 'gh-pages-staging'], {
+    cwd: worktree,
+    stdio: 'pipe',
+  })
   execFileSync('git', ['rm', '-rf', '--quiet', '.'], { cwd: worktree, stdio: 'pipe' })
 
-  cpSync(dist, worktree, { recursive: true })
+  cpSync(dist, worktree, { recursive: true, filter: publishable })
+
+  // Belt and braces: fail loudly rather than publish a licensed binary if the filter
+  // above is ever broken by a refactor.
+  const staged = execFileSync('git', ['add', '-An', '.'], { cwd: worktree, encoding: 'utf8' })
+  const leaked = staged.split('\n').filter((l) => /\.(otf|ttf|woff2?)'?$/i.test(l))
+  if (leaked.length) {
+    console.error('Refusing to deploy — font binaries would be published:\n' + leaked.join('\n'))
+    process.exit(1)
+  }
 
   execFileSync('git', ['add', '-A'], { cwd: worktree, stdio: 'pipe' })
   execFileSync('git', ['commit', '-m', `Deploy agent-web from ${sha}`], {

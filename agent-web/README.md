@@ -11,12 +11,20 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-`npm install` needs the internal Artifactory registry for the `@rdc-npm` scope. The
-included `.npmrc` points at it, so you must be on the VPN for the install to resolve.
+`npm install` needs the internal Artifactory registry for the `@rdc-npm` scope, so you
+must be on the VPN for the install to resolve. The `.npmrc` that points at it is
+gitignored (it names internal infrastructure); copy `.npmrc.example` from the repo root
+to `agent-web/.npmrc` and fill in the registry host.
+
+The licensed Galano Grotesque Alt `.otf` files are also not committed — this repo is
+public. Both `dev.html` and `public/haven/colors_and_type.css` load the same faces from
+the public `static.rdc.moveaws.com` CDN, so nothing is missing visually and no font
+binary is ever published.
 
 ```bash
 npm run build    # -> dist/
 npm run bundle   # -> upload/index.html (single self-contained file)
+npm run deploy   # build + publish dist/ to the gh-pages branch
 npm run preview  # serve the built output
 ```
 
@@ -31,6 +39,35 @@ npm run preview  # serve the built output
 - **`dev.html`** — the Vite template. `vite.config.ts` points the dev server and the
   build at this file so the generated `index.html` is never overwritten. The dev server
   still serves it at `/`.
+
+## Hosting on GitHub Pages
+
+Live at **https://joshkimmell-source.github.io/rdc-prototype-shells/**.
+
+```bash
+npm run deploy   # build, then publish dist/ to the gh-pages branch
+```
+
+`scripts/deploy-pages.mjs` commits `dist/` to an orphan `gh-pages` branch through a
+detached worktree in a temp dir, so your working tree and current branch are untouched.
+History is reset each deploy — it's a build artifact, so keeping it would only grow the
+repo.
+
+There is no GitHub Actions workflow for this, and that's deliberate: `@rdc-npm/rdc-ui-v4`
+resolves from internal Artifactory, which Actions runners can't reach. The build has to
+happen on the VPN, so only the compiled output is pushed.
+
+Two things make the build work under the Pages `/<repo>/` subpath:
+
+- `vite.config.ts` sets `base: './'`, so assets resolve relatively instead of against
+  the domain root.
+- The deploy script copies `dev.html` to `index.html` (Pages serves `index.html` at a
+  directory URL) and writes `.nojekyll` (Jekyll would skip `_`-prefixed paths).
+
+**The deploy script never publishes font binaries.** Any local `.otf`/`.woff` copies in
+`public/haven/fonts/` get swept into `dist/` by Vite, and the root `.gitignore` does not
+apply to the `gh-pages` branch — so the script filters them out by extension and aborts
+the deploy if one would slip through anyway.
 
 ## Packaging for RealPrototypes
 
