@@ -28,5 +28,10 @@ styled-system/
 # npm registry config — points at internal Artifactory
 .npmrc
 
+# Claude Code per-machine state. Accumulates local absolute paths and granted tool
+# permissions, so it is one developer's setup, not the project's. Everything shared
+# — .claude/skills/, and .claude/settings.json if we add one — stays tracked.
+.claude/settings.local.json
+
 # macOS
 .DS_Store
