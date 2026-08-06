@@ -6,6 +6,7 @@ import {
   IconApartment, IconMobileHome, IconFarm, IconLotSize, IconPlus,
 } from '@rdc-npm/rdc-ui-v4/illustrations'
 import { css } from 'styled-system/css'
+import { token } from 'styled-system/tokens'
 import { vstack, hstack } from 'styled-system/patterns'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -135,7 +136,12 @@ export function FilterDrawer({ open, onClose, filters, onApply }: FilterDrawerPr
                             flex: 1,
                             height: `${h}px`,
                             minWidth: 0,
-                            backgroundColor: inRange ? 'var(--colors-bg-inverse)' : 'var(--colors-border-base)',
+                            // token(), not a raw var(--…) string: Panda only emits
+                            // variables for tokens it sees used, so hand-written var()
+                            // references get tree-shaken out of a consumer build.
+                            backgroundColor: inRange
+                              ? token('colors.bg.inverse')
+                              : token('colors.border.base'),
                           }}
                         />
                       )

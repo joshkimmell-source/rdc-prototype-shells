@@ -3,6 +3,7 @@
  * hover on desktop and by click when `railMode === 'click'` or on mobile (<=768px).
  */
 import type { ReactNode } from 'react'
+import { token } from 'styled-system/tokens'
 import { C, DISPLAY_FONT, EASE } from '../theme'
 import { HoverButton } from './primitives'
 import { IconBell, IconCalendar, IconChat, IconClients, IconHome, IconSearch, IconSupport } from '../icons'
@@ -63,7 +64,9 @@ export function NavRail({ expanded, activeNav, onNavigate, onEnter, onLeave, onC
         width: railW,
         transition: `width 220ms ${EASE}`,
         flex: 'none',
-        background: 'var(--colors-bg-base)',
+        // token(), not a raw var(--…) string: Panda only emits variables for tokens it
+        // can see being used, so a hand-written var() would be tree-shaken out.
+        background: token('colors.bg.base'),
         borderRight: `1px solid ${C.hair}`,
         padding: 12,
         display: 'flex',
@@ -125,9 +128,9 @@ export function NavRail({ expanded, activeNav, onNavigate, onEnter, onLeave, onC
             style={{
               ...buttonBase,
               border: `1px solid ${active ? C.border : 'transparent'}`,
-              background: active ? `var(--colors-bg-alternate, ${C.alt})` : 'transparent',
+              background: active ? token('colors.bg.alternate', C.alt) : 'transparent',
               color: active ? C.dark : C.sub,
-              boxShadow: active ? 'var(--shadows-lifted)' : 'none',
+              boxShadow: active ? token('shadows.lifted') : 'none',
             }}
             hoverStyle={{ background: C.alt }}
           >
