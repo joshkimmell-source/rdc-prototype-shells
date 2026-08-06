@@ -1,12 +1,20 @@
 /**
- * Clients: saved / tour-request / saved-search tiles, the filter pill row, and the
- * map / grid / table segmented control.
+ * Clients: saved / tour-request / saved-search tiles, the filter pill row, the
+ * map / grid / table segmented control, and the date-grouped feed of listing cards.
  */
 import { C, DISPLAY_FONT } from '../theme'
 import { HoverButton } from '../components/primitives'
 import { ImageSlot } from '../components/ImageSlot'
+import { ListingCard } from '../components/ListingCard'
 import { IconGridView, IconMapView, IconSort, IconTableView } from '../icons'
-import { CLIENT_PILLS } from '../data'
+import {
+  CLIENT_LISTING_FILTERS,
+  CLIENT_LISTING_GROUPS,
+  CLIENT_PILLS,
+  agentSavedSearchTile,
+  savedHomesTotal,
+  tourRequestsTotal,
+} from '../data'
 
 export type ClientsView = 'map' | 'grid' | 'table'
 
@@ -60,6 +68,16 @@ const VIEWS: Array<{ id: ClientsView; label: string; icon: React.ReactNode }> = 
 ]
 
 export function ClientsScreen({ pill, onPill, view, onView }: ClientsScreenProps) {
+  // The pill filters the feed. `null` means the pill has no listing filter behind it
+  // ("Chat list"), so it leaves the feed alone rather than emptying it.
+  const keep = CLIENT_LISTING_FILTERS[pill]
+  const groups = keep
+    ? CLIENT_LISTING_GROUPS.map((g) => ({
+        ...g,
+        listings: g.listings.filter((l) => keep.includes(l.id)),
+      })).filter((g) => g.listings.length > 0)
+    : CLIENT_LISTING_GROUPS
+
   return (
     <div
       data-screen-label="Clients"
@@ -87,7 +105,7 @@ export function ClientsScreen({ pill, onPill, view, onView }: ClientsScreenProps
               <div style={SCRIM} />
               <div style={{ position: 'absolute', left: 14, bottom: 12, color: C.white, pointerEvents: 'none' }}>
                 <div className="ty-numeric-body100" style={{ fontSize: 22, fontWeight: 700, lineHeight: '26px' }}>
-                  16
+                  {savedHomesTotal}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>Saved listings</div>
               </div>
@@ -102,7 +120,7 @@ export function ClientsScreen({ pill, onPill, view, onView }: ClientsScreenProps
               <div style={SCRIM} />
               <div style={{ position: 'absolute', left: 14, bottom: 12, color: C.white, pointerEvents: 'none' }}>
                 <div className="ty-numeric-body100" style={{ fontSize: 22, fontWeight: 700, lineHeight: '26px' }}>
-                  4
+                  {tourRequestsTotal}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>Tour requests</div>
               </div>
@@ -135,8 +153,12 @@ export function ClientsScreen({ pill, onPill, view, onView }: ClientsScreenProps
                   pointerEvents: 'none',
                 }}
               >
-                <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>East Austin under $650K</div>
-                <div style={{ fontSize: 12, fontWeight: 500, opacity: 0.85, marginTop: 2 }}>Saved by you</div>
+                <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>
+                  {agentSavedSearchTile.name}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 500, opacity: 0.85, marginTop: 2 }}>
+                  {agentSavedSearchTile.sub}
+                </div>
               </div>
             </div>
           </div>
@@ -238,6 +260,34 @@ export function ClientsScreen({ pill, onPill, view, onView }: ClientsScreenProps
       </div>
 
       <div style={{ borderTop: `1px solid ${C.hair}` }} />
+
+      {groups.length === 0 ? (
+        <div style={{ padding: '32px 0', fontSize: 13, color: C.muted }}>
+          No listings match this filter.
+        </div>
+      ) : (
+        groups.map((group) => (
+          <section key={group.heading} style={{ ...GROUP, gap: 16 }}>
+            <GroupHeading>{group.heading}</GroupHeading>
+            <div
+              style={{
+                display: 'grid',
+                // 288px is the narrowest card that fits the widest price row the dataset
+                // produces — a seven-figure price beside "PRICE CHANGE | 198 DOM".
+                // Narrower and the status ellipsizes (`ListingCard` handles that), which
+                // is a fallback for a cramped container rather than a normal render.
+                gridTemplateColumns: 'repeat(auto-fill, minmax(288px, 1fr))',
+                gap: 20,
+              }}
+            >
+              {group.listings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} />
+              ))}
+            </div>
+          </section>
+        ))
+      )}
+
       <div style={{ flex: 1 }} />
     </div>
   )

@@ -18,7 +18,7 @@ import {
   IconSend,
   IconSpark,
 } from '../icons'
-import { CHIPS, type Thread } from '../data'
+import { AGENT_FIRST_NAME, CHIPS, assistantNudges, attentionCount, type Thread } from '../data'
 import type { Card, ClientCard, TourCard } from '../assistant'
 
 export interface Msg {
@@ -416,74 +416,52 @@ export function AssistantPanel({
                       letterSpacing: '-0.01em',
                     }}
                   >
-                    Good morning, Georgia
+                    Good morning, {AGENT_FIRST_NAME}
                   </div>
                   <div style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.5 }}>
-                    Ask about your clients, set up tours, or pull listing context. Two things need attention
-                    today.
+                    Ask about your clients, set up tours, or pull listing context.
+                    {attentionCount > 0 &&
+                      ` ${attentionCount} ${attentionCount === 1 ? 'thing needs' : 'things need'} attention today.`}
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    letterSpacing: '0.09em',
-                    color: C.brand,
-                    marginTop: 4,
-                  }}
-                >
-                  NEEDS ATTENTION
-                </div>
+                {attentionCount > 0 && (
+                  <div
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      letterSpacing: '0.09em',
+                      color: C.brand,
+                      marginTop: 4,
+                    }}
+                  >
+                    NEEDS ATTENTION
+                  </div>
+                )}
 
-                <div style={NUDGE_CARD}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 700 }}>Maya Chen viewed 3 homes today</div>
-                    <div style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.5 }}>
-                      42 Birchwood Ln twice — her most activity since touring 1108 Poppy Ct. She may be ready to
-                      move.
+                {assistantNudges.map((nudge) => (
+                  <div key={nudge.title} style={NUDGE_CARD}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 700 }}>{nudge.title}</div>
+                      <div style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.5 }}>{nudge.body}</div>
                     </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <DarkPill
-                      onClick={() =>
-                        onSend('Set up a tour for Maya Chen at 42 Birchwood Ln this Saturday at 10am')
-                      }
-                    >
-                      <IconSpark size={12} />
-                      <span>Set up a tour</span>
-                    </DarkPill>
-                    <LightPill
-                      onClick={() =>
-                        onSend('What has Maya Chen been looking at lately, and what does it tell us?')
-                      }
-                    >
-                      <IconSpark size={12} style={{ color: C.brand }} />
-                      <span>See her activity</span>
-                    </LightPill>
-                  </div>
-                </div>
-
-                <div style={NUDGE_CARD}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 700 }}>Sofia's offer window closes tomorrow</div>
-                    <div style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.5 }}>
-                      No response yet on 2204 Vaughn St ($749,000). A nudge to the listing agent could help.
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <LightPill
-                      onClick={() =>
-                        onSend(
-                          'Draft a short follow-up to the listing agent about Sofia Reyes’s pending offer on 2204 Vaughn St'
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {nudge.actions.map((action, i) =>
+                        i === 0 ? (
+                          <DarkPill key={action.label} onClick={() => onSend(action.prompt)}>
+                            <IconSpark size={12} />
+                            <span>{action.label}</span>
+                          </DarkPill>
+                        ) : (
+                          <LightPill key={action.label} onClick={() => onSend(action.prompt)}>
+                            <IconSpark size={12} style={{ color: C.brand }} />
+                            <span>{action.label}</span>
+                          </LightPill>
                         )
-                      }
-                    >
-                      <IconSpark size={12} style={{ color: C.brand }} />
-                      <span>Draft a follow-up</span>
-                    </LightPill>
+                      )}
+                    </div>
                   </div>
-                </div>
+                ))}
 
                 {msgs.map((m, i) => {
                   const user = m.role === 'user'

@@ -1,7 +1,17 @@
 /**
- * Seed data ported verbatim from ContentOrchestrationShell.dc.html.
- * Georgia Booth, buyer's agent in Austin, TX. "Today" in the prototype is Tue Jul 21, 2026.
+ * The shell's data surface.
+ *
+ * The types here are the shapes the screens and panels consume — they were ported
+ * from ContentOrchestrationShell.dc.html and the components still expect them
+ * unchanged. The *values* now come from the shared fictional sample dataset in
+ * `data/sample/`, mapped across in `data/sample/adapters.ts`.
+ *
+ * The logged-in agent is Dana Ellison of Brightwater Realty Group. Every person,
+ * property, phone number and email is invented: phones are in the 555 block, emails
+ * are on example.com, MLS ids are prefixed `SAMPLE:`, and `ST` is not a real state.
  */
+import * as sample from './data/sample/adapters'
+import type { ClientListingGroup } from './data/sample/adapters'
 
 export type TagColor =
   | 'blueSubtle'
@@ -12,7 +22,10 @@ export type TagColor =
 
 export interface Client {
   id: string
+  /** The row label. May be a household ("The Nakamura Family"), not a person's name. */
   name: string
+  /** How to address them in a sentence — "Ken and Yuki", never "The". */
+  greetingName: string
   initials: string
   stage: string
   budget: string
@@ -50,6 +63,12 @@ export interface UpcomingTour {
   address: string
   client: string
   type: string
+  /**
+   * Epoch ms for the tour's start, so a tour scheduled through the assistant sorts into
+   * the list instead of appending after a later date. `when` is a display string and is
+   * not reliably parseable back to a date.
+   */
+  at: number
 }
 
 export interface Thread {
@@ -57,145 +76,41 @@ export interface Thread {
   when: string
 }
 
-export const CLIENTS: Client[] = [
-  {
-    id: 'maya',
-    name: 'Maya Chen',
-    initials: 'MC',
-    stage: 'Actively touring',
-    budget: '$550K–$650K',
-    looking: '3 bd · 2 ba in East Austin with a home office',
-    financing: 'Pre-approved to $640K',
-    lastActivity: 'Viewed 3 homes today',
-    saved: 12,
-    nextTour: '—',
-  },
-  {
-    id: 'sofia',
-    name: 'Sofia Reyes',
-    initials: 'SR',
-    stage: 'Making offers',
-    budget: '$700K–$800K',
-    looking: '4 bd in Mueller, move-in ready',
-    financing: 'Pre-approved to $790K',
-    lastActivity: 'Offer pending · 2204 Vaughn St',
-    saved: 8,
-    nextTour: '—',
-  },
-  {
-    id: 'devon',
-    name: 'Devon Park',
-    initials: 'DP',
-    stage: 'New lead',
-    budget: '$400K–$475K',
-    looking: 'Downtown condo, low HOA, walkable',
-    financing: 'Not pre-approved yet',
-    lastActivity: 'Signed up 2 days ago',
-    saved: 3,
-    nextTour: '—',
-  },
-  {
-    id: 'nair',
-    name: 'James & Priya Nair',
-    initials: 'JP',
-    stage: 'Nurturing',
-    budget: '$500K–$575K',
-    looking: 'Round Rock ISD, ~6-month timeline',
-    financing: 'Pre-approval expired',
-    lastActivity: 'Opened your newsletter Tue',
-    saved: 5,
-    nextTour: '—',
-  },
-  {
-    id: 'grace',
-    name: 'Grace Okafor',
-    initials: 'GO',
-    stage: 'Under contract',
-    budget: '$525,000',
-    looking: '1310 Larkspur Dr · closing Aug 14',
-    financing: 'Cleared to close',
-    lastActivity: 'Inspection passed Friday',
-    saved: 0,
-    nextTour: '—',
-  },
-]
+export const CLIENTS: Client[] = sample.clients
 
-export const LISTINGS: Listing[] = [
-  { address: '42 Birchwood Ln', meta: '$612,000 · 3 bd · 2 ba · 1,840 sqft', hood: 'East Austin' },
-  { address: '1108 Poppy Ct', meta: '$589,900 · 3 bd · 2 ba · 1,720 sqft', hood: 'Govalle' },
-  { address: '2811 Fernhill Dr', meta: '$634,500 · 3 bd · 2.5 ba · 2,010 sqft', hood: 'Cherrywood' },
-  { address: '2204 Vaughn St', meta: '$749,000 · 4 bd · 3 ba · 2,380 sqft', hood: 'Mueller' },
-]
+export const LISTINGS: Listing[] = sample.listings
 
 /**
  * Stage → Tag colour. The DC file used the legacy `styleType: '<color>-subtle'` API;
- * Haven v4 takes a camelCase `dataColor`.
+ * Haven v4 takes a camelCase `dataColor`. Keyed by the dataset's client status, which
+ * is what `Client.stage` now carries — every value the data can produce has an entry,
+ * so no tag falls through to an undefined `dataColor`.
  */
-export const TAGC: Record<string, TagColor> = {
-  'New lead': 'blueSubtle',
-  'Actively touring': 'greenSubtle',
-  'Making offers': 'orangeSubtle',
-  Nurturing: 'graySubtle',
-  'Under contract': 'purpleSubtle',
-}
+export const TAGC: Record<string, TagColor> = sample.STAGE_TAG_COLORS
 
-export const THREADS: Thread[] = [
-  { title: 'Tour plan for Maya Chen', when: 'Monday' },
-  { title: 'Mueller comps for Sofia', when: 'Last week' },
-  { title: 'Welcome email for Devon', when: 'Last week' },
-]
+export const THREADS: Thread[] = sample.threads
 
-export const BUYERS: Buyer[] = [
-  { id: 'georgia', name: 'Georgia Booth', initials: 'GB', sub: 'Your personal feed', online: true },
-  { id: 'jessica', name: 'Jessica Lin and Dave Firenze', initials: 'JD', sub: 'Last seen now', online: true },
-  { id: 'jim', name: 'Jim Nunchousen', initials: 'JN', sub: 'Last seen now' },
-  { id: 'laura', name: 'Laura Kim', initials: 'LK', sub: 'Last seen now' },
-  { id: 'jo', name: 'Jo Frost', initials: 'JF', sub: 'Last seen now' },
-  { id: 'heatherjorge', name: 'Heather Lee and Jorge Ramos', initials: 'HJ', sub: 'Last seen now' },
-  { id: 'mike', name: 'Mike Pantages', initials: 'MP', sub: 'Last seen now' },
-  { id: 'heather', name: 'Heather Lee', initials: 'HL', sub: 'Last seen now' },
-  { id: 'steven', name: 'Steven Robles', initials: 'SR', sub: 'Last seen now' },
-]
+export const BUYERS: Buyer[] = sample.buyers
 
-export const TOURS: TourListItem[] = [
-  { id: 'josh', name: 'Josh Kimmell', initials: 'JK', meta: 'Sat, Aug 1 | 3 Stops', upcoming: true },
-  { id: 'maya', name: 'Maya Chen', initials: 'MC', meta: 'Sat, Jul 18 | 4 Stops', upcoming: false },
-  { id: 'sofia', name: 'Sofia Reyes', initials: 'SR', meta: 'Sun, Jul 12 | 2 Stops', upcoming: false },
-  { id: 'jim', name: 'Jim Nunchousen', initials: 'JN', meta: 'Sat, Jun 27 | 3 Stops', upcoming: false },
-]
+export const TOURS: TourListItem[] = sample.tours
 
-export const INITIAL_UPCOMING_TOURS: UpcomingTour[] = [
-  {
-    when: 'Sat Aug 1',
-    address: '8232 Tanforan Ct +2 stops',
-    client: 'Josh Kimmell',
-    type: 'Buyer tour · 3 stops',
-  },
-]
+export const INITIAL_UPCOMING_TOURS: UpcomingTour[] = sample.initialUpcomingTours
 
-export const STAGES: Array<[string, string]> = [
-  ['all', 'All clients'],
-  ['New lead', 'New leads'],
-  ['Actively touring', 'Actively touring'],
-  ['Making offers', 'Making offers'],
-  ['Nurturing', 'Nurturing'],
-  ['Under contract', 'Under contract'],
-]
+export const STAGES: Array<[string, string]> = sample.stages
 
-export const CLIENT_PILLS: Array<[string, string]> = [
-  ['active', 'Active (4)'],
-  ['price', 'Price change (0)'],
-  ['contingent', 'Contingent/Pending (2)'],
-  ['open', 'Open houses (1)'],
-  ['chat', 'Chat list'],
-]
+export const CLIENT_PILLS: Array<[string, string]> = sample.clientPills
 
-export const CHIPS: string[] = [
-  'What is Maya looking for?',
-  'Set up a tour for Maya at 42 Birchwood Ln on Saturday morning',
-  'Who needs a follow-up this week?',
-  'How does Sofia’s offer stack up in Mueller?',
-]
+/**
+ * The Clients screen's listing feed — Haven `PropertyCard` records, already grouped
+ * into the day sections the screen renders as headings.
+ */
+export const CLIENT_LISTING_GROUPS: ClientListingGroup[] = sample.clientListingGroups
+
+/** Listing ids each filter pill keeps; `null` for a pill with no listing filter. */
+export const CLIENT_LISTING_FILTERS: Record<string, string[] | null> =
+  sample.clientListingFilters
+
+export const CHIPS: string[] = sample.chips
 
 export const MENU_ITEMS: string[] = [
   'Export client list',
@@ -203,3 +118,32 @@ export const MENU_ITEMS: string[] = [
   'Manage stages',
   'Settings',
 ]
+
+/** Identity of the logged-in agent, and the ids the subnavs open on. */
+export const {
+  AGENT_FIRST_NAME,
+  AGENT_FULL_NAME,
+  AGENT_INITIALS,
+  AGENT_BROKERAGE,
+  AGENT_FEED_ID,
+  PROTOTYPE_TODAY,
+  DEFAULT_BUYER_ID,
+  DEFAULT_TOUR_ID,
+  agentSavedSearchTile,
+  assistantNudges,
+  attentionCount,
+  clientNeeds,
+  savedHomesTotal,
+  tourRequestsTotal,
+  activeClientCount,
+  invitedClientCount,
+  requestClientCount,
+} = sample
+
+export type {
+  AssistantNudge,
+  ClientListing,
+  ClientListingGroup,
+  ClientNeed,
+  ListingPill,
+} from './data/sample/adapters'
