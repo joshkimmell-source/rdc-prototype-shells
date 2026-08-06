@@ -49,6 +49,15 @@ writeFileSync(join(dist, '.nojekyll'), '')
 
 const sha = git(['rev-parse', '--short', 'HEAD'])
 const worktree = mkdtempSync(join(tmpdir(), 'gh-pages-'))
+const STAGING = 'gh-pages-staging'
+
+// A previous run that died before cleanup leaves the scratch branch behind, and
+// `checkout --orphan` refuses to reuse an existing name.
+try {
+  git(['branch', '-D', STAGING])
+} catch {
+  // Not there — the normal case.
+}
 
 try {
   // Fresh orphan branch each deploy: this is a build artifact, so history has no value
@@ -56,7 +65,7 @@ try {
   git(['worktree', 'add', '--detach', worktree])
   // `--orphan` fails if the branch already exists locally from an earlier deploy, so
   // build the orphan under a scratch name and push it to BRANCH by refspec below.
-  execFileSync('git', ['checkout', '--orphan', 'gh-pages-staging'], {
+  execFileSync('git', ['checkout', '--orphan', STAGING], {
     cwd: worktree,
     stdio: 'pipe',
   })
@@ -94,5 +103,10 @@ try {
     git(['worktree', 'prune'])
   } catch {
     // Nothing to prune if `worktree add` itself failed.
+  }
+  try {
+    git(['branch', '-D', STAGING])
+  } catch {
+    // Never created, if the failure came before checkout.
   }
 }
