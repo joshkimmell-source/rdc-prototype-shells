@@ -1,0 +1,116 @@
+{
+  "_meta": {
+    "description": "Fully fictional sample data for prototype/user-testing use. No real people, properties, or listings.",
+    "version": "1.0.0",
+    "recordsPerType": 10,
+    "notice": "All data is fabricated. Any resemblance to real people or properties is coincidental."
+  },
+
+  "agents": [
+    { "id": "agt_01", "firstName": "Dana",    "lastName": "Ellison",  "title": "Realtor®",          "brokerage": "Brightwater Realty Group", "email": "dana.ellison@example.com",   "phone": "(555) 200-1801", "avatar": "https://picsum.photos/seed/agent01/200/200", "license": "DRE#01000001" },
+    { "id": "agt_02", "firstName": "Marcus",  "lastName": "Whitfield","title": "Broker Associate",   "brokerage": "Brightwater Realty Group", "email": "marcus.whitfield@example.com","phone": "(555) 200-1802", "avatar": "https://picsum.photos/seed/agent02/200/200", "license": "DRE#01000002" },
+    { "id": "agt_03", "firstName": "Priya",   "lastName": "Nandakumar","title": "Realtor®",          "brokerage": "Cedar & Vine Properties",  "email": "priya.n@example.com",        "phone": "(555) 200-1803", "avatar": "https://picsum.photos/seed/agent03/200/200", "license": "DRE#01000003" },
+    { "id": "agt_04", "firstName": "Theo",    "lastName": "Ramsey",   "title": "Realtor®",          "brokerage": "Cedar & Vine Properties",  "email": "theo.ramsey@example.com",    "phone": "(555) 200-1804", "avatar": "https://picsum.photos/seed/agent04/200/200", "license": "DRE#01000004" },
+    { "id": "agt_05", "firstName": "Lena",    "lastName": "Okonkwo",  "title": "Managing Broker",    "brokerage": "Harborline Homes",         "email": "lena.o@example.com",         "phone": "(555) 200-1805", "avatar": "https://picsum.photos/seed/agent05/200/200", "license": "DRE#01000005" },
+    { "id": "agt_06", "firstName": "Sam",     "lastName": "Delacroix","title": "Realtor®",          "brokerage": "Harborline Homes",         "email": "sam.d@example.com",          "phone": "(555) 200-1806", "avatar": "https://picsum.photos/seed/agent06/200/200", "license": "DRE#01000006" },
+    { "id": "agt_07", "firstName": "Bianca",  "lastName": "Fontaine", "title": "Realtor®",          "brokerage": "Summit Grove Realty",      "email": "bianca.f@example.com",       "phone": "(555) 200-1807", "avatar": "https://picsum.photos/seed/agent07/200/200", "license": "DRE#01000007" },
+    { "id": "agt_08", "firstName": "Owen",    "lastName": "Castellano","title": "Realtor®",          "brokerage": "Summit Grove Realty",      "email": "owen.c@example.com",         "phone": "(555) 200-1808", "avatar": "https://picsum.photos/seed/agent08/200/200", "license": "DRE#01000008" },
+    { "id": "agt_09", "firstName": "Renata",  "lastName": "Vasquez",  "title": "Broker Associate",   "brokerage": "Willowmere Group",         "email": "renata.v@example.com",       "phone": "(555) 200-1809", "avatar": "https://picsum.photos/seed/agent09/200/200", "license": "DRE#01000009" },
+    { "id": "agt_10", "firstName": "Gideon",  "lastName": "Park",     "title": "Realtor®",          "brokerage": "Willowmere Group",         "email": "gideon.park@example.com",    "phone": "(555) 200-1810", "avatar": "https://picsum.photos/seed/agent10/200/200", "license": "DRE#01000010" }
+  ],
+
+  "clients": [
+    { "id": "cli_01", "displayName": "Avery Brookstone",              "members": ["Avery Brookstone"],                       "initials": ["AB"],       "status": "Active",   "lastSeen": "3 hrs ago",   "agentId": "agt_01", "savedCount": 4, "tourRequestCount": 1, "email": "avery.b@example.com",  "phone": "(555) 310-4401", "avatar": "https://picsum.photos/seed/client01/200/200" },
+    { "id": "cli_02", "displayName": "Jordan & Mia Castellanos",      "members": ["Jordan Castellanos", "Mia Castellanos"],  "initials": ["JC","MC"],  "status": "Active",   "lastSeen": "1 day ago",   "agentId": "agt_01", "savedCount": 12,"tourRequestCount": 3, "email": "castellanos.family@example.com","phone": "(555) 310-4402", "avatar": "https://picsum.photos/seed/client02/200/200" },
+    { "id": "cli_03", "displayName": "Priyanka Raman",                "members": ["Priyanka Raman"],                         "initials": ["PR"],       "status": "Requests", "lastSeen": "5 hrs ago",   "agentId": "agt_02", "savedCount": 2, "tourRequestCount": 2, "email": "priyanka.r@example.com","phone": "(555) 310-4403", "avatar": "https://picsum.photos/seed/client03/200/200" },
+    { "id": "cli_04", "displayName": "The Halvorsen Household",       "members": ["Erik Halvorsen", "Nina Halvorsen"],      "initials": ["EH","NH"],  "status": "Invited",  "lastSeen": "2 weeks ago", "agentId": "agt_02", "savedCount": 0, "tourRequestCount": 0, "email": "halvorsen@example.com","phone": "(555) 310-4404", "avatar": "https://picsum.photos/seed/client04/200/200" },
+    { "id": "cli_05", "displayName": "Malik Osei",                    "members": ["Malik Osei"],                             "initials": ["MO"],       "status": "Active",   "lastSeen": "20 mins ago", "agentId": "agt_03", "savedCount": 7, "tourRequestCount": 1, "email": "malik.osei@example.com","phone": "(555) 310-4405", "avatar": "https://picsum.photos/seed/client05/200/200" },
+    { "id": "cli_06", "displayName": "Sofia & Diego Marchetti",       "members": ["Sofia Marchetti", "Diego Marchetti"],    "initials": ["SM","DM"],  "status": "Shared",   "lastSeen": "6 days ago",  "agentId": "agt_03", "savedCount": 9, "tourRequestCount": 0, "email": "marchetti@example.com","phone": "(555) 310-4406", "avatar": "https://picsum.photos/seed/client06/200/200" },
+    { "id": "cli_07", "displayName": "Tamsin Wilder",                 "members": ["Tamsin Wilder"],                          "initials": ["TW"],       "status": "Invited",  "lastSeen": "1 month ago", "agentId": "agt_04", "savedCount": 1, "tourRequestCount": 0, "email": "tamsin.w@example.com","phone": "(555) 310-4407", "avatar": "https://picsum.photos/seed/client07/200/200" },
+    { "id": "cli_08", "displayName": "Grayson Boone",                 "members": ["Grayson Boone"],                          "initials": ["GB"],       "status": "Archived", "lastSeen": "4 months ago","agentId": "agt_04", "savedCount": 15,"tourRequestCount": 0, "email": "grayson.b@example.com","phone": "(555) 310-4408", "avatar": "https://picsum.photos/seed/client08/200/200" },
+    { "id": "cli_09", "displayName": "The Nakamura Family",           "members": ["Ken Nakamura", "Yuki Nakamura"],         "initials": ["KN","YN"],  "status": "Active",   "lastSeen": "2 hrs ago",   "agentId": "agt_05", "savedCount": 6, "tourRequestCount": 2, "email": "nakamura@example.com","phone": "(555) 310-4409", "avatar": "https://picsum.photos/seed/client09/200/200" },
+    { "id": "cli_10", "displayName": "Beatrix Åkerman",               "members": ["Beatrix Åkerman"],                        "initials": ["BÅ"],       "status": "Requests", "lastSeen": "9 hrs ago",   "agentId": "agt_05", "savedCount": 3, "tourRequestCount": 1, "email": "beatrix.a@example.com","phone": "(555) 310-4410", "avatar": "https://picsum.photos/seed/client10/200/200" }
+  ],
+
+  "savedSearches": [
+    { "id": "srch_01", "name": "Downtown condos under 500k",     "savedBy": "cli_01", "criteria": { "location": "Rivertown, ST", "propertyType": "Condominium",           "priceMax": 500000, "bedsMin": 1, "bathsMin": 1 } },
+    { "id": "srch_02", "name": "Family homes near parks",         "savedBy": "cli_02", "criteria": { "location": "Maple Heights, ST", "propertyType": "Single Family Residence","priceMin": 600000, "priceMax": 950000, "bedsMin": 3, "bathsMin": 2 } },
+    { "id": "srch_03", "name": "Fixer-uppers",                    "savedBy": "cli_02", "criteria": { "location": "Old Quarter, ST", "propertyType": "Single Family Residence","priceMax": 400000, "keywords": "needs work" } },
+    { "id": "srch_04", "name": "Test saved search",              "savedBy": "agent",  "criteria": { "location": "Anytown, ST", "priceMin": 0, "priceMax": 5000000 } },
+    { "id": "srch_05", "name": "Waterfront listings",            "savedBy": "cli_05", "criteria": { "location": "Harborline, ST", "propertyType": "Single Family Residence","priceMin": 1000000, "features": ["waterfront"] } },
+    { "id": "srch_06", "name": "Open houses this weekend",       "savedBy": "cli_06", "criteria": { "location": "Cedar Vale, ST", "openHouseOnly": true } },
+    { "id": "srch_07", "name": "New builds only",                "savedBy": "cli_09", "criteria": { "location": "Summit Grove, ST", "status": ["New", "Coming Soon"], "bedsMin": 4 } },
+    { "id": "srch_08", "name": "Duplex investment",              "savedBy": "cli_08", "criteria": { "location": "Rivertown, ST", "propertyType": "Duplex", "priceMax": 800000 } },
+    { "id": "srch_09", "name": "Price drops",                    "savedBy": "cli_03", "criteria": { "location": "Maple Heights, ST", "status": ["Price Change"] } },
+    { "id": "srch_10", "name": "Big yards + garage",             "savedBy": "cli_10", "criteria": { "location": "Willowmere, ST", "propertyType": "Single Family Residence","parkingMin": 2, "keywords": "large lot" } }
+  ],
+
+  "listings": [
+    { "id": "lst_01", "mlsId": "SAMPLE:900001", "status": "New",          "daysOnMarket": 0,   "price": 615000,  "priceHistory": [],                                  "beds": 2, "bathsFull": 1, "bathsHalf": 0, "sqft": 1015, "parking": "1 garage",       "propertyType": "Single Family Residence", "address": { "line1": "142 Larkspur Ave",     "city": "Rivertown",    "state": "ST", "zip": "00101" }, "photoCount": 39, "openHouse": ["Sat 4-6:30pm"], "primaryPhoto": "https://picsum.photos/seed/home01/800/600" },
+    { "id": "lst_02", "mlsId": "SAMPLE:900002", "status": "New",          "daysOnMarket": 0,   "price": 1130000, "priceHistory": [],                                  "beds": 4, "bathsFull": 2, "bathsHalf": 0, "sqft": 1675, "parking": "2 garage",       "propertyType": "Single Family Residence", "address": { "line1": "58 Blackwood Lane",    "city": "Maple Heights","state": "ST", "zip": "00102" }, "photoCount": 67, "openHouse": ["Sun 3-6pm"],    "primaryPhoto": "https://picsum.photos/seed/home02/800/600" },
+    { "id": "lst_03", "mlsId": "SAMPLE:900003", "status": "Active",       "daysOnMarket": 27,  "price": 450000,  "priceHistory": [{ "price": 499000 }, { "price": 450000 }], "beds": 1, "bathsFull": 1, "bathsHalf": 0, "sqft": 603,  "parking": "1 garage",       "propertyType": "Condominium",             "address": { "line1": "410 3rd St # 202",     "city": "Old Quarter",  "state": "ST", "zip": "00103" }, "photoCount": 31, "openHouse": [],               "primaryPhoto": "https://picsum.photos/seed/home03/800/600" },
+    { "id": "lst_04", "mlsId": "SAMPLE:900004", "status": "New",          "daysOnMarket": 0,   "price": 615000,  "priceHistory": [],                                  "beds": 4, "bathsFull": 2, "bathsHalf": 1, "sqft": 1835, "parking": "1 garage",       "propertyType": "Single Family Residence", "address": { "line1": "3975 Turnley Ct",      "city": "Cedar Vale",   "state": "ST", "zip": "00104" }, "photoCount": 56, "openHouse": [],               "primaryPhoto": "https://picsum.photos/seed/home04/800/600" },
+    { "id": "lst_05", "mlsId": "SAMPLE:900005", "status": "Active",       "daysOnMarket": 0,   "price": 630000,  "priceHistory": [],                                  "beds": 1, "bathsFull": 1, "bathsHalf": 1, "sqft": 1068, "parking": "1 total",        "propertyType": "Condominium",             "address": { "line1": "4902 Bayview # 203",   "city": "Harborline",   "state": "ST", "zip": "00105" }, "photoCount": 33, "openHouse": ["Sat 2-6pm"],    "primaryPhoto": "https://picsum.photos/seed/home05/800/600" },
+    { "id": "lst_06", "mlsId": "SAMPLE:900006", "status": "Price Change", "daysOnMarket": 113, "price": 749888,  "priceHistory": [{ "price": 786000 }, { "price": 749888 }], "beds": 3, "bathsFull": 2, "bathsHalf": 0, "sqft": 1911, "parking": "1 garage",       "propertyType": "Condominium",             "address": { "line1": "1678 Wallace Ave",     "city": "Old Quarter",  "state": "ST", "zip": "00106" }, "photoCount": 28, "openHouse": ["Sun 3:30-5:30pm"],"primaryPhoto": "https://picsum.photos/seed/home06/800/600" },
+    { "id": "lst_07", "mlsId": "SAMPLE:900007", "status": "Price Change", "daysOnMarket": 17,  "price": 1125000, "priceHistory": [{ "price": 1190000 }, { "price": 1125000 }], "beds": 3, "bathsFull": 2, "bathsHalf": 0, "sqft": 2008, "parking": "2 garage",       "propertyType": "Single Family Residence", "address": { "line1": "195 Stanton Way",      "city": "Summit Grove", "state": "ST", "zip": "00107" }, "photoCount": 50, "openHouse": ["Sat 4-6pm"],    "primaryPhoto": "https://picsum.photos/seed/home07/800/600" },
+    { "id": "lst_08", "mlsId": "SAMPLE:900008", "status": "Coming Soon",  "daysOnMarket": 1,   "price": 1899000, "priceHistory": [],                                  "beds": 4, "bathsFull": 2, "bathsHalf": 1, "sqft": 2073, "parking": "2 garage",       "propertyType": "Single Family Residence", "address": { "line1": "34 Salinas Pl",        "city": "Willowmere",   "state": "ST", "zip": "00108" }, "photoCount": 1,  "openHouse": [],               "primaryPhoto": "https://picsum.photos/seed/home08/800/600" },
+    { "id": "lst_09", "mlsId": "SAMPLE:900009", "status": "Price Change", "daysOnMarket": 198, "price": 540000,  "priceHistory": [{ "price": 550000 }, { "price": 540000 }], "beds": 2, "bathsFull": 0, "bathsHalf": 0, "sqft": null, "parking": "—", "units": 2,   "propertyType": "Duplex",                  "address": { "line1": "1442 92nd Court",      "city": "Rivertown",    "state": "ST", "zip": "00109" }, "photoCount": 20, "openHouse": [],               "primaryPhoto": "https://picsum.photos/seed/home09/800/600" },
+    { "id": "lst_10", "mlsId": "SAMPLE:900010", "status": "Closed",       "daysOnMarket": 108, "price": 1000000, "priceHistory": [{ "price": 1200000 }, { "price": 1000000 }], "beds": 4, "bathsFull": 2, "bathsHalf": 0, "sqft": 1776, "parking": "4 total",        "propertyType": "Single Family Residence", "address": { "line1": "155 Sunset Blvd",      "city": "Maple Heights","state": "ST", "zip": "00110" }, "photoCount": 31, "openHouse": [],               "primaryPhoto": "https://picsum.photos/seed/home10/800/600" }
+  ],
+
+  "tours": [
+    { "id": "tour_01", "clientId": "cli_02", "date": "2026-08-15", "startTime": "10:00 AM", "state": "Upcoming", "stopCount": 3, "driveTimeMins": 36,  "walkTimeMins": 785, "stops": [
+      { "order": "A", "listingId": "lst_07", "listingStatus": "Price Change", "address": "3231 Vineyard Ave. # 130", "brokerTour": false, "openHouse": false, "time": "10:00 AM", "tourStatus": "Confirmed", "notes": null, "showingInstructions": null,                                                        "comments": null },
+      { "order": "B", "listingId": "lst_06", "listingStatus": "Price Change", "address": "226 Birch Creek Dr",       "brokerTour": false, "openHouse": false, "time": null,      "tourStatus": "Requested", "notes": null, "showingInstructions": "Text or call listing agent (fictional) at (555) 000-0000.", "comments": null },
+      { "order": "C", "listingId": "lst_04", "listingStatus": "New",          "address": "5649 Castle Dr.",          "brokerTour": false, "openHouse": false, "time": null,      "tourStatus": "No status", "notes": null, "showingInstructions": "Call/text then go.",                                          "comments": null }
+    ] },
+    { "id": "tour_02", "clientId": "cli_01", "date": "2026-08-01", "startTime": "1:00 PM",  "state": "Past", "stopCount": 3, "driveTimeMins": 42, "walkTimeMins": 610, "stops": [
+      { "order": "A", "listingId": "lst_01", "listingStatus": "New",    "address": "142 Larkspur Ave",   "brokerTour": false, "openHouse": true,  "time": "1:00 PM", "tourStatus": "Confirmed", "notes": "Loved the kitchen.", "showingInstructions": "Lockbox on front door.", "comments": "Follow up on HOA fees." },
+      { "order": "B", "listingId": "lst_03", "listingStatus": "Active", "address": "410 3rd St # 202",    "brokerTour": false, "openHouse": false, "time": "2:00 PM", "tourStatus": "Confirmed", "notes": null,                "showingInstructions": "Call agent first.",     "comments": null },
+      { "order": "C", "listingId": "lst_05", "listingStatus": "Active", "address": "4902 Bayview # 203",  "brokerTour": false, "openHouse": true,  "time": "3:00 PM", "tourStatus": "Confirmed", "notes": "Too small.",        "showingInstructions": null,                    "comments": null }
+    ] },
+    { "id": "tour_03", "clientId": "cli_01", "date": "2026-07-31", "startTime": "11:30 AM", "state": "Past", "stopCount": 1, "driveTimeMins": 0,  "walkTimeMins": 0,   "stops": [
+      { "order": "A", "listingId": "lst_02", "listingStatus": "New", "address": "58 Blackwood Lane", "brokerTour": true, "openHouse": false, "time": "11:30 AM", "tourStatus": "Confirmed", "notes": null, "showingInstructions": "Broker tour — no appointment needed.", "comments": null }
+    ] },
+    { "id": "tour_04", "clientId": "cli_02", "date": "2026-07-15", "startTime": "9:00 AM",  "state": "Past", "stopCount": 2, "driveTimeMins": 18, "walkTimeMins": 240, "stops": [
+      { "order": "A", "listingId": "lst_08", "listingStatus": "Coming Soon", "address": "34 Salinas Pl",   "brokerTour": false, "openHouse": false, "time": "9:00 AM",  "tourStatus": "Confirmed", "notes": null, "showingInstructions": "Preview only.", "comments": null },
+      { "order": "B", "listingId": "lst_07", "listingStatus": "Price Change","address": "195 Stanton Way", "brokerTour": false, "openHouse": false, "time": "10:15 AM", "tourStatus": "Requested", "notes": null, "showingInstructions": null,             "comments": null }
+    ] },
+    { "id": "tour_05", "clientId": "cli_02", "date": "2026-06-05", "startTime": "4:00 PM",  "state": "Past", "stopCount": 1, "driveTimeMins": 0,  "walkTimeMins": 0,   "stops": [
+      { "order": "A", "listingId": "lst_10", "listingStatus": "Closed", "address": "155 Sunset Blvd", "brokerTour": false, "openHouse": false, "time": "4:00 PM", "tourStatus": "Confirmed", "notes": "Ended up buying this one.", "showingInstructions": null, "comments": null }
+    ] },
+    { "id": "tour_06", "clientId": "cli_05", "date": "2026-05-15", "startTime": null,       "state": "Past", "stopCount": 0, "driveTimeMins": 0,  "walkTimeMins": 0,   "stops": [] },
+    { "id": "tour_07", "clientId": "cli_09", "date": "2026-08-22", "startTime": "10:00 AM", "state": "Upcoming", "stopCount": 2, "driveTimeMins": 25, "walkTimeMins": 300, "stops": [
+      { "order": "A", "listingId": "lst_02", "listingStatus": "New",          "address": "58 Blackwood Lane", "brokerTour": false, "openHouse": true,  "time": "10:00 AM", "tourStatus": "Requested", "notes": null, "showingInstructions": null, "comments": null },
+      { "order": "B", "listingId": "lst_06", "listingStatus": "Price Change", "address": "1678 Wallace Ave",  "brokerTour": false, "openHouse": false, "time": null,       "tourStatus": "No status", "notes": null, "showingInstructions": null, "comments": null }
+    ] },
+    { "id": "tour_08", "clientId": "cli_03", "date": "2026-08-09", "startTime": "2:30 PM",  "state": "Upcoming", "stopCount": 1, "driveTimeMins": 0, "walkTimeMins": 0, "stops": [
+      { "order": "A", "listingId": "lst_09", "listingStatus": "Price Change", "address": "1442 92nd Court", "brokerTour": false, "openHouse": false, "time": "2:30 PM", "tourStatus": "Requested", "notes": null, "showingInstructions": "Investment property — tenant occupied.", "comments": null }
+    ] },
+    { "id": "tour_09", "clientId": "cli_06", "date": "2026-04-12", "startTime": "12:00 PM", "state": "Past", "stopCount": 2, "driveTimeMins": 30, "walkTimeMins": 200, "stops": [
+      { "order": "A", "listingId": "lst_01", "listingStatus": "New",    "address": "142 Larkspur Ave",  "brokerTour": false, "openHouse": false, "time": "12:00 PM", "tourStatus": "Confirmed", "notes": null, "showingInstructions": null, "comments": null },
+      { "order": "B", "listingId": "lst_04", "listingStatus": "New",    "address": "3975 Turnley Ct",   "brokerTour": false, "openHouse": false, "time": "1:15 PM",  "tourStatus": "Confirmed", "notes": null, "showingInstructions": null, "comments": null }
+    ] },
+    { "id": "tour_10", "clientId": "cli_10", "date": "2026-08-30", "startTime": "9:30 AM",  "state": "Upcoming", "stopCount": 1, "driveTimeMins": 0, "walkTimeMins": 0, "stops": [
+      { "order": "A", "listingId": "lst_07", "listingStatus": "Price Change", "address": "195 Stanton Way", "brokerTour": false, "openHouse": false, "time": "9:30 AM", "tourStatus": "No status", "notes": null, "showingInstructions": "Large lot — allow extra time.", "comments": null }
+    ] }
+  ],
+
+  "homeImageLibrary": [
+    { "id": "img_01", "label": "Craftsman bungalow",     "url": "https://picsum.photos/seed/home01/800/600", "thumb": "https://picsum.photos/seed/home01/300/200" },
+    { "id": "img_02", "label": "Two-story colonial",     "url": "https://picsum.photos/seed/home02/800/600", "thumb": "https://picsum.photos/seed/home02/300/200" },
+    { "id": "img_03", "label": "Downtown condo",         "url": "https://picsum.photos/seed/home03/800/600", "thumb": "https://picsum.photos/seed/home03/300/200" },
+    { "id": "img_04", "label": "Suburban family home",   "url": "https://picsum.photos/seed/home04/800/600", "thumb": "https://picsum.photos/seed/home04/300/200" },
+    { "id": "img_05", "label": "Modern townhouse",       "url": "https://picsum.photos/seed/home05/800/600", "thumb": "https://picsum.photos/seed/home05/300/200" },
+    { "id": "img_06", "label": "Mid-rise condo",         "url": "https://picsum.photos/seed/home06/800/600", "thumb": "https://picsum.photos/seed/home06/300/200" },
+    { "id": "img_07", "label": "Ranch with garage",      "url": "https://picsum.photos/seed/home07/800/600", "thumb": "https://picsum.photos/seed/home07/300/200" },
+    { "id": "img_08", "label": "New construction",       "url": "https://picsum.photos/seed/home08/800/600", "thumb": "https://picsum.photos/seed/home08/300/200" },
+    { "id": "img_09", "label": "Duplex",                 "url": "https://picsum.photos/seed/home09/800/600", "thumb": "https://picsum.photos/seed/home09/300/200" },
+    { "id": "img_10", "label": "Corner-lot home",        "url": "https://picsum.photos/seed/home10/800/600", "thumb": "https://picsum.photos/seed/home10/300/200" },
+    { "id": "img_11", "label": "Cottage",                "url": "https://picsum.photos/seed/home11/800/600", "thumb": "https://picsum.photos/seed/home11/300/200" },
+    { "id": "img_12", "label": "Contemporary build",     "url": "https://picsum.photos/seed/home12/800/600", "thumb": "https://picsum.photos/seed/home12/300/200" },
+    { "id": "img_13", "label": "Brick row house",        "url": "https://picsum.photos/seed/home13/800/600", "thumb": "https://picsum.photos/seed/home13/300/200" },
+    { "id": "img_14", "label": "Lakeside home",          "url": "https://picsum.photos/seed/home14/800/600", "thumb": "https://picsum.photos/seed/home14/300/200" },
+    { "id": "img_15", "label": "Farmhouse",              "url": "https://picsum.photos/seed/home15/800/600", "thumb": "https://picsum.photos/seed/home15/300/200" }
+  ]
+}
