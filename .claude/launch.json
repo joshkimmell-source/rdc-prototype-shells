@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "agent-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "agent-web", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}
