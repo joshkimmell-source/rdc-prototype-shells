@@ -1,0 +1,3 @@
+@layer reset, base, tokens, recipes, utilities;
+
+@import '@rdc-npm/rdc-ui-v4/rdc-globals.min.css' layer(reset);

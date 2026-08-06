@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tour — Josh Kimmell</title>
+<link rel="stylesheet" href="haven/colors_and_type.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<style>
+  html, body { margin:0; height:100%; background:#FFFFFF; font-family:var(--font-body, 'Mulish', sans-serif); color:#1A1816; }
+  body { display:flex; flex-direction:column; overflow:hidden; }
+  a { color:#1A1816; } a:hover { color:#D92228; }
+  .hdr { display:flex; align-items:flex-start; gap:8px; padding:16px 24px 0; flex:none; }
+  .hdr h1 { margin:0; font-family:var(--font-display); font-weight:700; font-size:22px; line-height:26px; letter-spacing:-0.02em; }
+  .hdr .date { font-size:14px; font-weight:800; margin-top:14px; }
+  .iconbtn { width:36px; height:36px; flex:none; border-radius:50%; border:1px solid #D3CFCA; background:#FFFFFF; color:#1A1816; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:box-shadow 120ms; }
+  .iconbtn:hover { box-shadow:0 1px 4px rgba(26,24,22,0.16); }
+  .pill { display:flex; align-items:center; gap:8px; height:36px; border-radius:40px; padding:0 16px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; transition:box-shadow 120ms; }
+  .pill:hover { box-shadow:0 2px 8px rgba(26,24,22,0.2); }
+  .pill.light { border:1px solid #D3CFCA; background:#FFFFFF; color:#1A1816; }
+  .pill.dark { border:none; background:#1A1816; color:#FFFFFF; }
+  .seg { display:flex; align-items:center; justify-content:flex-end; padding:4px 24px 8px; flex:none; }
+  .segwrap { display:inline-flex; background:var(--gray-100,#F2F0EF); border-radius:9999px; padding:4px; }
+  .segbtn { border:none; background:transparent; color:#1A1816; font-family:inherit; font-size:14px; font-weight:600; height:32px; padding:0 16px; border-radius:9999px; cursor:pointer; transition:background 120ms, box-shadow 120ms; }
+  .segbtn:not(.on):hover { background:rgba(0,0,0,0.04); }
+  .segbtn.on { background:#FFFFFF; box-shadow:var(--shadow-raised, 0 1px 3px rgba(26,24,22,0.16)); }
+  #content { flex:1; min-height:0; display:flex; flex-direction:column; }
+  #content.horizontal { flex-direction:row; }
+  #pane { display:flex; flex-direction:column; flex:none; }
+  #content.horizontal #pane { width:52%; min-width:0; overflow:auto; border-right:1px solid #E9E7E4; }
+  .tblwrap { overflow-x:auto; padding:0 24px; }
+  table { border-collapse:collapse; width:100%; min-width:1080px; }
+  th { text-align:left; font-size:12px; font-weight:800; padding:10px 10px; border-bottom:1px solid #E9E7E4; white-space:nowrap; }
+  td { font-size:13px; font-weight:600; padding:14px 10px; border-bottom:1px solid #E9E7E4; white-space:nowrap; }
+  td.dim, th.dim { color:#958A7F; }
+  .notelink { color:#D92228; font-weight:700; text-decoration:none; cursor:pointer; }
+  .notelink:hover { text-decoration:underline; }
+  .statussel { display:inline-flex; align-items:center; gap:8px; cursor:pointer; }
+  .rowbtn { border:none; background:transparent; color:#1A1816; cursor:pointer; padding:2px; display:inline-flex; }
+  .midrow { display:flex; align-items:center; gap:10px; padding:10px 24px 12px; flex:none; position:relative; }
+  .midrow .links { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:700; }
+  .midrow a { text-decoration:underline; text-underline-offset:3px; }
+  .expander { position:absolute; left:50%; top:-16px; transform:translateX(-50%); width:36px; height:36px; border-radius:50%; border:1px solid #D3CFCA; background:#FFFFFF; color:#1A1816; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 1px 4px rgba(26,24,22,0.16); }
+  .commute { margin-left:auto; display:flex; align-items:center; gap:14px; }
+  .commute .drive { display:flex; align-items:center; gap:8px; border:1px solid #D3CFCA; border-radius:40px; height:32px; padding:0 14px; font-size:12px; font-weight:700; background:#FFFFFF; }
+  .commute .walk { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; }
+  #mapwrap { flex:1; min-height:0; position:relative; }
+  #map { position:absolute; inset:0; }
+  .overlay { position:absolute; z-index:800; }
+  .showroute { top:16px; left:16px; }
+  .optimize { top:16px; right:16px; }
+  .layersbtn { right:16px; bottom:24px; height:40px; border-radius:8px; border:1px solid #D3CFCA; background:#FFFFFF; color:#1A1816; font-family:inherit; font-size:14px; font-weight:700; display:flex; align-items:center; gap:8px; padding:0 14px; cursor:pointer; box-shadow:0 1px 4px rgba(26,24,22,0.16); }
+  .leaflet-tile-pane { filter:saturate(0.55) brightness(1.04) contrast(0.94); }
+  .stop-pin { background:transparent; border:none; }
+  .stop-pin .sq { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:6px; background:#1A1816; color:#FFFFFF; font-family:var(--font-body,'Mulish',sans-serif); font-weight:800; font-size:12px; box-shadow:0 1px 4px rgba(26,24,22,0.4); border:2px solid #FFFFFF; transform:translate(-50%,-50%); }
+  .leaflet-control-zoom { border:none !important; box-shadow:none !important; display:flex; flex-direction:column; gap:8px; margin-right:16px !important; margin-bottom:80px !important; }
+  .leaflet-control-zoom a { width:36px !important; height:36px !important; line-height:34px !important; border-radius:50% !important; border:1px solid #D3CFCA !important; background:#FFFFFF !important; color:#1A1816 !important; font-weight:600; box-shadow:0 1px 4px rgba(26,24,22,0.16); }
+</style>
+</head>
+<body>
+  <div class="hdr">
+    <div style="flex:1;">
+      <h1>Josh Kimmell</h1>
+      <div class="date">Sat, Aug 1 '26</div>
+    </div>
+    <button class="iconbtn" aria-label="More">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
+    </button>
+    <button class="pill light">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+      Export
+    </button>
+    <button class="pill dark">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"></path></svg>
+      Add to calendar
+    </button>
+  </div>
+  <div class="seg">
+    <div class="segwrap">
+    <button class="segbtn on" id="segV">Vertical</button>
+    <button class="segbtn" id="segH">Horizontal</button>
+    </div>
+  </div>
+  <div id="content">
+    <div id="pane">
+      <div class="tblwrap">
+        <table>
+          <thead>
+            <tr><th>Move</th><th>Order</th><th>Status</th><th>D/S</th><th>Address</th><th>Broker tour</th><th>Open house</th><th>Time</th><th>Tour status</th><th>Notes</th><th>Showing instructions</th><th>Comments</th><th>Remove</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="midrow">
+        <button class="expander" aria-label="Expand table">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6 4-4 4 4"></path><path d="m8 18 4 4 4-4"></path><path d="M4 12h16"></path></svg>
+        </button>
+        <div class="links"><a href="#" onclick="return false">Add listing</a><span style="color:#958A7F;">·</span><a href="#" onclick="return false">Add a stop</a></div>
+        <div class="commute">
+          <span class="drive">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><path d="M9 17h6"></path><circle cx="17" cy="17" r="2"></circle></svg>
+            23 min
+          </span>
+          <span class="walk">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"></circle><path d="m13 7-2 5 3 3v6"></path><path d="m9 12-2 2 1 6"></path><path d="M14 10.5 17 12l2-1"></path></svg>
+            <a href="#" onclick="return false">2 hrs 49 mins</a>
+          </span>
+        </div>
+      </div>
+    </div>
+    <div id="mapwrap">
+      <div id="map"></div>
+      <button class="overlay pill dark showroute">Show route</button>
+      <button class="overlay pill light optimize">Optimize</button>
+      <button class="overlay layersbtn">Layers
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5Z"></path><path d="m3 12 9 5 9-5"></path><path d="m3 17 9 5 9-5"></path></svg>
+      </button>
+    </div>
+  </div>
+<script>
+  const STOPS = [
+    { order: 'A', status: 'Sold',    addr: '8232 Tanforan Ct',  ll: [37.5288, -122.0532] },
+    { order: 'B', status: 'Active',  addr: '5579 Ridgewood Dr', ll: [37.5568, -122.0478] },
+    { order: 'C', status: 'Pending', addr: '5613 Abington Ct',  ll: [37.5462, -122.0421] }
+  ];
+  const dim = '<span style="color:#958A7F;">\u2014</span>';
+  document.getElementById('rows').innerHTML = STOPS.map(s =>
+    '<tr>' +
+    '<td><button class="rowbtn" aria-label="Move"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></td>' +
+    '<td>' + s.order + '</td>' +
+    '<td>' + s.status + '</td>' +
+    '<td>' + dim + '</td>' +
+    '<td>' + s.addr + '</td>' +
+    '<td>' + dim + '</td>' +
+    '<td>' + dim + '</td>' +
+    '<td class="dim">-- : -- &nbsp;--</td>' +
+    '<td><span class="statussel">No status <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></span></td>' +
+    '<td><a class="notelink">Add note</a></td>' +
+    '<td>' + dim + '</td>' +
+    '<td>' + dim + '</td>' +
+    '<td><button class="rowbtn" aria-label="Remove"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="m9 9 6 6M15 9l-6 6"></path></svg></button></td>' +
+    '</tr>').join('');
+  const map = L.map('map', { zoomControl: false });
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  STOPS.forEach(s => {
+    const icon = L.divIcon({ className: 'stop-pin', html: '<span class="sq">' + s.order + '</span>', iconSize: [0, 0] });
+    L.marker(s.ll, { icon }).addTo(map).bindPopup('<b>' + s.addr + '</b><br>Newark, CA');
+  });
+  map.fitBounds(L.latLngBounds(STOPS.map(s => s.ll)).pad(0.35));
+  let routeLayer = null;
+  function drawFallback() {
+    routeLayer = L.polyline(STOPS.map(s => s.ll), { color: '#6B7F9E', weight: 5, opacity: 0.85, dashArray: '8 8' }).addTo(map);
+  }
+  // Real driving route via OSRM public routing (falls back to straight legs if unreachable)
+  fetch('https://router.project-osrm.org/route/v1/driving/' + STOPS.map(s => s.ll[1] + ',' + s.ll[0]).join(';') + '?overview=full&geometries=geojson')
+    .then(r => r.json())
+    .then(d => {
+      if (d.routes && d.routes[0]) {
+        routeLayer = L.geoJSON(d.routes[0].geometry, { style: { color: '#6B7F9E', weight: 6, opacity: 0.9 } }).addTo(map);
+        map.fitBounds(routeLayer.getBounds().pad(0.2));
+      } else drawFallback();
+    })
+    .catch(drawFallback);
+  document.getElementById('segV').addEventListener('click', () => setLayout(false));
+  document.getElementById('segH').addEventListener('click', () => setLayout(true));
+  function setLayout(horizontal) {
+    document.getElementById('content').classList.toggle('horizontal', horizontal);
+    document.getElementById('segV').classList.toggle('on', !horizontal);
+    document.getElementById('segH').classList.toggle('on', horizontal);
+    setTimeout(() => map.invalidateSize(), 240);
+  }
+</script>
+</body>
+</html>

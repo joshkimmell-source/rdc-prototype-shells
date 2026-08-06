@@ -1,0 +1,85 @@
+/* Ported verbatim from the <helmet> block of ContentOrchestrationShell.dc.html */
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family: 'Galano Grotesque Alt', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f8f7f7;
+  color: #1a1816;
+}
+
+a {
+  color: #1a1816;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #d92228;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+}
+
+input {
+  font-family: inherit;
+}
+
+::selection {
+  background: #fee2e3;
+}
+
+@keyframes raPulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ra-fab,
+.ra-fab * {
+  color: #ffffff;
+}
+
+/* Haven type utility the DC file leans on for stat values (numeric body 100). */
+.ty-numeric-body100 {
+  font-family: 'Galano Grotesque Alt', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.ty-numeric-caption100 {
+  font-family: 'Galano Grotesque Alt', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thin scrollbars inside the shell's scrolling regions. */
+.ra-scroll {
+  scrollbar-width: thin;
+}
+
+.ra-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ra-scroll::-webkit-scrollbar-thumb {
+  background: #d3cfca;
+  border-radius: 8px;
+}
+
+.ra-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}

@@ -1,0 +1,7 @@
+# The @rdc-npm scope (Haven design system, `@rdc-npm/rdc-ui-v4`) resolves from an
+# internal Artifactory registry. Copy this file to `agent-web/.npmrc` (and the other
+# app dirs) and fill in the registry URL, then run `npm install` on the VPN.
+#
+# The real .npmrc is gitignored because it names internal infrastructure. It holds no
+# credentials — auth comes from your own npm login / VPN session.
+@rdc-npm:registry=https://<internal-artifactory-host>/artifactory/api/npm/rdc-npm/
