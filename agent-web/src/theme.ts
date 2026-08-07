@@ -53,6 +53,21 @@ export const C = {
   timestamp: '#757575',
 } as const
 
+/**
+ * The RealAssist+ brand gradient, shared by the floating FAB and the action bar's primary
+ * action — the two placements the `?ab=` test compares. Defined once so the control reads
+ * as the same thing in a different position rather than as two different buttons.
+ */
+export const BRAND_GRADIENT =
+  'linear-gradient(-29.445deg, rgb(194,41,138) 8.38%, rgb(240,67,73) 49.20%, rgb(217,34,40) 101.69%)'
+
+/**
+ * The same stops turned along a wide pill's long axis. The FAB's steep angle is tuned for a
+ * 56px circle and bands visibly across a 190px pill, so only the angle differs.
+ */
+export const BRAND_GRADIENT_PILL =
+  'linear-gradient(95deg, rgb(240,67,73) 0%, rgb(217,34,40) 62%, rgb(194,41,138) 150%)'
+
 /** The shell's single easing curve, used on every width/margin/transform transition. */
 export const EASE = 'cubic-bezier(0.2,0.8,0.2,1)'
 export const PANEL_TRANSITION = `220ms ${EASE}`

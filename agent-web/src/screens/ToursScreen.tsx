@@ -2,16 +2,26 @@
  * Tours: the Leaflet tour-route page from public/tours-map.html, with the subnav
  * re-open affordance that only appears once the subnav has been closed.
  */
+import { useRef } from 'react'
 import { C } from '../theme'
 import { HoverButton } from '../components/primitives'
 import { IconHamburger } from '../icons'
+import { withAbParam, type AbVariant } from '../abParam'
+import { useAskVisibility } from '../askBridge'
 
 interface ToursScreenProps {
   showSubnavButton: boolean
   onOpenSubnav: () => void
+  /** Forwarded into the iframe, which renders its own action bar under `?ab=b`. */
+  variant: AbVariant
+  /** Posted into the frame so its Ask button can hide while the panel is open. */
+  askOpen: boolean
 }
 
-export function ToursScreen({ showSubnavButton, onOpenSubnav }: ToursScreenProps) {
+export function ToursScreen({ showSubnavButton, onOpenSubnav, variant, askOpen }: ToursScreenProps) {
+  const frameRef = useRef<HTMLIFrameElement>(null)
+  const postAskVisible = useAskVisibility(frameRef, !askOpen)
+
   return (
     <div
       data-screen-label="Tours"
@@ -50,8 +60,10 @@ export function ToursScreen({ showSubnavButton, onOpenSubnav }: ToursScreenProps
         </div>
       )}
       <iframe
-        src="tours-map.html"
+        ref={frameRef}
+        src={withAbParam('tours-map.html', variant)}
         title="Tour route"
+        onLoad={postAskVisible}
         style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
       />
     </div>
