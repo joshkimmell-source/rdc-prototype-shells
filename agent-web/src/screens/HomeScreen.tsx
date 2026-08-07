@@ -94,6 +94,8 @@ function AskButton({ onClick, label }: { onClick: () => void; label: string }) {
 }
 
 interface HomeScreenProps {
+  /** Below the mobile breakpoint: tighter gutters, and the stage filters become a row. */
+  mobile: boolean
   stats: StatItem[]
   tours: UpcomingTour[]
   needs: NeedItem[]
@@ -105,6 +107,7 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({
+  mobile,
   stats,
   tours,
   needs,
@@ -118,12 +121,19 @@ export function HomeScreen({
     <div
       data-screen-label="Home"
       className="ra-scroll"
-      style={{ flex: 1, minHeight: 0, overflow: 'auto', margin: '4px 24px 24px' }}
+      style={{
+        flex: 1,
+        minHeight: 0,
+        overflow: 'auto',
+        margin: mobile ? '4px 16px 16px' : '4px 24px 24px',
+      }}
     >
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4,minmax(140px,1fr))',
+          // `auto-fit` with a 120px floor: four equal columns wherever they fit, dropping
+          // to two at phone width instead of forcing a 560px minimum track.
+          gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))',
           gap: 12,
           marginBottom: 16,
         }}
@@ -141,7 +151,9 @@ export function HomeScreen({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))',
+          // `min(320px, 100%)` rather than a bare 320px: below that the minimum track
+          // would be wider than the container and the cards would overflow it.
+          gridTemplateColumns: 'repeat(auto-fit,minmax(min(320px,100%),1fr))',
           gap: 12,
           marginBottom: 20,
         }}
@@ -160,8 +172,8 @@ export function HomeScreen({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 14,
-                padding: '12px 16px',
+                gap: mobile ? 10 : 14,
+                padding: mobile ? '12px' : '12px 16px',
                 borderBottom: `1px solid ${C.alt}`,
                 cursor: 'pointer',
                 transition: 'background 120ms',
@@ -170,7 +182,14 @@ export function HomeScreen({
             >
               <div
                 className="ty-numeric-caption100"
-                style={{ width: 104, flex: 'none', fontSize: 12, fontWeight: 600, color: C.sub, lineHeight: 1.4 }}
+                style={{
+                  width: mobile ? 76 : 104,
+                  flex: 'none',
+                  fontSize: mobile ? 11.5 : 12,
+                  fontWeight: 600,
+                  color: C.sub,
+                  lineHeight: 1.4,
+                }}
               >
                 {t.when}
               </div>
@@ -203,7 +222,8 @@ export function HomeScreen({
                   textUnderlineOffset: 3,
                 }}
               >
-                View tour
+                {/* The whole row is the target; on mobile the chevron carries it alone. */}
+                {!mobile && 'View tour'}
                 <IconChevronRight size={11} />
               </span>
             </HoverDiv>
@@ -241,8 +261,33 @@ export function HomeScreen({
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-        <div style={{ width: 200, flex: 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: mobile ? 'column' : 'row',
+          gap: mobile ? 12 : 16,
+          alignItems: 'flex-start',
+        }}
+      >
+        {/*
+          A 200px column beside a 720px table needs 936px. On mobile the filters become a
+          horizontally scrolling pill row above the table instead of being dropped.
+        */}
+        <div
+          className={mobile ? 'ra-scroll' : undefined}
+          style={
+            mobile
+              ? {
+                  width: '100%',
+                  flex: 'none',
+                  display: 'flex',
+                  gap: 6,
+                  overflowX: 'auto',
+                  paddingBottom: 4,
+                }
+              : { width: 200, flex: 'none', display: 'flex', flexDirection: 'column', gap: 2 }
+          }
+        >
           {stageItems.map((st) => (
             <HoverButton
               key={st.id}
@@ -254,6 +299,7 @@ export function HomeScreen({
                 height: 36,
                 flex: 'none',
                 padding: '0 12px',
+                whiteSpace: 'nowrap',
                 borderRadius: 40,
                 border: `1px solid ${st.active ? C.border : 'transparent'}`,
                 background: st.active ? C.alt : 'transparent',
@@ -274,7 +320,15 @@ export function HomeScreen({
           ))}
         </div>
 
-        <div className="ra-scroll" style={{ flex: 1, minWidth: 0, overflowX: 'auto' }}>
+        {/*
+          The table keeps its 720px floor and scrolls sideways — six columns of client
+          data do not reflow into a phone, and `alignItems: flex-start` would otherwise let
+          this wrapper size to that content and overflow the screen.
+        */}
+        <div
+          className="ra-scroll"
+          style={{ flex: 1, minWidth: 0, width: mobile ? '100%' : undefined, overflowX: 'auto' }}
+        >
           <div style={{ ...CARD, minWidth: 720 }}>
             <div
               style={{

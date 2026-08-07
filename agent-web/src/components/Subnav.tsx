@@ -1,6 +1,9 @@
 /**
  * Collapsible second-level nav. Present on Clients and Tours only; animates its outer
  * width to 0 while the inner column stays at full width, so content slides rather than reflows.
+ *
+ * With `drawerMax` set (mobile, <=768px) it leaves the flow and slides in over `main`
+ * instead, capped so a strip of scrim stays tappable beside it.
  */
 import { C, EASE } from '../theme'
 import { CircleButton, EmptyNote, Heading, HoverButton, Initials, SearchField, Tab } from './primitives'
@@ -10,6 +13,8 @@ import type { Buyer, TourListItem } from '../data'
 interface SubnavProps {
   open: boolean
   width: number
+  /** Present below the mobile breakpoint: renders as a left overlay drawer this wide. */
+  drawerMax?: number
   variant: 'clients' | 'tours' | null
   onClose: () => void
 
@@ -66,23 +71,43 @@ const ROW = {
 } as const
 
 export function Subnav(props: SubnavProps) {
-  const { open, width, variant, onClose } = props
-  const outerW = variant && open ? width : 0
+  const { open, width, drawerMax, variant, onClose } = props
+  const shown = !!variant && open
+  const outerW = shown ? width : 0
+
+  // Drawer: full width up to the cap, sliding in over `main` rather than reserving a
+  // column. `visibility` keeps it out of the tab order while off-canvas, flipping
+  // immediately on the way in and only after the slide-out on the way back.
+  const drawerStyle = drawerMax
+    ? ({
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        bottom: 0,
+        zIndex: 45,
+        width: `min(100%, ${drawerMax}px)`,
+        transform: `translateX(${shown ? 0 : -100}%)`,
+        visibility: shown ? 'visible' : 'hidden',
+        transition: `transform 220ms ${EASE}, visibility 0s linear ${shown ? 0 : 220}ms`,
+        boxShadow: shown ? '2px 0 16px rgba(26,24,22,0.18)' : 'none',
+      } as const)
+    : ({ width: outerW, transition: `width 220ms ${EASE}` } as const)
 
   return (
     <div
       style={{
-        width: outerW,
-        transition: `width 220ms ${EASE}`,
         flex: 'none',
         overflow: 'hidden',
         background: C.alt,
         display: 'flex',
+        ...drawerStyle,
       }}
     >
       <div
         style={{
-          width,
+          // In flow the inner column keeps its full width so the content slides out of a
+          // shrinking frame; as a drawer the frame is already the target width.
+          width: drawerMax ? '100%' : width,
           flex: 'none',
           display: 'flex',
           flexDirection: 'column',

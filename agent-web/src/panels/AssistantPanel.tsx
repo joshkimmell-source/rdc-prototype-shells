@@ -30,6 +30,17 @@ export interface Msg {
 interface AssistantPanelProps {
   /** 0 when closed; pushWidth when docked; calc(100% - 64px) when expanded. */
   width: string
+  /**
+   * Drives `visibility`, so the closed panel leaves the tab order and the a11y tree
+   * instead of sitting there as a zero-width strip of focusable controls — which at mobile
+   * width would be a whole hidden screen of them.
+   */
+  open: boolean
+  /**
+   * Below the mobile breakpoint the panel is a full-screen overlay: there is no room
+   * beside it to expand into, and no docked width for the drag handle to set.
+   */
+  mobile?: boolean
   expanded: boolean
   /** Threads showing — as an inline dock when expanded, as an overlay when not. */
   over: boolean
@@ -284,6 +295,8 @@ function BusyBubble() {
 
 export function AssistantPanel({
   width,
+  open,
+  mobile = false,
   expanded,
   over,
   resize,
@@ -316,8 +329,13 @@ export function AssistantPanel({
         bottom: 0,
         zIndex: 20,
         width,
+        // Held visible until the close transition ends, so the panel animates out rather
+        // than vanishing, then drops out of the tab order and the a11y tree.
+        visibility: open ? 'visible' : 'hidden',
         // No easing mid-drag: the edge has to sit under the pointer, not chase it.
-        transition: resizing ? 'none' : `width 220ms ${EASE}`,
+        transition: resizing
+          ? 'none'
+          : `width 220ms ${EASE}, visibility 0s linear ${open ? 0 : 220}ms`,
         overflow: 'hidden',
         background: C.canvas,
         display: 'flex',
@@ -365,7 +383,14 @@ export function AssistantPanel({
             overflow: 'hidden',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 16px 12px 20px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: mobile ? 4 : 10,
+              padding: mobile ? '12px 8px 10px 12px' : '16px 16px 12px 20px',
+            }}
+          >
             <CircleButton
               onClick={onToggleOver}
               hoverBg={C.hair}
@@ -382,20 +407,31 @@ export function AssistantPanel({
                 style={{ height: 28.6, display: 'block', flex: 'none' }}
               />
             </div>
-            <CircleButton
-              onClick={onToggleExpand}
-              hoverBg={C.hair}
-              aria-label={expanded ? 'Collapse panel' : 'Expand panel'}
-              title={expanded ? 'Collapse panel' : 'Expand panel'}
-            >
-              {expanded ? <IconCollapsePanel /> : <IconExpandPanel />}
-            </CircleButton>
+            {/* Nothing to expand into on mobile — the panel already fills the viewport. */}
+            {!mobile && (
+              <CircleButton
+                onClick={onToggleExpand}
+                hoverBg={C.hair}
+                aria-label={expanded ? 'Collapse panel' : 'Expand panel'}
+                title={expanded ? 'Collapse panel' : 'Expand panel'}
+              >
+                {expanded ? <IconCollapsePanel /> : <IconExpandPanel />}
+              </CircleButton>
+            )}
             <CircleButton onClick={onClose} hoverBg={C.hair} aria-label="Close panel" title="Close panel">
               <IconClose />
             </CircleButton>
           </div>
 
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 16px 16px' }}>
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              padding: mobile ? '0 12px 12px' : '0 16px 16px',
+            }}
+          >
             <div ref={chatRef} className="ra-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
               <div
                 style={{
@@ -478,7 +514,9 @@ export function AssistantPanel({
                       {!!m.text && (
                         <div
                           style={{
-                            maxWidth: user ? 322 : '88%',
+                            // The user bubble's 322px ceiling has to yield on a narrow
+                            // panel, or its 24px side padding pushes the text out.
+                            maxWidth: user ? 'min(322px, 88%)' : '88%',
                             background: user ? C.userBubble : C.white,
                             color: C.dark,
                             border: `1px solid ${user ? 'transparent' : C.hair}`,

@@ -1,6 +1,12 @@
 import React, { useState } from 'react'
 import { Search, PropertyCard, StatusBadge, SaveButton, Nav, Button, Chip, Avatar, ContentSwitch, Link } from '@rdc-npm/rdc-ui-v4'
 import { FilterDrawer, DEFAULT_FILTERS, type FilterState } from './FilterDrawer'
+import {
+  listings as SAMPLE_LISTINGS,
+  searchLocation,
+  resultCount,
+  initialSavedIds,
+} from './data/sample/adapters'
 import { IconHeart, IconFilter, IconChevronDown, IconCashReward } from '@rdc-npm/rdc-ui-v4/illustrations'
 import { css } from 'styled-system/css'
 import { hstack, vstack } from 'styled-system/patterns'
@@ -28,59 +34,6 @@ function PlaceholderContent({ label }: { label: string }) {
   )
 }
 
-// ─── Sample listing data ──────────────────────────────────────────────────────
-
-const SAMPLE_LISTINGS = [
-  {
-    id: '1',
-    address1: '2847 Maple Grove Ave',
-    address2: 'Austin, TX 78701',
-    price: 485000,
-    beds: 3,
-    baths: 2,
-    sqft: 1842,
-    daysOnMarket: 4,
-    status: 'For sale' as const,
-    photo: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400&h=267&fit=crop',
-  },
-  {
-    id: '2',
-    address1: '1204 Westlake Drive',
-    address2: 'Austin, TX 78746',
-    price: 672000,
-    beds: 4,
-    baths: 3,
-    sqft: 2310,
-    daysOnMarket: 12,
-    status: 'For sale' as const,
-    photo: 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400&h=267&fit=crop',
-  },
-  {
-    id: '3',
-    address1: '920 Riverside Blvd #8B',
-    address2: 'Austin, TX 78704',
-    price: 329000,
-    beds: 2,
-    baths: 2,
-    sqft: 1150,
-    daysOnMarket: 7,
-    status: 'Pending' as const,
-    photo: 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400&h=267&fit=crop',
-  },
-  {
-    id: '4',
-    address1: '5512 Bluebonnet Trail',
-    address2: 'Austin, TX 78759',
-    price: 548500,
-    beds: 3,
-    baths: 2.5,
-    sqft: 2050,
-    daysOnMarket: 21,
-    status: 'For sale' as const,
-    photo: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=267&fit=crop',
-  },
-]
-
 // ─── realtor.com logo ─────────────────────────────────────────────────────────
 
 function RealtorLogo() {
@@ -99,7 +52,7 @@ function RealtorLogo() {
 
 export default function Shell() {
   const [activeNav, setActiveNav] = useState('buy')
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set(['2']))
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set(initialSavedIds))
   const [searchValue, setSearchValue] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS)
@@ -211,7 +164,7 @@ export default function Shell() {
           <div className={css({ flex: '1', minW: { base: 'full', sm: '0' }, maxW: { sm: '720px' } })}>
             <Search
               size="inline"
-              placeholder='Try "3 bedrooms with wood floors in Austin"'
+              placeholder={`Try "3 bedrooms with wood floors in ${searchLocation.split(',')[0]}"`}
               value={searchValue}
               sections={[]}
               onInputChange={(val) => setSearchValue(val)}
@@ -266,13 +219,15 @@ export default function Shell() {
 
         {/* Page heading */}
         <h1 className={css({ textStyle: 'headingMd', fontWeight: 'bold', mb: '300' })}>
-          Austin, TX homes for sale & real estate
+          {searchLocation} homes for sale &amp; real estate
         </h1>
 
         {/* Results meta row */}
         <div className={hstack({ justifyContent: 'space-between', mb: '500', alignItems: 'center', flexWrap: 'wrap', gap: '300' })}>
           <div className={hstack({ gap: '400', alignItems: 'center' })}>
-            <span className={css({ textStyle: 'bodySm', color: 'text.base', fontWeight: 'medium' })}>343 Homes</span>
+            <span className={css({ textStyle: 'bodySm', color: 'text.base', fontWeight: 'medium' })}>
+              {resultCount} {resultCount === 1 ? 'Home' : 'Homes'}
+            </span>
             <span className={css({ textStyle: 'bodySm', color: 'text.alternate' })}>
               Sort by{' '}
               <Button styleType="Ghost" size="inline">
@@ -309,14 +264,15 @@ export default function Shell() {
                 sqft: listing.sqft,
               }}
               media={<img src={listing.photo} alt={listing.address1} />}
+              labels={listing.openHouse.map(slot => ({ text: `Open ${slot}`, dataColor: 'white' as const }))}
               description={
-                <StatusBadge dataColor={listing.status === 'Pending' ? 'yellow' : 'green'}>
+                <StatusBadge dataColor={listing.statusColor}>
                   {listing.status}
                 </StatusBadge>
               }
               footer={
                 <span className={css({ textStyle: 'bodySm', color: 'text.alternate' })}>
-                  {listing.daysOnMarket}d on realtor.com
+                  {listing.daysOnMarketLabel}
                 </span>
               }
               cardOverlayProps={{

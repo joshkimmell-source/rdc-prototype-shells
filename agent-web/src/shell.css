@@ -36,6 +36,16 @@ input {
   background: #fee2e3;
 }
 
+/*
+ * Shell root height. `100dvh` tracks mobile browser chrome as it collapses, so the
+ * composer at the bottom of the assistant panel is not left under the address bar;
+ * `100vh` stays as the fallback for engines without the dynamic units.
+ */
+.ra-shell {
+  height: 100vh;
+  height: 100dvh;
+}
+
 @keyframes raPulse {
   0%,
   100% {

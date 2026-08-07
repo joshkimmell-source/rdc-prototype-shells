@@ -56,6 +56,27 @@
   .stop-pin .sq { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:6px; background:#1A1816; color:#FFFFFF; font-family:var(--font-body,'Mulish',sans-serif); font-weight:800; font-size:12px; box-shadow:0 1px 4px rgba(26,24,22,0.4); border:2px solid #FFFFFF; transform:translate(-50%,-50%); }
   .leaflet-control-zoom { border:none !important; box-shadow:none !important; display:flex; flex-direction:column; gap:8px; margin-right:16px !important; margin-bottom:80px !important; }
   .leaflet-control-zoom a { width:36px !important; height:36px !important; line-height:34px !important; border-radius:50% !important; border:1px solid #D3CFCA !important; background:#FFFFFF !important; color:#1A1816 !important; font-weight:600; box-shadow:0 1px 4px rgba(26,24,22,0.16); }
+
+  /*
+   * Narrow viewports (the shell's own mobile breakpoint, since this page is only ever
+   * framed by it). Header and commute rows wrap instead of squeezing, and the horizontal
+   * split reverts to stacked — a 52% pane leaves neither the table nor the map usable
+   * below ~700px. The table keeps its 1080px floor and goes on scrolling in `.tblwrap`.
+   */
+  @media (max-width:768px) {
+    .hdr { flex-wrap:wrap; gap:8px 6px; padding:12px 12px 0; }
+    /* Clears the shell's floating subnav trigger, which overlays this corner. */
+    .hdr > div:first-child { flex:1 1 100%; min-width:0; margin-left:56px; }
+    .hdr h1 { font-size:18px; line-height:22px; }
+    .hdr .date { margin-top:4px; font-size:13px; }
+    .hdr .pill { height:32px; padding:0 12px; font-size:12px; }
+    .seg { padding:4px 12px 8px; }
+    .tblwrap { padding:0 12px; }
+    .midrow { flex-wrap:wrap; padding:10px 12px 12px; }
+    .commute { margin-left:0; flex:1 1 100%; }
+    #content.horizontal { flex-direction:column; }
+    #content.horizontal #pane { width:auto; overflow:visible; border-right:none; }
+  }
 </style>
 </head>
 <body>

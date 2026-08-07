@@ -54,6 +54,23 @@
   .leaflet-popup-content { margin:12px 16px; font-family:var(--font-body, 'Mulish', sans-serif); }
   .pop .price { font-size:16px; font-weight:800; }
   .pop .meta { font-size:12px; color:#726A60; margin-top:2px; }
+
+  /*
+   * Narrow viewports (the shell's own mobile breakpoint, since this page is only ever
+   * framed by it). The search field gives up its fixed 420px and takes the first row on
+   * its own; everything else wraps beneath.
+   */
+  @media (max-width:768px) {
+    .topbar { flex-wrap:wrap; gap:8px; padding:10px 12px 8px; }
+    .searchbox { flex:1 1 100%; width:auto; min-width:0; order:-1; height:40px; padding:0 14px; }
+    .mls { flex:1 1 auto; min-width:0; padding:6px 12px; gap:8px; }
+    .mls .val { font-size:12.5px; white-space:normal; }
+    .savebtn { height:36px; padding:0 14px; font-size:13px; }
+    .chiprow { padding:0 12px 10px; }
+    .viewbtn { width:36px; }
+    .listings { left:12px; bottom:16px; }
+    .layersbtn { right:12px; bottom:16px; }
+  }
 </style>
 </head>
 <body>
