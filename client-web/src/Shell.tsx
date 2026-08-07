@@ -23,6 +23,7 @@ import {
 import { LogoRealtorProDefault } from '@rdc-npm/rdc-ui-v4/illustrations'
 import { css } from 'styled-system/css'
 import { hstack, vstack } from 'styled-system/patterns'
+import { agentName, agentAvatarAlt, contact } from './data/sample/adapters'
 
 // ─── Navigation model ──────────────────────────────────────────────────────────
 // Top-level items and expandable groups for the client-web sidebar.
@@ -36,14 +37,18 @@ const RAIL_WIDTH = '64px'       // collapsed, icon-only (default)
 // The AgentDetail screen below is the default surface (mirrors an agent profile
 // page). Swap it out — or route on `activePage` — for your own prototype content.
 
-// Dummy contact details. The phone number uses the 555-01xx block reserved for
-// fictional use, and the email a domain reserved by RFC 2606 — neither can reach a
-// real person if a user-testing participant tries them.
-const CONTACT = [
-  { Icon: IconPhone, label: '(512) 555-0142' },
-  { Icon: IconEmail, label: 'ali.michalo@example.com' },
-  { Icon: IconLocation, label: 'Austin, TX' },
-]
+// Contact details for the profile subject, sourced from the shared sample dataset
+// via the adapter. The phone is in the fictional 555 block, the email on example.com
+// (RFC 2606), and the location an invented place — none can reach a real person if a
+// user-testing participant taps them. The icon per line is a rendering concern, so it
+// stays here, keyed off the adapter's `kind`.
+const CONTACT_ICON = {
+  phone: IconPhone,
+  email: IconEmail,
+  location: IconLocation,
+} as const
+
+const CONTACT = contact.map(({ kind, label }) => ({ Icon: CONTACT_ICON[kind], label }))
 
 const TABS = [
   { value: 'proposal', label: 'Proposal templates' },
@@ -58,15 +63,15 @@ function AgentDetailScreen() {
       <Breadcrumbs
         items={[
           { text: 'Agents', href: '#' },
-          { text: 'Alexandra Michalo' },
+          { text: agentName },
         ]}
       />
 
       {/* Agent identity */}
       <div className={hstack({ gap: '300', alignItems: 'center' })}>
-        <Avatar size="sm" imgAlt="Alexandra Michalo" />
+        <Avatar size="sm" imgAlt={agentAvatarAlt} />
         <h1 className={css({ textStyle: 'headingLg', fontWeight: 'bold', color: 'text.base' })}>
-          Alexandra Michalo
+          {agentName}
         </h1>
       </div>
 
