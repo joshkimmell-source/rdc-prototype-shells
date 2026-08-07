@@ -21,6 +21,8 @@ const TOGGLES: Array<{ id: ToggleId; label: string; icon: React.ReactNode }> = [
 
 interface MainHeaderProps {
   visible: boolean
+  /** Below the mobile breakpoint: tighter gutters, and the controls may wrap below the title. */
+  mobile: boolean
   showSubnavButton: boolean
   onOpenSubnav: () => void
   title: string
@@ -30,8 +32,37 @@ interface MainHeaderProps {
   onToggle: (id: ToggleId) => void
 }
 
+/** Opens the subnav, which is an overlay drawer below the mobile breakpoint. */
+function DrawerButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <HoverButton
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      style={{
+        width: 32,
+        height: 32,
+        flex: 'none',
+        borderRadius: '50%',
+        border: 'none',
+        background: 'transparent',
+        color: C.dark,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        transition: 'background 120ms',
+      }}
+      hoverStyle={{ background: C.hair }}
+    >
+      <IconHamburger size={18} />
+    </HoverButton>
+  )
+}
+
 export function MainHeader({
   visible,
+  mobile,
   showSubnavButton,
   onOpenSubnav,
   title,
@@ -46,41 +77,25 @@ export function MainHeader({
         display: visible ? 'flex' : 'none',
         alignItems: 'center',
         gap: 12,
-        padding: '16px 24px',
+        padding: mobile ? '12px 16px' : '16px 24px',
+        // At 320px the title and the five Clients controls cannot share a line, so the
+        // control group drops below rather than squeezing any of them out of reach.
+        flexWrap: mobile ? 'wrap' : 'nowrap',
       }}
     >
-      {showSubnavButton && (
-        <HoverButton
-          onClick={onOpenSubnav}
-          aria-label="Open subnav"
-          title="Open subnav"
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            border: 'none',
-            background: 'transparent',
-            color: C.dark,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'background 120ms',
-          }}
-          hoverStyle={{ background: C.hair }}
-        >
-          <IconHamburger size={18} />
-        </HoverButton>
-      )}
+      {showSubnavButton && <DrawerButton label="Open subnav" onClick={onOpenSubnav} />}
 
       <h1
         style={{
           margin: 0,
-          flex: 1,
+          flex: '1 1 auto',
+          // A floor rather than 0: it is what forces the wrap instead of letting the title
+          // ellipsize down to nothing beside the controls.
+          minWidth: mobile ? 130 : 0,
           fontFamily: DISPLAY_FONT,
           fontWeight: 600,
-          fontSize: 24,
-          lineHeight: '28px',
+          fontSize: mobile ? 20 : 24,
+          lineHeight: mobile ? '26px' : '28px',
           letterSpacing: '-0.02em',
         }}
       >
@@ -98,7 +113,16 @@ export function MainHeader({
         </span>
       </h1>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          flexWrap: 'wrap',
+          justifyContent: 'flex-end',
+          flex: mobile ? '1 1 auto' : '0 0 auto',
+        }}
+      >
         <Menu aria-label="More" items={MENU_ITEMS} />
         {showToggles &&
           TOGGLES.map(({ id, label, icon }) => {

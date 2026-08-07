@@ -1,4 +1,5 @@
 import path from 'node:path'
+import process from 'node:process'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from 'vite-tsconfig-paths'
@@ -27,12 +28,23 @@ export default defineConfig({
       name: 'dev-html-entry',
       configureServer(server) {
         server.middlewares.use((req, _res, next) => {
-          if (req.url === '/' || req.url === '/index.html') req.url = '/dev.html'
+          // Path only, and the query is carried across: the shell keeps its active screen
+          // in `?view=`, and `/?view=clients` has to reach the template like a bare `/`.
+          const [pathname, query] = (req.url ?? '').split('?')
+          if (pathname === '/' || pathname === '/index.html') {
+            req.url = query ? `/dev.html?${query}` : '/dev.html'
+          }
           next()
         })
       },
     },
   ],
+  /**
+   * Vite ignores `PORT`, but that is how the launcher hands over the port it picked when
+   * 5173 was already taken — without this it would silently walk to 5174 instead, which is
+   * consumer-web's port.
+   */
+  server: { port: process.env.PORT ? Number(process.env.PORT) : undefined },
   css: { postcss: './postcss.config.cjs' },
   resolve: {
     alias: { 'styled-system': path.resolve(__dirname, './styled-system') },

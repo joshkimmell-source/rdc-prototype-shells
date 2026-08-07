@@ -5,7 +5,14 @@
       "name": "agent-web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "agent-web", "run", "dev"],
-      "port": 5173
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "consumer-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "consumer-web", "run", "dev", "--", "--port", "5174", "--strictPort"],
+      "port": 5174
     }
   ]
 }

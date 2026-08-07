@@ -1,6 +1,9 @@
 /**
  * Left navigation rail. Collapsed at 64px, expanded at 192px; expansion is driven by
- * hover on desktop and by click when `railMode === 'click'` or on mobile (<=768px).
+ * hover on desktop and by click when `railMode === 'click'`.
+ *
+ * Desktop only: below 768px the shell renders `NavBar` in the footer instead, which reuses
+ * the destinations and icons exported from here.
  */
 import type { ReactNode } from 'react'
 import { token } from 'styled-system/tokens'
@@ -11,7 +14,8 @@ import { IconBell, IconCalendar, IconChat, IconClients, IconHome, IconSearch, Ic
 
 export type NavId = 'home' | 'clients' | 'search' | 'tours'
 
-const NAV_ITEMS: Array<{ id: NavId; label: string; icon: ReactNode }> = [
+/** Shared with `NavBar`, so the two layouts cannot drift apart. */
+export const NAV_ITEMS: Array<{ id: NavId; label: string; icon: ReactNode }> = [
   { id: 'home', label: 'Home', icon: <IconHome /> },
   { id: 'clients', label: 'Clients', icon: <IconClients /> },
   { id: 'search', label: 'Search', icon: <IconSearch /> },
@@ -63,7 +67,6 @@ export function NavRail({ expanded, activeNav, onNavigate, onEnter, onLeave, onC
       onClick={onClick}
       style={{
         width: railW,
-        transition: `width 220ms ${EASE}`,
         flex: 'none',
         // token(), not a raw var(--…) string: Panda only emits variables for tokens it
         // can see being used, so a hand-written var() would be tree-shaken out.
@@ -76,6 +79,7 @@ export function NavRail({ expanded, activeNav, onNavigate, onEnter, onLeave, onC
         overflow: 'hidden',
         position: 'relative',
         zIndex: 30,
+        transition: `width 220ms ${EASE}`,
       }}
     >
       <div

@@ -19,6 +19,8 @@ import {
 export type ClientsView = 'map' | 'grid' | 'table'
 
 interface ClientsScreenProps {
+  /** Below the mobile breakpoint: tighter gutters, and the tiles share the row width. */
+  mobile: boolean
   pill: string
   onPill: (id: string) => void
   view: ClientsView
@@ -33,6 +35,20 @@ const TILE = {
   borderRadius: 16,
   overflow: 'hidden',
   boxShadow: '0 1px 2px rgba(26,24,22,0.08)',
+} as const
+
+/**
+ * Two 164px tiles plus their gap need 344px. On mobile they split the row instead and stay
+ * square, so the pair fits at 320px without either being pushed off-screen.
+ */
+const TILE_MOBILE = {
+  ...TILE,
+  width: 'auto',
+  height: 'auto',
+  flex: '1 1 0',
+  minWidth: 0,
+  maxWidth: 164,
+  aspectRatio: '1 / 1',
 } as const
 
 const SCRIM = {
@@ -67,7 +83,12 @@ const VIEWS: Array<{ id: ClientsView; label: string; icon: React.ReactNode }> = 
   { id: 'table', label: 'Table view', icon: <IconTableView /> },
 ]
 
-export function ClientsScreen({ pill, onPill, view, onView }: ClientsScreenProps) {
+export function ClientsScreen({ mobile, pill, onPill, view, onView }: ClientsScreenProps) {
+  const tile = mobile ? TILE_MOBILE : TILE
+  // Full-width groups on mobile: side by side, the tile pair and the saved search would
+  // wrap to three cramped columns' worth of space rather than one readable one.
+  const group = mobile ? { ...GROUP, flex: '1 1 100%', minWidth: 0 } : GROUP
+
   // The pill filters the feed. `null` means the pill has no listing filter behind it
   // ("Chat list"), so it leaves the feed alone rather than emptying it.
   const keep = CLIENT_LISTING_FILTERS[pill]
@@ -86,17 +107,17 @@ export function ClientsScreen({ pill, onPill, view, onView }: ClientsScreenProps
         flex: 1,
         minHeight: 0,
         overflow: 'auto',
-        padding: '8px 24px 24px',
+        padding: mobile ? '8px 16px 16px' : '8px 24px 24px',
         display: 'flex',
         flexDirection: 'column',
         gap: 24,
       }}
     >
-      <div style={{ display: 'flex', gap: 48, flexWrap: 'wrap' }}>
-        <div style={GROUP}>
+      <div style={{ display: 'flex', gap: mobile ? 20 : 48, flexWrap: 'wrap' }}>
+        <div style={group}>
           <GroupHeading>Saved &amp; Tour requests</GroupHeading>
           <div style={{ display: 'flex', gap: 16 }}>
-            <div style={{ ...TILE, background: C.hair }}>
+            <div style={{ ...tile, background: C.hair }}>
               <ImageSlot
                 id="clients-saved-listings"
                 placeholder="Drop a listing photo"
@@ -111,7 +132,7 @@ export function ClientsScreen({ pill, onPill, view, onView }: ClientsScreenProps
               </div>
             </div>
 
-            <div style={{ ...TILE, background: C.hair }}>
+            <div style={{ ...tile, background: C.hair }}>
               <ImageSlot
                 id="clients-tour-requests"
                 placeholder="Drop a home photo"
@@ -128,10 +149,10 @@ export function ClientsScreen({ pill, onPill, view, onView }: ClientsScreenProps
           </div>
         </div>
 
-        <div style={GROUP}>
+        <div style={group}>
           <GroupHeading>Saved Searches</GroupHeading>
           <div style={{ display: 'flex', gap: 16 }}>
-            <div style={{ ...TILE, background: C.action }}>
+            <div style={{ ...tile, background: C.action }}>
               <ImageSlot
                 id="clients-saved-search"
                 placeholder="Drop a search photo"
@@ -275,8 +296,10 @@ export function ClientsScreen({ pill, onPill, view, onView }: ClientsScreenProps
                 // 288px is the narrowest card that fits the widest price row the dataset
                 // produces — a seven-figure price beside "PRICE CHANGE | 198 DOM".
                 // Narrower and the status ellipsizes (`ListingCard` handles that), which
-                // is a fallback for a cramped container rather than a normal render.
-                gridTemplateColumns: 'repeat(auto-fill, minmax(288px, 1fr))',
+                // is a fallback for a cramped container rather than a normal render — which
+                // is exactly what `min(…, 100%)` hands it below 288px, instead of letting
+                // the minimum track overflow the screen.
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(288px, 100%), 1fr))',
                 gap: 20,
               }}
             >

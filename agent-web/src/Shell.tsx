@@ -4,10 +4,19 @@
  * Holds every piece of state the DC original kept on `Component.state` and derives the
  * layout values its `renderVals()` computed. Layout is
  * [nav rail][subnav][main][absolutely-positioned push panel], all inside a 100vh column.
+ *
+ * Below 768px the rail is replaced by `NavBar`, a tab bar pinned under the content row, and
+ * the subnav and push panel leave the flow to become overlays over `main` — so `main` keeps
+ * the full viewport width either way.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { C, EASE } from './theme'
+import { isMobileViewport, useIsMobile } from './useMobile'
+import { readNavParam, writeNavParam } from './navParam'
+import { HoverButton } from './components/primitives'
+import { IconHamburger } from './icons'
 import { NavRail, type NavId } from './components/NavRail'
+import { NAV_BAR_HEIGHT, NavBar } from './components/NavBar'
 import { Subnav } from './components/Subnav'
 import { MainHeader, type ToggleId, type Toggles } from './components/MainHeader'
 import { FAB } from './components/FAB'
@@ -54,6 +63,13 @@ const PUSH_MIN = 320
 const PUSH_MAX_GAP = 360
 const PUSH_WIDTH_KEY = 'ra-push-width'
 
+/**
+ * Width of the mobile subnav drawer. It stops short of the viewport so a strip of scrim
+ * stays tappable at 320px — the drawer is dismissible even when its own close control is
+ * not the obvious target.
+ */
+const SUBNAV_DRAWER_MAX = 288
+
 /** The widest the panel may be at this viewport, never below `PUSH_MIN`. */
 function pushCeiling() {
   return Math.max(PUSH_MIN, window.innerWidth - PUSH_MAX_GAP)
@@ -61,6 +77,35 @@ function pushCeiling() {
 
 function clampPush(w: number) {
   return Math.min(pushCeiling(), Math.max(PUSH_MIN, Math.round(w)))
+}
+
+/** Drawer trigger that has to read against an arbitrary map tile underneath it. */
+function FloatingIconButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <HoverButton
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      style={{
+        width: 36,
+        height: 36,
+        flex: 'none',
+        borderRadius: '50%',
+        border: `1px solid ${C.border}`,
+        background: C.white,
+        color: C.dark,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        boxShadow: '0 1px 6px rgba(26,24,22,0.2)',
+        transition: 'background 120ms',
+      }}
+      hoverStyle={{ background: C.alt }}
+    >
+      <IconHamburger size={18} />
+    </HoverButton>
+  )
 }
 
 /** `ImageSlot` already persists to localStorage; the panel width follows suit. */
@@ -76,12 +121,16 @@ function readStoredPushWidth() {
 }
 
 export function Shell() {
+  const isMobile = useIsMobile()
+
   // Nav rail
   const [hover, setHover] = useState(false)
   const [pinned, setPinned] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-  const [activeNav, setActiveNav] = useState<NavId>('home')
-  const [subnavOpen, setSubnavOpen] = useState(true)
+  // Seeded from `?view=` so a linked or reloaded URL lands on the screen it names.
+  const [activeNav, setActiveNav] = useState<NavId>(readNavParam)
+  // Open beside the content on desktop, closed on a phone: as a full-height overlay it
+  // would otherwise bury `main` before the first interaction.
+  const [subnavOpen, setSubnavOpen] = useState(() => !isMobileViewport())
 
   // Subnav — clients
   const [clientQ, setClientQ] = useState('')
@@ -107,8 +156,8 @@ export function Shell() {
   // Header toggles
   const [toggles, setToggles] = useState<Toggles>({ bell: false, flame: true, chart: false, star: false })
 
-  // Push panel
-  const [pushContent, setPushContent] = useState(true)
+  // Push panel — like the subnav, docked open on desktop and closed on a phone.
+  const [pushContent, setPushContent] = useState(() => !isMobileViewport())
   const [pushExpanded, setPushExpanded] = useState(false)
   const [pushOver, setPushOver] = useState(false)
   const [fabHover, setFabHover] = useState(false)
@@ -124,14 +173,20 @@ export function Shell() {
 
   const chatRef = useRef<HTMLDivElement>(null)
   const lastCount = useRef(-1)
+  const wasMobile = useRef(isMobileViewport())
 
+  // Collapse everything that overlays `main` on the way into the mobile layout: a panel
+  // that was docked beside the content at desktop width now covers all of it.
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 768px)')
-    const onMq = () => setIsMobile(mq.matches)
-    onMq()
-    mq.addEventListener('change', onMq)
-    return () => mq.removeEventListener('change', onMq)
-  }, [])
+    if (isMobile === wasMobile.current) return
+    wasMobile.current = isMobile
+    if (isMobile) {
+      setSubnavOpen(false)
+      setPushContent(false)
+      setPushExpanded(false)
+      setPushOver(false)
+    }
+  }, [isMobile])
 
   // Keep the panel inside a shrinking viewport. Only ever narrows it: a window that
   // grows again must not override a width the user chose deliberately.
@@ -199,7 +254,7 @@ export function Shell() {
   }
 
   // ── Derived layout ────────────────────────────────────────────────────────────
-  const clicky = RAIL_MODE === 'click' || isMobile
+  const clicky = RAIL_MODE === 'click'
   const railExpanded = clicky ? pinned : hover
 
   const isClients = activeNav === 'clients'
@@ -253,25 +308,63 @@ export function Shell() {
   const threadItems = THREADS.filter((t) => t.title.toLowerCase().includes(threadQuery))
 
   const subnavVariant = isClients ? 'clients' : isTours ? 'tours' : null
-  const pushWidth = pushContent ? (pushExpanded ? 'calc(100% - 64px)' : `${pushW}px`) : '0px'
-  const mainMarginRight = pushContent && !pushExpanded ? pushW : 0
-  // Only draggable while docked open — expanded width is the expand control's, and a
-  // closed panel has no edge to grab.
-  const pushResizable = pushContent && !pushExpanded
-  const fabVisible = !pushContent
-  const tipShown = fabVisible && fabHover
+  // On mobile the panel is a full-screen overlay, so the width bookkeeping collapses to
+  // all-or-nothing and there is no gap beside it for `main` to give up.
+  const pushWidth = !pushContent
+    ? '0px'
+    : isMobile
+      ? '100%'
+      : pushExpanded
+        ? 'calc(100% - 64px)'
+        : `${pushW}px`
+  const mainMarginRight = !isMobile && pushContent && !pushExpanded ? pushW : 0
+  // Only draggable while docked open — expanded width is the expand control's, a closed
+  // panel has no edge to grab, and a full-screen overlay has no width to set.
+  const pushResizable = !isMobile && pushContent && !pushExpanded
+  const drawerOpen = isMobile && subnavOpen && !!subnavVariant
+  // The FAB sits above the drawer, so it has to step aside while one is open.
+  const fabVisible = !pushContent && !drawerOpen
+  const tipShown = fabVisible && fabHover && !isMobile
+
+  const closeDrawers = () => setSubnavOpen(false)
+
+  const closePush = () => {
+    setPushContent(false)
+    setPushExpanded(false)
+    setPushOver(false)
+  }
 
   const navigate = (id: NavId) => {
     setActiveNav(id)
+    writeNavParam(id)
     setPinned(false)
     setPushExpanded(false)
   }
 
+  // Back and forward walk the destinations, since every navigation pushed an entry.
+  useEffect(() => {
+    const onPop = () => setActiveNav(readNavParam())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  // Escape backs out one overlay at a time, topmost first.
+  useEffect(() => {
+    if (!isMobile) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (subnavOpen && subnavVariant) setSubnavOpen(false)
+      else if (pushContent) closePush()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isMobile, subnavOpen, subnavVariant, pushContent])
+
   return (
     <div
       data-screen-label="RealAssist+ agent workspace"
+      className="ra-shell"
       style={{
-        height: '100vh',
         display: 'flex',
         flexDirection: 'column',
         background: C.canvas,
@@ -279,24 +372,27 @@ export function Shell() {
       }}
     >
       <div style={{ flex: 1, display: 'flex', minHeight: 0, position: 'relative' }}>
-        <NavRail
-          expanded={railExpanded}
-          activeNav={activeNav}
-          onNavigate={navigate}
-          onEnter={() => {
-            if (!clicky) setHover(true)
-          }}
-          onLeave={() => {
-            if (!clicky) setHover(false)
-          }}
-          onClick={() => {
-            if (clicky) setPinned((p) => !p)
-          }}
-        />
+        {!isMobile && (
+          <NavRail
+            expanded={railExpanded}
+            activeNav={activeNav}
+            onNavigate={navigate}
+            onEnter={() => {
+              if (!clicky) setHover(true)
+            }}
+            onLeave={() => {
+              if (!clicky) setHover(false)
+            }}
+            onClick={() => {
+              if (clicky) setPinned((p) => !p)
+            }}
+          />
+        )}
 
         <Subnav
           open={subnavOpen}
           width={SUBNAV_WIDTH}
+          drawerMax={isMobile ? SUBNAV_DRAWER_MAX : undefined}
           variant={subnavVariant}
           onClose={() => setSubnavOpen(false)}
           buyers={buyers}
@@ -319,12 +415,32 @@ export function Shell() {
           pastCount={TOURS.filter((t) => !t.upcoming).length}
         />
 
+        {/*
+          Scrim behind the subnav drawer. Tapping it backs out, so the drawer is always
+          dismissible — at 320px its own close control can be the least obvious target.
+        */}
+        <div
+          onClick={closeDrawers}
+          aria-hidden
+          style={{
+            display: isMobile ? 'block' : 'none',
+            position: 'absolute',
+            inset: 0,
+            zIndex: 40,
+            background: 'rgba(26,24,22,0.42)',
+            opacity: drawerOpen ? 1 : 0,
+            pointerEvents: drawerOpen ? 'auto' : 'none',
+            transition: `opacity 220ms ${EASE}`,
+          }}
+        />
+
         <main
           style={{
             flex: 1,
             minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
+            position: 'relative',
             background: C.white,
             marginRight: mainMarginRight,
             // Must match the panel: easing this mid-drag lags `main` behind the edge.
@@ -333,6 +449,7 @@ export function Shell() {
         >
           <MainHeader
             visible={!isSearch && !isTours}
+            mobile={isMobile}
             showSubnavButton={isClients && !subnavOpen}
             onOpenSubnav={() => setSubnavOpen(true)}
             title={pageTitle}
@@ -341,6 +458,17 @@ export function Shell() {
             toggles={toggles}
             onToggle={(id: ToggleId) => setToggles((p) => ({ ...p, [id]: !p[id] }))}
           />
+
+          {/*
+            Tours hides `MainHeader` and hands its whole viewport to an embedded map, so on
+            mobile the trigger for its subnav floats over that map rather than taking a
+            column out of a 320px screen.
+          */}
+          {isMobile && isTours && !subnavOpen && (
+            <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 15, display: 'flex' }}>
+              <FloatingIconButton label="Open tours list" onClick={() => setSubnavOpen(true)} />
+            </div>
+          )}
 
           <button
             type="button"
@@ -366,8 +494,10 @@ export function Shell() {
             style={{
               display: fabVisible ? 'flex' : 'none',
               position: 'fixed',
-              right: 24,
-              bottom: 36,
+              right: isMobile ? 16 : 24,
+              // Clears the tab bar on mobile — the FAB is fixed to the viewport, so it
+              // would otherwise land on top of it.
+              bottom: isMobile ? NAV_BAR_HEIGHT + 16 : 36,
               zIndex: 60,
               alignItems: 'center',
               justifyContent: 'center',
@@ -409,6 +539,7 @@ export function Shell() {
 
           {isHome && (
             <HomeScreen
+              mobile={isMobile}
               stats={[
                 { value: activeClientCount, label: 'Active clients' },
                 { value: upcomingTours.length, label: 'Upcoming tours' },
@@ -420,10 +551,7 @@ export function Shell() {
               needsCount={needs.length}
               stageItems={stageItems}
               rows={filtered}
-              onOpenTours={() => {
-                setActiveNav('tours')
-                setPushExpanded(false)
-              }}
+              onOpenTours={() => navigate('tours')}
               onAsk={send}
             />
           )}
@@ -431,11 +559,15 @@ export function Shell() {
           {isSearch && <SearchScreen />}
 
           {isTours && (
-            <ToursScreen showSubnavButton={!subnavOpen} onOpenSubnav={() => setSubnavOpen(true)} />
+            <ToursScreen
+              showSubnavButton={!isMobile && !subnavOpen}
+              onOpenSubnav={() => setSubnavOpen(true)}
+            />
           )}
 
           {isClients && (
             <ClientsScreen
+              mobile={isMobile}
               pill={clientFilter}
               onPill={setClientFilter}
               view={viewMode}
@@ -446,6 +578,8 @@ export function Shell() {
 
         <AssistantPanel
           width={pushWidth}
+          open={pushContent}
+          mobile={isMobile}
           expanded={pushExpanded}
           over={pushOver}
           resizing={resizing}
@@ -477,17 +611,19 @@ export function Shell() {
             setPushExpanded(!pushExpanded)
             setPushOver(!pushExpanded)
           }}
-          onClose={() => {
-            setPushContent(false)
-            setPushExpanded(false)
-            setPushOver(false)
-          }}
+          onClose={closePush}
           onNewChat={() => {
             setMsgs([])
             setPushOver(false)
           }}
         />
       </div>
+
+      {/*
+        Outside the content row, so it takes height from `main` rather than overlaying it:
+        nothing above needs bottom padding to stay clear of the bar.
+      */}
+      {isMobile && <NavBar activeNav={activeNav} onNavigate={navigate} />}
     </div>
   )
 }
