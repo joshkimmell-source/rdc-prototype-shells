@@ -6,12 +6,14 @@
  * unchanged. The *values* now come from the shared fictional sample dataset in
  * `data/sample/`, mapped across in `data/sample/adapters.ts`.
  *
- * The logged-in agent is Dana Ellison of Brightwater Realty Group. Every person,
+ * The logged-in agent is Georgia Booth of Brightwater Realty Group — the name is
+ * hardcoded in `adapters.ts`; the brokerage and her book still come from the dataset's
+ * `agt_01`. Every person,
  * property, phone number and email is invented: phones are in the 555 block, emails
  * are on example.com, MLS ids are prefixed `SAMPLE:`, and `ST` is not a real state.
  */
 import * as sample from './data/sample/adapters'
-import type { ClientListingGroup } from './data/sample/adapters'
+import type { ClientFeed } from './data/sample/adapters'
 
 export type TagColor =
   | 'blueSubtle'
@@ -98,17 +100,16 @@ export const INITIAL_UPCOMING_TOURS: UpcomingTour[] = sample.initialUpcomingTour
 
 export const STAGES: Array<[string, string]> = sample.stages
 
-export const CLIENT_PILLS: Array<[string, string]> = sample.clientPills
-
 /**
- * The Clients screen's listing feed — Haven `PropertyCard` records, already grouped
- * into the day sections the screen renders as headings.
+ * Everything the Clients screen shows for one subnav row: the listing feed (Haven
+ * `PropertyCard` records, already grouped into the day sections the screen renders as
+ * headings), the pill row above it, and its three tiles. Each client sees a different
+ * number of listings, so the screen reads whichever feed is selected.
  */
-export const CLIENT_LISTING_GROUPS: ClientListingGroup[] = sample.clientListingGroups
+export const feedFor: (id: string) => ClientFeed = sample.feedFor
 
-/** Listing ids each filter pill keeps; `null` for a pill with no listing filter. */
-export const CLIENT_LISTING_FILTERS: Record<string, string[] | null> =
-  sample.clientListingFilters
+/** The photos behind the Clients screen's three tiles. */
+export const CLIENT_TILE_IMAGES = sample.CLIENT_TILE_IMAGES
 
 export const CHIPS: string[] = sample.chips
 
@@ -117,6 +118,32 @@ export const MENU_ITEMS: string[] = [
   'Import contacts',
   'Manage stages',
   'Settings',
+]
+
+/**
+ * The three overflow menus in the subnav. Every ⋯ in the shell opens a menu, so each of
+ * these lists exists to give one of them something to say — the actions are plausible for
+ * the surface rather than wired to anything, as elsewhere in the prototype.
+ */
+export const CLIENT_LIST_MENU_ITEMS: string[] = [
+  'Sort by name',
+  'Sort by last activity',
+  'Show archived',
+  'Export list',
+]
+
+export const CLIENT_ROW_MENU_ITEMS: string[] = [
+  'Message client',
+  'Schedule a tour',
+  'Share listings',
+  'Archive client',
+]
+
+export const TOUR_ROW_MENU_ITEMS: string[] = [
+  'Open tour',
+  'Duplicate tour',
+  'Share with client',
+  'Cancel tour',
 ]
 
 /** Identity of the logged-in agent, and the ids the subnavs open on. */
@@ -142,6 +169,7 @@ export const {
 
 export type {
   AssistantNudge,
+  ClientFeed,
   ClientListing,
   ClientListingGroup,
   ClientNeed,

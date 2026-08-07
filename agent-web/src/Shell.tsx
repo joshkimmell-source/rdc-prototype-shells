@@ -8,11 +8,16 @@
  * Below 768px the rail is replaced by `NavBar`, a tab bar pinned under the content row, and
  * the subnav and push panel leave the flow to become overlays over `main` — so `main` keeps
  * the full viewport width either way.
+ *
+ * `?ab=` selects where the "Ask RealAssist+" trigger lives: the floating FAB (`a`, default)
+ * or an `ActionBar` action inline in every page header (`b`). See `abParam.ts`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { C, EASE } from './theme'
 import { isMobileViewport, useIsMobile } from './useMobile'
 import { readNavParam, writeNavParam } from './navParam'
+import { readAbParam } from './abParam'
+import { ASK_MESSAGE } from './askBridge'
 import { HoverButton } from './components/primitives'
 import { IconHamburger } from './icons'
 import { NavRail, type NavId } from './components/NavRail'
@@ -38,6 +43,7 @@ import {
   TOURS,
   activeClientCount,
   clientNeeds,
+  feedFor,
   invitedClientCount,
   requestClientCount,
   tourRequestsTotal,
@@ -108,7 +114,7 @@ function FloatingIconButton({ label, onClick }: { label: string; onClick: () => 
   )
 }
 
-/** `ImageSlot` already persists to localStorage; the panel width follows suit. */
+/** The dragged panel width survives a reload; nothing else in the shell is persisted. */
 function readStoredPushWidth() {
   try {
     const raw = window.localStorage.getItem(PUSH_WIDTH_KEY)
@@ -122,6 +128,10 @@ function readStoredPushWidth() {
 
 export function Shell() {
   const isMobile = useIsMobile()
+  // Fixed for the life of the session: switching arms mid-test would defeat the point, and
+  // a reload with a different `?ab=` gives a clean one.
+  const [variant] = useState(readAbParam)
+  const actionBar = variant === 'b'
 
   // Nav rail
   const [hover, setHover] = useState(false)
@@ -281,6 +291,9 @@ export function Shell() {
   }))
 
   const selectedBuyerRecord = BUYERS.find((b) => b.id === selectedBuyer) ?? BUYERS[1]
+  // Each client is shown a different number of listings, so the Clients screen follows
+  // the selected subnav row rather than rendering one feed for everybody.
+  const clientFeed = feedFor(selectedBuyerRecord.id)
   const pageTitle = isClients
     ? selectedBuyerRecord.id === AGENT_FEED_ID
       ? 'My feed'
@@ -289,9 +302,10 @@ export function Shell() {
       ? 'Search'
       : 'Home'
 
-  const countLabel =
-    isClients || isSearch
-      ? ''
+  const countLabel = isSearch
+    ? ''
+    : isClients
+      ? `${clientFeed.listingCount} ${clientFeed.listingCount === 1 ? 'listing' : 'listings'}`
       : `${filtered.length}${filter === 'all' ? ' clients' : ` of ${clients.length} clients`}`
 
   const buyerQuery = clientQ.trim().toLowerCase()
@@ -322,14 +336,26 @@ export function Shell() {
   // panel has no edge to grab, and a full-screen overlay has no width to set.
   const pushResizable = !isMobile && pushContent && !pushExpanded
   const drawerOpen = isMobile && subnavOpen && !!subnavVariant
-  // The FAB sits above the drawer, so it has to step aside while one is open.
-  const fabVisible = !pushContent && !drawerOpen
+  // The FAB sits above the drawer, so it has to step aside while one is open. Variant B
+  // moves the trigger into the header, so the corner is empty in that arm.
+  const fabVisible = !actionBar && !pushContent && !drawerOpen
   const tipShown = fabVisible && fabHover && !isMobile
 
   const closeDrawers = () => setSubnavOpen(false)
 
   const closePush = () => {
     setPushContent(false)
+    setPushExpanded(false)
+    setPushOver(false)
+  }
+
+  /**
+   * Variant B's action opens the panel rather than toggling it. A header button that
+   * closed the panel would be a second control for something the panel's own ✕ already
+   * does, and the two would disagree about state at a glance.
+   */
+  const openPush = () => {
+    setPushContent(true)
     setPushExpanded(false)
     setPushOver(false)
   }
@@ -347,6 +373,23 @@ export function Shell() {
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
+
+  /**
+   * The Search and Tours action bars live inside iframes, so their Ask button cannot reach
+   * the panel directly — it posts up instead. Only bound in variant B, which is the only
+   * arm where those buttons exist.
+   */
+  useEffect(() => {
+    if (!actionBar) return
+    const onMessage = (e: MessageEvent) => {
+      // Same-origin only: the maps are served from this app, and nothing else should be
+      // able to drive the panel.
+      if (e.origin !== window.location.origin) return
+      if (e.data?.type === ASK_MESSAGE) openPush()
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [actionBar])
 
   // Escape backs out one overlay at a time, topmost first.
   useEffect(() => {
@@ -450,6 +493,9 @@ export function Shell() {
           <MainHeader
             visible={!isSearch && !isTours}
             mobile={isMobile}
+            actionBar={actionBar}
+            onAsk={openPush}
+            askOpen={pushContent}
             showSubnavButton={isClients && !subnavOpen}
             onOpenSubnav={() => setSubnavOpen(true)}
             title={pageTitle}
@@ -556,18 +602,21 @@ export function Shell() {
             />
           )}
 
-          {isSearch && <SearchScreen />}
+          {isSearch && <SearchScreen variant={variant} askOpen={pushContent} />}
 
           {isTours && (
             <ToursScreen
               showSubnavButton={!isMobile && !subnavOpen}
               onOpenSubnav={() => setSubnavOpen(true)}
+              variant={variant}
+              askOpen={pushContent}
             />
           )}
 
           {isClients && (
             <ClientsScreen
               mobile={isMobile}
+              feed={clientFeed}
               pill={clientFilter}
               onPill={setClientFilter}
               view={viewMode}

@@ -4,6 +4,7 @@
  */
 import type { CSSProperties, ReactNode } from 'react'
 import { IconRealAssist } from '../icons'
+import { BRAND_GRADIENT } from '../theme'
 
 interface FABProps {
   icon?: ReactNode
@@ -31,8 +32,7 @@ export function FAB({ icon, className, style }: FABProps) {
         style={{
           position: 'relative',
           borderRadius: 9999,
-          background:
-            'linear-gradient(-29.445deg, rgb(194,41,138) 8.38%, rgb(240,67,73) 49.20%, rgb(217,34,40) 101.69%)',
+          background: BRAND_GRADIENT,
           color: '#FFFFFF',
           display: 'flex',
           flexDirection: 'row',

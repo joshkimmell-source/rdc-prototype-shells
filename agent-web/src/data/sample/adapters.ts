@@ -27,10 +27,11 @@ import {
   formatTourSummary,
   getClient,
   getListing,
+  imageForKey,
   savedSearchesForClient,
-  upcomingTours as sampleUpcomingTours,
   type Client as SampleClient,
   type ClientStatus,
+  type HomeImage,
   type Listing as SampleListing,
   type ListingStatus,
   type SavedSearch,
@@ -49,6 +50,63 @@ import type {
 /** The shell renders this as the muted "nothing here" value, so reuse it. */
 const EMPTY = '—'
 
+// ─── Roster ───────────────────────────────────────────────────────────────────
+
+/**
+ * The five clients this prototype shows.
+ *
+ * The dataset carries ten by contract and a shell may slice it. Five keeps the client
+ * list readable without scrolling, and these five are the slice that keeps every
+ * derived state on the Home screen alive: `cli_03` has open tour requests (the urgent
+ * "needs attention" row), `cli_04` has `savedCount: 0` and no saved search at all (the
+ * dormant-invite nudge, and the em-dash budget and brief), `cli_08` is Archived with 15
+ * saves (the re-check nudge), `cli_05` is the only client recent enough to read as
+ * online, and its one tour has no stops. `Shared` is the status that drops out; `stages`
+ * filters itself to the statuses actually present, so no filter tab and no tag colour is
+ * left pointing at nothing.
+ */
+const ROSTER_IDS = ['cli_02', 'cli_03', 'cli_04', 'cli_05', 'cli_08']
+
+const ROSTER: SampleClient[] = SAMPLE_CLIENTS.filter(c => ROSTER_IDS.includes(c.id))
+
+/**
+ * Tours belonging to a roster client — scoped for the same reason the client list is.
+ * A tour row is labelled with its client, so a tour left in for a client the list no
+ * longer shows would name someone the agent cannot open.
+ */
+const ROSTER_TOURS: SampleTour[] = SAMPLE_TOURS.filter(t => ROSTER_IDS.includes(t.clientId))
+
+/** The dataset's `upcomingTours()`, narrowed to the roster. Soonest first. */
+const upcomingRosterTours = (): SampleTour[] =>
+  ROSTER_TOURS.filter(t => t.state === 'Upcoming').sort((a, b) => a.date.localeCompare(b.date))
+
+/**
+ * How many listings each client's feed carries.
+ *
+ * Distinct per client, so five clients read as five different-sized books of business
+ * rather than five copies of the same ten cards. The dataset has no client→listing
+ * relation to derive this from — `savedCount` is a bare number — so the sizes are
+ * authored here. They are floors, not exact counts: a client's own tour stops always
+ * sit inside their own feed, and `cli_02` has toured five distinct listings across its
+ * three tours, which is why it is the one with five.
+ */
+const FEED_SIZES: Record<string, number> = {
+  cli_02: 5,
+  cli_08: 4,
+  cli_05: 3,
+  cli_03: 2,
+  cli_04: 1,
+}
+
+/** Listings this client has a tour stop for, upcoming or past. */
+const touredListingIds = (clientId: string): Set<string> =>
+  new Set(
+    ROSTER_TOURS.filter(t => t.clientId === clientId).flatMap(t => t.stops.map(s => s.listingId)),
+  )
+
+const listingCountFor = (clientId: string): number =>
+  Math.max(FEED_SIZES[clientId] ?? 0, touredListingIds(clientId).size)
+
 /**
  * "Today", for the assistant's relative-date parsing ("saturday", "tomorrow") and for
  * the Clients screen's date-grouped listing feed.
@@ -58,7 +116,7 @@ const EMPTY = '—'
  * the moment the dataset's dates changed and start rendering upcoming tours as past.
  */
 export const PROTOTYPE_TODAY: Date = (() => {
-  const soonest = sampleUpcomingTours()[0]
+  const soonest = upcomingRosterTours()[0]
   const [y, m, d] = (soonest?.date ?? '2026-08-09').split('-').map(Number)
   return new Date(y, m - 1, d - 5)
 })()
@@ -142,7 +200,7 @@ function briefFromSearch(search: SavedSearch | undefined): string {
 
 /** The client's soonest upcoming tour, as `"Sat, Aug 15 · 10:00 AM"`. */
 function nextTourFor(clientId: string): string {
-  const next = sampleUpcomingTours().find(t => t.clientId === clientId)
+  const next = upcomingRosterTours().find(t => t.clientId === clientId)
   if (!next) return EMPTY
   const date = formatTourDate(next.date)
   return next.startTime ? `${date} · ${next.startTime}` : date
@@ -165,13 +223,13 @@ function toClient(c: SampleClient): Client {
   }
 }
 
-export const clients: Client[] = SAMPLE_CLIENTS.map(toClient)
+export const clients: Client[] = ROSTER.map(toClient)
 
 /** `all` first, then one entry per status that actually appears in the data. */
 export const stages: Array<[string, string]> = [
   ['all', 'All clients'],
   ...(Object.keys(STAGE_LABELS) as ClientStatus[])
-    .filter(status => SAMPLE_CLIENTS.some(c => c.status === status))
+    .filter(status => ROSTER.some(c => c.status === status))
     .map((status): [string, string] => [status, STAGE_LABELS[status]]),
 ]
 
@@ -188,9 +246,18 @@ export const listings: Listing[] = SAMPLE_LISTINGS.map(l => ({
 /** "Last seen 20 mins ago" reads as present; anything coarser does not. */
 const isOnline = (lastSeen: string) => /\bmins?\b/.test(lastSeen)
 
-/** The logged-in agent's own name and initials — the subnav's feed row and the nav rail avatar. */
-export const AGENT_FULL_NAME = `${CURRENT_AGENT.firstName} ${CURRENT_AGENT.lastName}`
-export const AGENT_INITIALS = `${CURRENT_AGENT.firstName[0]}${CURRENT_AGENT.lastName[0]}`
+/**
+ * The logged-in agent's name — the subnav's feed row, the nav rail avatar, and the
+ * assistant's greeting.
+ *
+ * Hardcoded rather than read from the dataset's `agt_01` (Dana Ellison), which is what
+ * `CURRENT_AGENT` still supplies for everything else about her: the feed id, the
+ * brokerage line, and the rest of the team. Fictional, like the dataset it sits beside.
+ */
+const AGENT_NAME = { first: 'Georgia', last: 'Booth' }
+
+export const AGENT_FULL_NAME = `${AGENT_NAME.first} ${AGENT_NAME.last}`
+export const AGENT_INITIALS = `${AGENT_NAME.first[0]}${AGENT_NAME.last[0]}`
 
 export const buyers: Buyer[] = [
   {
@@ -200,22 +267,26 @@ export const buyers: Buyer[] = [
     sub: 'Your personal feed',
     online: true,
   },
-  ...SAMPLE_CLIENTS.map(
-    (c): Buyer => ({
+  ...ROSTER.map((c): Buyer => {
+    const n = listingCountFor(c.id)
+    return {
       id: c.id,
       name: c.displayName,
       initials: clientInitials(c),
-      sub: `Last seen ${c.lastSeen}`,
+      // The row's second line carries the size of their feed as well as their recency —
+      // it is the one place the five clients sit together, so it is where five different
+      // listing counts are legible as five different counts.
+      sub: `${n} ${n === 1 ? 'listing' : 'listings'} · ${c.lastSeen}`,
       online: isOnline(c.lastSeen),
-    }),
-  ),
+    }
+  }),
 ]
 
 /** The agent's own feed row, which the header titles "My feed" rather than a name. */
 export const AGENT_FEED_ID = CURRENT_AGENT.id
 
 /** The row the Clients subnav starts on — the first real client, not the agent. */
-export const DEFAULT_BUYER_ID = SAMPLE_CLIENTS[0].id
+export const DEFAULT_BUYER_ID = ROSTER[0].id
 
 // ─── Subnav: tours ────────────────────────────────────────────────────────────
 
@@ -228,8 +299,8 @@ const clientInitialsFor = (clientId: string) => {
 
 /** Upcoming first (soonest first), then past (most recent first) — as the tabs read. */
 const TOURS_ORDERED: SampleTour[] = [
-  ...sampleUpcomingTours(),
-  ...SAMPLE_TOURS.filter(t => t.state === 'Past').sort((a, b) => b.date.localeCompare(a.date)),
+  ...upcomingRosterTours(),
+  ...ROSTER_TOURS.filter(t => t.state === 'Past').sort((a, b) => b.date.localeCompare(a.date)),
 ]
 
 export const tours: TourListItem[] = TOURS_ORDERED.map(t => ({
@@ -247,7 +318,7 @@ export const tours: TourListItem[] = TOURS_ORDERED.map(t => ({
  * a single-stop tour while the map still drew three, so the two would disagree.
  */
 export const DEFAULT_TOUR_ID =
-  sampleUpcomingTours().reduce((best, t) => (t.stopCount > best.stopCount ? t : best))
+  upcomingRosterTours().reduce((best, t) => (t.stopCount > best.stopCount ? t : best))
     .id
 
 // ─── Home: upcoming tours card ────────────────────────────────────────────────
@@ -284,7 +355,7 @@ function toUpcomingTour(t: SampleTour): UpcomingTour {
   }
 }
 
-export const initialUpcomingTours: UpcomingTour[] = sampleUpcomingTours().map(toUpcomingTour)
+export const initialUpcomingTours: UpcomingTour[] = upcomingRosterTours().map(toUpcomingTour)
 
 // ─── Home: client needs ───────────────────────────────────────────────────────
 
@@ -301,7 +372,7 @@ export interface ClientNeed {
  * Derived rather than authored: an open tour request is the time-sensitive case, an
  * invite nobody has acted on is the nudge. Sorted so the urgent ones lead.
  */
-export const clientNeeds: ClientNeed[] = SAMPLE_CLIENTS.flatMap((c): ClientNeed[] => {
+export const clientNeeds: ClientNeed[] = ROSTER.flatMap((c): ClientNeed[] => {
   const first = greetingName(c)
 
   if (c.tourRequestCount > 0 && c.status === 'Requests') {
@@ -344,16 +415,16 @@ export const clientNeeds: ClientNeed[] = SAMPLE_CLIENTS.flatMap((c): ClientNeed[
 
 const sum = (ns: number[]) => ns.reduce((a, b) => a + b, 0)
 
-export const savedHomesTotal = sum(SAMPLE_CLIENTS.map(c => c.savedCount))
-export const tourRequestsTotal = sum(SAMPLE_CLIENTS.map(c => c.tourRequestCount))
-export const activeClientCount = SAMPLE_CLIENTS.filter(c => c.status === 'Active').length
-export const invitedClientCount = SAMPLE_CLIENTS.filter(c => c.status === 'Invited').length
+export const savedHomesTotal = sum(ROSTER.map(c => c.savedCount))
+export const tourRequestsTotal = sum(ROSTER.map(c => c.tourRequestCount))
+export const activeClientCount = ROSTER.filter(c => c.status === 'Active').length
+export const invitedClientCount = ROSTER.filter(c => c.status === 'Invited').length
 
 /**
  * Clients with an open request — not `tourRequestsTotal`, which counts requests. The
  * subnav's two tabs sit side by side, so both have to count the same kind of thing.
  */
-export const requestClientCount = SAMPLE_CLIENTS.filter(c => c.status === 'Requests').length
+export const requestClientCount = ROSTER.filter(c => c.status === 'Requests').length
 
 // ─── Clients screen ───────────────────────────────────────────────────────────
 
@@ -484,7 +555,7 @@ export interface ClientListingGroup {
 
 /** Listings on an upcoming tour — see the note above on deriving "saved". */
 const SAVED_LISTING_IDS = new Set(
-  sampleUpcomingTours().flatMap(t => t.stops.map(s => s.listingId)),
+  upcomingRosterTours().flatMap(t => t.stops.map(s => s.listingId)),
 )
 
 /**
@@ -581,22 +652,6 @@ const LISTING_FILTERS: Array<{ id: string; label: string; match: (l: SampleListi
   { id: 'closed', label: 'Closed', match: l => l.status === 'Closed' },
 ]
 
-export const clientPills: Array<[string, string]> = [
-  ...LISTING_FILTERS.map(({ id, label, match }): [string, string] => [
-    id,
-    `${label} (${SAMPLE_LISTINGS.filter(match).length})`,
-  ]),
-  ['chat', 'Chat list'],
-]
-
-/** The ids a pill keeps, or `null` for a pill with no listing filter behind it. */
-export const clientListingFilters: Record<string, string[] | null> = {
-  ...Object.fromEntries(
-    LISTING_FILTERS.map(({ id, match }) => [id, SAMPLE_LISTINGS.filter(match).map(l => l.id)]),
-  ),
-  chat: null,
-}
-
 /**
  * The agent's own saved search, shown on the Clients screen tile.
  *
@@ -606,45 +661,184 @@ export const clientListingFilters: Record<string, string[] | null> = {
  */
 const AGENT_SEARCH = savedSearchesForClient('agent')[0]
 
+/**
+ * `"Maple Heights, ST · $600K–$950K"`, or just the location when the search carries no
+ * price bounds — `srch_03` has neither, and "Maple Heights, ST · —" reads on a tile as a
+ * value that failed to load rather than as a search with an open budget.
+ */
+function searchTileName(search: SavedSearch): string {
+  const budget = budgetFromSearch(search)
+  return budget === EMPTY
+    ? search.criteria.location
+    : `${search.criteria.location} · ${budget}`
+}
+
 export const agentSavedSearchTile = {
-  name: AGENT_SEARCH
-    ? `${AGENT_SEARCH.criteria.location} · ${budgetFromSearch(AGENT_SEARCH)}`
-    : 'No saved search yet',
+  name: AGENT_SEARCH ? searchTileName(AGENT_SEARCH) : 'No saved search yet',
   sub: 'Saved by you',
+}
+
+/** A client's own saved search, or the note that they have none — `cli_04` has none. */
+function savedSearchTileFor(c: SampleClient) {
+  const search = savedSearchesForClient(c.id)[0]
+  const first = greetingName(c)
+  return search
+    ? { name: searchTileName(search), sub: `Saved by ${first}` }
+    // Phrased around the name rather than after it: `greetingName` can be a couple
+    // ("Erik and Nina"), which would take a plural verb.
+    : { name: 'No saved search yet', sub: `Nothing saved for ${first} yet` }
+}
+
+/**
+ * Everything the Clients screen renders for one row of the subnav — the feed, the pill
+ * row above it, and the three tiles.
+ *
+ * The screen is scoped to whoever is selected, so the numbers on it are too: a client's
+ * own saves and open requests rather than the roster's totals, and pill counts over
+ * their own listings rather than all ten. A pill counting ten above a feed of two would
+ * be describing a different screen.
+ */
+export interface ClientFeed {
+  /** A client id, or `AGENT_FEED_ID` for the agent's own feed. */
+  id: string
+  /** Listings on the feed before any pill filter — the count the header quotes. */
+  listingCount: number
+  groups: ClientListingGroup[]
+  pills: Array<[string, string]>
+  /** The ids a pill keeps, or `null` for a pill with no listing filter behind it. */
+  filters: Record<string, string[] | null>
+  savedCount: number
+  tourRequestCount: number
+  savedSearchTile: { name: string; sub: string }
+}
+
+/**
+ * Which listings a client is seeing: everything they have a tour stop for, topped up
+ * from the front of the feed order until the feed reaches `FEED_SIZES`. Clients overlap
+ * by construction rather than by a hand-written table — `lst_01` is the freshest listing
+ * in the set, so four of the five have been shown it.
+ */
+function feedIdsFor(clientId: string): string[] {
+  const toured = touredListingIds(clientId)
+  const topUp = FEED_ORDER.filter(l => !toured.has(l.id))
+    .slice(0, listingCountFor(clientId) - toured.size)
+    .map(l => l.id)
+  const keep = new Set([...toured, ...topUp])
+  return FEED_ORDER.filter(l => keep.has(l.id)).map(l => l.id)
+}
+
+function buildFeed(
+  id: string,
+  listingIds: string[],
+  tiles: Pick<ClientFeed, 'savedCount' | 'tourRequestCount' | 'savedSearchTile'>,
+): ClientFeed {
+  const keep = new Set(listingIds)
+  const own = FEED_ORDER.filter(l => keep.has(l.id))
+
+  return {
+    id,
+    listingCount: own.length,
+    // The day sections and the "New 3 hrs ago" pills stay on the positions the whole
+    // feed gave them, so the same listing carries the same age on every client's screen.
+    groups: clientListingGroups
+      .map(g => ({ ...g, listings: g.listings.filter(l => keep.has(l.id)) }))
+      .filter(g => g.listings.length > 0),
+    pills: [
+      ...LISTING_FILTERS.map(({ id: pillId, label, match }): [string, string] => [
+        pillId,
+        `${label} (${own.filter(match).length})`,
+      ]),
+      ['chat', 'Chat list'],
+    ],
+    filters: {
+      ...Object.fromEntries(
+        LISTING_FILTERS.map(({ id: pillId, match }) => [
+          pillId,
+          own.filter(match).map(l => l.id),
+        ]),
+      ),
+      chat: null,
+    },
+    ...tiles,
+  }
+}
+
+/** Keyed by subnav row: the agent's own feed carries everything, each client their own. */
+const CLIENT_FEEDS: Record<string, ClientFeed> = {
+  [AGENT_FEED_ID]: buildFeed(
+    AGENT_FEED_ID,
+    FEED_ORDER.map(l => l.id),
+    {
+      savedCount: savedHomesTotal,
+      tourRequestCount: tourRequestsTotal,
+      savedSearchTile: agentSavedSearchTile,
+    },
+  ),
+  ...Object.fromEntries(
+    ROSTER.map(c => [
+      c.id,
+      buildFeed(c.id, feedIdsFor(c.id), {
+        savedCount: c.savedCount,
+        tourRequestCount: c.tourRequestCount,
+        savedSearchTile: savedSearchTileFor(c),
+      }),
+    ]),
+  ),
+}
+
+/** Falls back to the agent's own feed, which is the row the header titles "My feed". */
+export const feedFor = (id: string): ClientFeed => CLIENT_FEEDS[id] ?? CLIENT_FEEDS[AGENT_FEED_ID]
+
+/**
+ * The Clients screen's three tiles. They were drop-to-fill image slots; each now carries
+ * a home from the library instead. `imageForKey` hashes the tile's own id, so the three
+ * differ from each other and none of them changes between runs.
+ */
+export const CLIENT_TILE_IMAGES: Record<
+  'savedListings' | 'tourRequests' | 'savedSearch',
+  HomeImage
+> = {
+  savedListings: imageForKey('clients-saved-listings'),
+  tourRequests: imageForKey('clients-tour-requests'),
+  savedSearch: imageForKey('clients-saved-search'),
 }
 
 // ─── Assistant threads ────────────────────────────────────────────────────────
 
+/** Looked up rather than named, so the thread list can't outlive a roster change. */
+const INVITED_CLIENT = ROSTER.find(c => c.status === 'Invited') ?? ROSTER[0]
+
 /** One thread per upcoming tour, newest-looking first — plausible recent chat history. */
 export const threads: Thread[] = [
-  ...sampleUpcomingTours()
+  ...upcomingRosterTours()
     .slice(0, 2)
     .map((t): Thread => ({
       title: `Tour plan for ${clientName(t.clientId)}`,
       when: formatTourDate(t.date),
     })),
   { title: `Comps for ${SAMPLE_LISTINGS[6].address.city}`, when: 'Last week' },
-  { title: `Welcome note for ${clientName('cli_07')}`, when: 'Last week' },
+  // The invited client — a welcome note is the thread they would plausibly have.
+  { title: `Welcome note for ${INVITED_CLIENT.displayName}`, when: 'Last week' },
 ]
 
 // ─── Assistant suggestion chips ───────────────────────────────────────────────
 
 export const chips: string[] = [
-  `What is ${greetingName(SAMPLE_CLIENTS[0])} looking for?`,
-  `Set up a tour for ${greetingName(SAMPLE_CLIENTS[0])} at ${SAMPLE_LISTINGS[0].address.line1} on Saturday morning`,
+  `What is ${greetingName(ROSTER[0])} looking for?`,
+  `Set up a tour for ${greetingName(ROSTER[0])} at ${SAMPLE_LISTINGS[0].address.line1} on Saturday morning`,
   'Who needs a follow-up this week?',
   `How does the ${SAMPLE_LISTINGS[6].address.city} market look right now?`,
 ]
 
 // ─── Assistant greeting + nudges ──────────────────────────────────────────────
 
-export const AGENT_FIRST_NAME = CURRENT_AGENT.firstName
+export const AGENT_FIRST_NAME = AGENT_NAME.first
 
 /** The brokerage line, for surfaces that identify the logged-in agent. */
 export const AGENT_BROKERAGE = CURRENT_AGENT.brokerage
 
 /** The agent's own book — every client assigned to them in the dataset. */
-export const AGENT_CLIENT_COUNT = SAMPLE_CLIENTS.filter(c => c.agentId === CURRENT_AGENT.id).length
+export const AGENT_CLIENT_COUNT = ROSTER.filter(c => c.agentId === CURRENT_AGENT.id).length
 
 export const AGENT_TEAM = AGENTS.filter(
   a => a.brokerage === CURRENT_AGENT.brokerage && a.id !== CURRENT_AGENT.id,
@@ -665,7 +859,7 @@ export const assistantNudges: AssistantNudge[] = (() => {
   const nudges: AssistantNudge[] = []
 
   // The busiest saved-search client, paired with the first listing they'd plausibly see.
-  const busiest = [...SAMPLE_CLIENTS]
+  const busiest = [...ROSTER]
     .filter(c => c.status === 'Active')
     .sort((a, b) => b.savedCount - a.savedCount)[0]
   const featured = SAMPLE_LISTINGS[0]
@@ -690,7 +884,7 @@ export const assistantNudges: AssistantNudge[] = (() => {
   }
 
   // The soonest tour that still has unconfirmed stops.
-  const pending = sampleUpcomingTours().find(t =>
+  const pending = upcomingRosterTours().find(t =>
     t.stops.some(s => s.tourStatus !== 'Confirmed'),
   )
   if (pending) {

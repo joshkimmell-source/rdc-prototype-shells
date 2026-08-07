@@ -110,15 +110,11 @@ export function IconChat({ size = 20, ...p }: S) {
   )
 }
 
-export function IconMore({ size = 16, ...p }: S) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...p}>
-      <circle cx="5" cy="12" r="1.8" />
-      <circle cx="12" cy="12" r="1.8" />
-      <circle cx="19" cy="12" r="1.8" />
-    </svg>
-  )
-}
+/*
+ * There is deliberately no bare three-dot icon here. A ⋯ in this shell always means an
+ * overflow menu, so the glyph is only reachable through `Menu` (via `IconMenuDots` below) —
+ * exporting it loose is what let inert copies of it appear in the subnav's rows.
+ */
 
 export function IconPlus({ size = 15, ...p }: S) {
   return (
@@ -334,22 +330,28 @@ export function IconArrowDown({ size = 11, ...p }: S) {
 }
 
 /**
- * RealAssist+ FAB — ported from components/FAB.jsx (figma node 21:212).
+ * RealAssist+ mark — ported from components/FAB.jsx (figma node 21:212).
  * `aura` is omitted; the shell mounts it with aura=false.
+ *
+ * The artwork is 20 units square sitting 2 units in from each edge of a 24-unit box, which
+ * is why the viewBox is 24 and the paths are shifted rather than starting at the origin.
+ * The port originally hardcoded a 20px svg inside a `size`-square clipping div, so anything
+ * below 24 sheared the right and bottom points off the star instead of scaling it — the
+ * viewBox does that scaling, and the same markup is duplicated in `public/search-map.html`
+ * and `public/tours-map.html`, which cannot import this module.
  */
 export function IconRealAssist({ size = 24, ...p }: { size?: number; className?: string }) {
   return (
-    <div
+    <svg
       className={p.className}
-      style={{ width: size, height: size, overflow: 'hidden', position: 'relative' }}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      // The callers lay this out in a flex row; a block box keeps it off the text baseline.
+      style={{ display: 'block', flex: 'none' }}
     >
-      <svg
-        width={20}
-        height={20}
-        viewBox="0 0 20 20"
-        fill="none"
-        style={{ position: 'absolute', left: 2, top: 2, width: 20, height: 20 }}
-      >
+      <g transform="translate(2, 2)">
         <path
           d="M 10.351 0 C 10.351 5.327 14.673 9.649 20 9.649 L 20 10.351 C 14.673 10.351 10.351 14.673 10.351 20 L 9.649 20 C 9.649 14.673 5.327 10.351 0 10.351 L 0 9.649 C 5.327 9.649 9.649 5.327 9.649 0 L 10.351 0 Z"
           fill="currentColor"
@@ -365,8 +367,8 @@ export function IconRealAssist({ size = 24, ...p }: { size?: number; className?:
           fill="currentColor"
           fillRule="evenodd"
         />
-      </svg>
-    </div>
+      </g>
+    </svg>
   )
 }
 

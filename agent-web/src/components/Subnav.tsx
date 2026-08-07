@@ -6,9 +6,16 @@
  * instead, capped so a strip of scrim stays tappable beside it.
  */
 import { C, EASE } from '../theme'
-import { CircleButton, EmptyNote, Heading, HoverButton, Initials, SearchField, Tab } from './primitives'
-import { IconChevronRight, IconClose, IconMore, IconPlus } from '../icons'
-import type { Buyer, TourListItem } from '../data'
+import { CircleButton, EmptyNote, Heading, HoverDiv, Initials, SearchField, Tab } from './primitives'
+import { Menu } from './Menu'
+import { IconChevronRight, IconClose, IconPlus } from '../icons'
+import {
+  CLIENT_LIST_MENU_ITEMS,
+  CLIENT_ROW_MENU_ITEMS,
+  TOUR_ROW_MENU_ITEMS,
+  type Buyer,
+  type TourListItem,
+} from '../data'
 
 interface SubnavProps {
   open: boolean
@@ -60,14 +67,33 @@ const LIST_WRAP = {
 const ROW = {
   display: 'flex',
   alignItems: 'center',
-  gap: 12,
   flex: 'none',
-  padding: '10px 12px',
+  // Only the trailing inset lives here. The rest of the row's padding is on the select
+  // button below, so that padding is clickable rather than dead space under a hover
+  // highlight — the row lights up where it can be clicked and nowhere else.
+  padding: '0 12px 0 0',
   borderRadius: 16,
   border: 'none',
+  transition: 'background 120ms',
+} as const
+
+/**
+ * The selectable part of a row. A row's trailing ⋯ opens a menu, and a button cannot
+ * nest inside a button — so the row itself is a plain box and this fills all of it but
+ * the ⋯, keeping one large hit target for selecting without swallowing the menu. It
+ * carries the row's own padding for that reason: the inset is part of the target.
+ */
+const ROW_MAIN = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  flex: 1,
+  minWidth: 0,
+  padding: '10px 12px',
+  border: 'none',
+  background: 'transparent',
   cursor: 'pointer',
   textAlign: 'left',
-  transition: 'background 120ms',
 } as const
 
 export function Subnav(props: SubnavProps) {
@@ -137,9 +163,7 @@ function ClientsSubnav({
     <>
       <div style={HEADER_ROW}>
         <Heading style={{ flex: 1 }}>Clients</Heading>
-        <CircleButton aria-label="More" title="More">
-          <IconMore size={15} />
-        </CircleButton>
+        <Menu aria-label="More" items={CLIENT_LIST_MENU_ITEMS} size={28} bare />
         <CircleButton aria-label="Add client" title="Add client">
           <IconPlus />
         </CircleButton>
@@ -179,39 +203,47 @@ function ClientsSubnav({
 
       <div style={LIST_WRAP}>
         {buyers.map((b) => (
-          <HoverButton
+          <HoverDiv
             key={b.id}
-            onClick={() => onSelectBuyer(b.id)}
             style={{ ...ROW, background: b.id === selectedBuyer ? C.hair : 'transparent' }}
             hoverStyle={{ background: C.hair }}
           >
-            <div style={{ position: 'relative', width: 40, height: 40, flex: 'none' }}>
-              <Initials initials={b.initials} />
-              {b.online && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    right: 0,
-                    bottom: 0,
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    background: C.online,
-                    border: `2px solid ${C.alt}`,
-                  }}
-                />
-              )}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.dark, lineHeight: 1.35 }}>
-                {b.name}
+            <button type="button" onClick={() => onSelectBuyer(b.id)} style={ROW_MAIN}>
+              <div style={{ position: 'relative', width: 40, height: 40, flex: 'none' }}>
+                <Initials initials={b.initials} />
+                {b.online && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      bottom: 0,
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: C.online,
+                      border: `2px solid ${C.alt}`,
+                    }}
+                  />
+                )}
               </div>
-              <div style={{ fontSize: 11.5, color: C.muted }}>{b.sub}</div>
-            </div>
-            <div style={{ color: C.muted, flex: 'none', display: 'flex', alignItems: 'center' }}>
-              <IconMore />
-            </div>
-          </HoverButton>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.dark, lineHeight: 1.35 }}>
+                  {b.name}
+                </div>
+                <div style={{ fontSize: 11.5, color: C.muted }}>{b.sub}</div>
+              </div>
+            </button>
+            <Menu
+              aria-label={`More actions for ${b.name}`}
+              items={CLIENT_ROW_MENU_ITEMS}
+              size={28}
+              bare
+              // The row is already `C.hair` when hovered or selected, so the toggle needs a
+              // darker step to register as its own target.
+              hoverBg={C.border}
+              color={C.muted}
+            />
+          </HoverDiv>
         ))}
         {buyers.length === 0 && <EmptyNote>No clients match your search.</EmptyNote>}
       </div>
@@ -277,23 +309,29 @@ function ToursSubnav({
 
       <div style={LIST_WRAP}>
         {tours.map((t) => (
-          <HoverButton
+          <HoverDiv
             key={t.id}
-            onClick={() => onSelectTour(t.id)}
             style={{ ...ROW, background: t.id === selectedTour ? C.hair : 'transparent' }}
             hoverStyle={{ background: C.hair }}
           >
-            <Initials initials={t.initials} bg={C.dark} fg={C.white} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.dark, lineHeight: 1.35 }}>
-                {t.name}
+            <button type="button" onClick={() => onSelectTour(t.id)} style={ROW_MAIN}>
+              <Initials initials={t.initials} bg={C.dark} fg={C.white} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.dark, lineHeight: 1.35 }}>
+                  {t.name}
+                </div>
+                <div style={{ fontSize: 11.5, color: C.muted }}>{t.meta}</div>
               </div>
-              <div style={{ fontSize: 11.5, color: C.muted }}>{t.meta}</div>
-            </div>
-            <div style={{ color: C.muted, flex: 'none', display: 'flex', alignItems: 'center' }}>
-              <IconMore />
-            </div>
-          </HoverButton>
+            </button>
+            <Menu
+              aria-label={`More actions for ${t.name}`}
+              items={TOUR_ROW_MENU_ITEMS}
+              size={28}
+              bare
+              hoverBg={C.border}
+              color={C.muted}
+            />
+          </HoverDiv>
         ))}
         {tours.length === 0 && <EmptyNote>No tours match your search.</EmptyNote>}
       </div>

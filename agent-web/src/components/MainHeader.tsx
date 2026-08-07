@@ -1,11 +1,15 @@
 /**
  * Header above the active screen. Hidden on Search and Tours, which own their full viewport.
  * The four toggle circles only appear on Clients.
+ *
+ * Under `?ab=b` the control cluster is replaced by `ActionBar`, which labels the same
+ * toggles and carries the "Ask RealAssist+" action inline instead of leaving it to the FAB.
  */
 import { C, DISPLAY_FONT } from '../theme'
 import { HoverButton } from './primitives'
 import { Menu } from './Menu'
-import { IconBell, IconChart, IconFlame, IconHamburger, IconStar } from '../icons'
+import { ActionBar, type ActionItem } from './ActionBar'
+import { IconBell, IconChart, IconFlame, IconHamburger, IconRealAssist, IconStar } from '../icons'
 import { MENU_ITEMS } from '../data'
 
 export type ToggleId = 'bell' | 'flame' | 'chart' | 'star'
@@ -19,10 +23,31 @@ const TOGGLES: Array<{ id: ToggleId; label: string; icon: React.ReactNode }> = [
   { id: 'star', label: 'Favorites panel', icon: <IconStar /> },
 ]
 
+/**
+ * Labels for the action-bar arm. Longer than the icon-only tooltips, since a pill has room
+ * for the phrasing the design calls for ("Agent notifications", not "Notifications").
+ */
+const ACTION_LABELS: Record<ToggleId, string> = {
+  bell: 'Agent notifications',
+  flame: 'Hotsheets',
+  chart: 'Market data',
+  star: 'Favorites',
+}
+
 interface MainHeaderProps {
   visible: boolean
   /** Below the mobile breakpoint: tighter gutters, and the controls may wrap below the title. */
   mobile: boolean
+  /** `b` swaps the control cluster for `ActionBar` and shows the inline Ask action. */
+  actionBar: boolean
+  /** Opens the assistant panel — the action under test, absent in the FAB arm. */
+  onAsk: () => void
+  /**
+   * The assistant panel is on screen. The Ask action drops out while it is: the panel is
+   * the thing the action produces, so offering it again says nothing, and the freed width
+   * goes to the toggles' labels.
+   */
+  askOpen: boolean
   showSubnavButton: boolean
   onOpenSubnav: () => void
   title: string
@@ -63,6 +88,9 @@ function DrawerButton({ label, onClick }: { label: string; onClick: () => void }
 export function MainHeader({
   visible,
   mobile,
+  actionBar,
+  onAsk,
+  askOpen,
   showSubnavButton,
   onOpenSubnav,
   title,
@@ -71,6 +99,35 @@ export function MainHeader({
   toggles,
   onToggle,
 }: MainHeaderProps) {
+  // Ask sits last, at the right end of the row, where the FAB arm puts it in the corner —
+  // the toggles keep the order they have in the icon-only arm.
+  const actions: ActionItem[] = [
+    ...(showToggles
+      ? TOGGLES.map(
+          ({ id, icon }): ActionItem => ({
+            id,
+            label: ACTION_LABELS[id],
+            icon,
+            tone: toggles[id] ? 'dark' : 'light',
+            pressed: toggles[id],
+            onClick: () => onToggle(id),
+          })
+        )
+      : []),
+    ...(askOpen
+      ? []
+      : [
+          {
+            id: 'ask',
+            label: 'Ask RealAssist™+ AI',
+            // 16, matching the map pages' Ask pill — the same control at the same scale.
+            icon: <IconRealAssist size={16} />,
+            tone: 'brand' as const,
+            onClick: onAsk,
+          },
+        ]),
+  ]
+
   return (
     <div
       style={{
@@ -80,7 +137,8 @@ export function MainHeader({
         padding: mobile ? '12px 16px' : '16px 24px',
         // At 320px the title and the five Clients controls cannot share a line, so the
         // control group drops below rather than squeezing any of them out of reach.
-        flexWrap: mobile ? 'wrap' : 'nowrap',
+        // `ActionBar` collapses to circles instead, and stays on the title's line.
+        flexWrap: mobile && !actionBar ? 'wrap' : 'nowrap',
       }}
     >
       {showSubnavButton && <DrawerButton label="Open subnav" onClick={onOpenSubnav} />}
@@ -88,7 +146,11 @@ export function MainHeader({
       <h1
         style={{
           margin: 0,
-          flex: '1 1 auto',
+          // Beside an `ActionBar` the title takes its content width and does not grow, so
+          // the bar gets all the rest. Two growing siblings would split the free space
+          // between them, and the split would move every time the bar's width changed —
+          // which is the input the bar measures to decide its width.
+          flex: actionBar ? '0 1 auto' : '1 1 auto',
           // A floor rather than 0: it is what forces the wrap instead of letting the title
           // ellipsize down to nothing beside the controls.
           minWidth: mobile ? 130 : 0,
@@ -113,47 +175,53 @@ export function MainHeader({
         </span>
       </h1>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          flexWrap: 'wrap',
-          justifyContent: 'flex-end',
-          flex: mobile ? '1 1 auto' : '0 0 auto',
-        }}
-      >
-        <Menu aria-label="More" items={MENU_ITEMS} />
-        {showToggles &&
-          TOGGLES.map(({ id, label, icon }) => {
-            const on = toggles[id]
-            return (
-              <HoverButton
-                key={id}
-                onClick={() => onToggle(id)}
-                aria-label={label}
-                aria-pressed={on}
-                title={label}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: `1px solid ${on ? C.dark : C.border}`,
-                  background: on ? C.dark : C.white,
-                  color: on ? C.white : C.dark,
-                  cursor: 'pointer',
-                  transition: 'all 120ms',
-                }}
-                hoverStyle={{ boxShadow: '0 1px 4px rgba(26,24,22,0.16)' }}
-              >
-                {icon}
-              </HoverButton>
-            )
-          })}
-      </div>
+      {actionBar ? (
+        // Collapses its own labels to fit, so unlike the cluster below it never wraps.
+        // `leading` is the bar's far-left item, so the overflow menu travels with the group.
+        <ActionBar items={actions} leading={<Menu aria-label="More" items={MENU_ITEMS} />} />
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+            flex: mobile ? '1 1 auto' : '0 0 auto',
+          }}
+        >
+          <Menu aria-label="More" items={MENU_ITEMS} />
+          {showToggles &&
+            TOGGLES.map(({ id, label, icon }) => {
+              const on = toggles[id]
+              return (
+                <HoverButton
+                  key={id}
+                  onClick={() => onToggle(id)}
+                  aria-label={label}
+                  aria-pressed={on}
+                  title={label}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: `1px solid ${on ? C.dark : C.border}`,
+                    background: on ? C.dark : C.white,
+                    color: on ? C.white : C.dark,
+                    cursor: 'pointer',
+                    transition: 'all 120ms',
+                  }}
+                  hoverStyle={{ boxShadow: '0 1px 4px rgba(26,24,22,0.16)' }}
+                >
+                  {icon}
+                </HoverButton>
+              )
+            })}
+        </div>
+      )}
     </div>
   )
 }

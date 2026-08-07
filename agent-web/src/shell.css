@@ -93,3 +93,16 @@ input {
 .ra-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/*
+ * Horizontal overflow with no visible scrollbar — for control rows like the action bar,
+ * where a bar would sit across the buttons in a header only ~36px tall. The row still
+ * scrolls by wheel, trackpad, and touch.
+ */
+.ra-scroll-x {
+  scrollbar-width: none;
+}
+
+.ra-scroll-x::-webkit-scrollbar {
+  display: none;
+}
