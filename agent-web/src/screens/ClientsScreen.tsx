@@ -4,23 +4,17 @@
  */
 import { C, DISPLAY_FONT } from '../theme'
 import { HoverButton } from '../components/primitives'
-import { ImageSlot } from '../components/ImageSlot'
 import { ListingCard } from '../components/ListingCard'
 import { IconGridView, IconMapView, IconSort, IconTableView } from '../icons'
-import {
-  CLIENT_LISTING_FILTERS,
-  CLIENT_LISTING_GROUPS,
-  CLIENT_PILLS,
-  agentSavedSearchTile,
-  savedHomesTotal,
-  tourRequestsTotal,
-} from '../data'
+import { CLIENT_TILE_IMAGES, type ClientFeed } from '../data'
 
 export type ClientsView = 'map' | 'grid' | 'table'
 
 interface ClientsScreenProps {
   /** Below the mobile breakpoint: tighter gutters, and the tiles share the row width. */
   mobile: boolean
+  /** The selected subnav row's feed — tiles, pills and listings all come from it. */
+  feed: ClientFeed
   pill: string
   onPill: (id: string) => void
   view: ClientsView
@@ -60,6 +54,18 @@ const SCRIM = {
 
 const GROUP = { display: 'flex', flexDirection: 'column', gap: 14 } as const
 
+/** The tile photo. Decorative — the number and label over it carry the meaning. */
+function TilePhoto({ src }: { src: string }) {
+  return (
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+    />
+  )
+}
+
 function GroupHeading({ children }: { children: React.ReactNode }) {
   return (
     <h3
@@ -83,7 +89,7 @@ const VIEWS: Array<{ id: ClientsView; label: string; icon: React.ReactNode }> = 
   { id: 'table', label: 'Table view', icon: <IconTableView /> },
 ]
 
-export function ClientsScreen({ mobile, pill, onPill, view, onView }: ClientsScreenProps) {
+export function ClientsScreen({ mobile, feed, pill, onPill, view, onView }: ClientsScreenProps) {
   const tile = mobile ? TILE_MOBILE : TILE
   // Full-width groups on mobile: side by side, the tile pair and the saved search would
   // wrap to three cramped columns' worth of space rather than one readable one.
@@ -91,13 +97,15 @@ export function ClientsScreen({ mobile, pill, onPill, view, onView }: ClientsScr
 
   // The pill filters the feed. `null` means the pill has no listing filter behind it
   // ("Chat list"), so it leaves the feed alone rather than emptying it.
-  const keep = CLIENT_LISTING_FILTERS[pill]
+  const keep = feed.filters[pill]
   const groups = keep
-    ? CLIENT_LISTING_GROUPS.map((g) => ({
-        ...g,
-        listings: g.listings.filter((l) => keep.includes(l.id)),
-      })).filter((g) => g.listings.length > 0)
-    : CLIENT_LISTING_GROUPS
+    ? feed.groups
+        .map((g) => ({
+          ...g,
+          listings: g.listings.filter((l) => keep.includes(l.id)),
+        }))
+        .filter((g) => g.listings.length > 0)
+    : feed.groups
 
   return (
     <div
@@ -118,30 +126,22 @@ export function ClientsScreen({ mobile, pill, onPill, view, onView }: ClientsScr
           <GroupHeading>Saved &amp; Tour requests</GroupHeading>
           <div style={{ display: 'flex', gap: 16 }}>
             <div style={{ ...tile, background: C.hair }}>
-              <ImageSlot
-                id="clients-saved-listings"
-                placeholder="Drop a listing photo"
-                style={{ position: 'absolute', inset: 0 }}
-              />
+              <TilePhoto src={CLIENT_TILE_IMAGES.savedListings.url} />
               <div style={SCRIM} />
               <div style={{ position: 'absolute', left: 14, bottom: 12, color: C.white, pointerEvents: 'none' }}>
                 <div className="ty-numeric-body100" style={{ fontSize: 22, fontWeight: 700, lineHeight: '26px' }}>
-                  {savedHomesTotal}
+                  {feed.savedCount}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>Saved listings</div>
               </div>
             </div>
 
             <div style={{ ...tile, background: C.hair }}>
-              <ImageSlot
-                id="clients-tour-requests"
-                placeholder="Drop a home photo"
-                style={{ position: 'absolute', inset: 0 }}
-              />
+              <TilePhoto src={CLIENT_TILE_IMAGES.tourRequests.url} />
               <div style={SCRIM} />
               <div style={{ position: 'absolute', left: 14, bottom: 12, color: C.white, pointerEvents: 'none' }}>
                 <div className="ty-numeric-body100" style={{ fontSize: 22, fontWeight: 700, lineHeight: '26px' }}>
-                  {tourRequestsTotal}
+                  {feed.tourRequestCount}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>Tour requests</div>
               </div>
@@ -153,15 +153,16 @@ export function ClientsScreen({ mobile, pill, onPill, view, onView }: ClientsScr
           <GroupHeading>Saved Searches</GroupHeading>
           <div style={{ display: 'flex', gap: 16 }}>
             <div style={{ ...tile, background: C.action }}>
-              <ImageSlot
-                id="clients-saved-search"
-                placeholder="Drop a search photo"
-                style={{ position: 'absolute', inset: 0 }}
-              />
+              <TilePhoto src={CLIENT_TILE_IMAGES.savedSearch.url} />
               <div
                 style={{
                   ...SCRIM,
-                  background: 'linear-gradient(180deg,rgba(26,24,22,0.1) 30%,rgba(26,24,22,0.65) 100%)',
+                  // Darker and higher than the number tiles' scrim: this tile's copy is two
+                  // or three lines ("No saved search yet" over "Nothing saved for Erik and
+                  // Nina yet"), so it reaches up into the photo's sky rather than sitting in
+                  // the bottom band.
+                  background:
+                    'linear-gradient(180deg,rgba(26,24,22,0.2) 0%,rgba(26,24,22,0.45) 45%,rgba(26,24,22,0.75) 100%)',
                 }}
               />
               <div
@@ -175,10 +176,10 @@ export function ClientsScreen({ mobile, pill, onPill, view, onView }: ClientsScr
                 }}
               >
                 <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>
-                  {agentSavedSearchTile.name}
+                  {feed.savedSearchTile.name}
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 500, opacity: 0.85, marginTop: 2 }}>
-                  {agentSavedSearchTile.sub}
+                  {feed.savedSearchTile.sub}
                 </div>
               </div>
             </div>
@@ -187,7 +188,7 @@ export function ClientsScreen({ mobile, pill, onPill, view, onView }: ClientsScr
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        {CLIENT_PILLS.map(([id, label]) => {
+        {feed.pills.map(([id, label]) => {
           const on = pill === id
           return (
             <HoverButton

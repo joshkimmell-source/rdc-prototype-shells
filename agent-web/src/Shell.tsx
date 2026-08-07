@@ -43,6 +43,7 @@ import {
   TOURS,
   activeClientCount,
   clientNeeds,
+  feedFor,
   invitedClientCount,
   requestClientCount,
   tourRequestsTotal,
@@ -113,7 +114,7 @@ function FloatingIconButton({ label, onClick }: { label: string; onClick: () => 
   )
 }
 
-/** `ImageSlot` already persists to localStorage; the panel width follows suit. */
+/** The dragged panel width survives a reload; nothing else in the shell is persisted. */
 function readStoredPushWidth() {
   try {
     const raw = window.localStorage.getItem(PUSH_WIDTH_KEY)
@@ -290,6 +291,9 @@ export function Shell() {
   }))
 
   const selectedBuyerRecord = BUYERS.find((b) => b.id === selectedBuyer) ?? BUYERS[1]
+  // Each client is shown a different number of listings, so the Clients screen follows
+  // the selected subnav row rather than rendering one feed for everybody.
+  const clientFeed = feedFor(selectedBuyerRecord.id)
   const pageTitle = isClients
     ? selectedBuyerRecord.id === AGENT_FEED_ID
       ? 'My feed'
@@ -298,9 +302,10 @@ export function Shell() {
       ? 'Search'
       : 'Home'
 
-  const countLabel =
-    isClients || isSearch
-      ? ''
+  const countLabel = isSearch
+    ? ''
+    : isClients
+      ? `${clientFeed.listingCount} ${clientFeed.listingCount === 1 ? 'listing' : 'listings'}`
       : `${filtered.length}${filter === 'all' ? ' clients' : ` of ${clients.length} clients`}`
 
   const buyerQuery = clientQ.trim().toLowerCase()
@@ -611,6 +616,7 @@ export function Shell() {
           {isClients && (
             <ClientsScreen
               mobile={isMobile}
+              feed={clientFeed}
               pill={clientFilter}
               onPill={setClientFilter}
               view={viewMode}

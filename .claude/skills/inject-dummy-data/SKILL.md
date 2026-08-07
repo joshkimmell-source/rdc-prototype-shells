@@ -23,7 +23,7 @@ lookups, and formatters over it.
 | `savedSearches` | 10 | 9 owned by clients, 1 by `'agent'` |
 | `listings` | 10 | Covers New / Active / Price Change / Coming Soon / Closed |
 | `tours` | 10 | 4 Upcoming, 6 Past; one has zero stops |
-| `homeImageLibrary` | 15 | Stable `picsum.photos` seeds, full + thumb |
+| `homeImageLibrary` | 15 | Fixed Unsplash home photos, full + thumb |
 
 Deliberate edge cases — keep them, they are the point. A prototype that renders
 all ten records renders its own empty and degenerate states for free:
@@ -157,8 +157,12 @@ Use `listing.primaryPhoto` for a listing's own photo. For a surface that needs a
 photo but has no listing behind it, call `imageForKey(someStableKey)` — same key
 always returns the same image, so screenshots don't churn between runs.
 
-All image URLs point at `picsum.photos`, so **images need network access**. Two
-consequences worth flagging to the user:
+Property photos are fixed `images.unsplash.com` URLs — one per library entry,
+each depicting a home that matches its `label`, with the crop and quality baked
+into the query string so the same URL always returns the same picture. Agent and
+client `avatar` fields are still `picsum.photos` seeds. Either way the URLs are
+remote, so **images need network access**. Two consequences worth flagging to
+the user:
 
 - `agent-web`'s `npm run bundle` inlines local assets into a single HTML file,
   but these are remote URLs — they stay remote and will not render offline.
