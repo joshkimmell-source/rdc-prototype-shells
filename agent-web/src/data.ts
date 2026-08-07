@@ -119,6 +119,32 @@ export const MENU_ITEMS: string[] = [
   'Settings',
 ]
 
+/**
+ * The three overflow menus in the subnav. Every ⋯ in the shell opens a menu, so each of
+ * these lists exists to give one of them something to say — the actions are plausible for
+ * the surface rather than wired to anything, as elsewhere in the prototype.
+ */
+export const CLIENT_LIST_MENU_ITEMS: string[] = [
+  'Sort by name',
+  'Sort by last activity',
+  'Show archived',
+  'Export list',
+]
+
+export const CLIENT_ROW_MENU_ITEMS: string[] = [
+  'Message client',
+  'Schedule a tour',
+  'Share listings',
+  'Archive client',
+]
+
+export const TOUR_ROW_MENU_ITEMS: string[] = [
+  'Open tour',
+  'Duplicate tour',
+  'Share with client',
+  'Cancel tour',
+]
+
 /** Identity of the logged-in agent, and the ids the subnavs open on. */
 export const {
   AGENT_FIRST_NAME,

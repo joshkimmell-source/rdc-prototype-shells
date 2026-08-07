@@ -146,7 +146,11 @@ export function MainHeader({
       <h1
         style={{
           margin: 0,
-          flex: '1 1 auto',
+          // Beside an `ActionBar` the title takes its content width and does not grow, so
+          // the bar gets all the rest. Two growing siblings would split the free space
+          // between them, and the split would move every time the bar's width changed —
+          // which is the input the bar measures to decide its width.
+          flex: actionBar ? '0 1 auto' : '1 1 auto',
           // A floor rather than 0: it is what forces the wrap instead of letting the title
           // ellipsize down to nothing beside the controls.
           minWidth: mobile ? 130 : 0,
@@ -173,7 +177,8 @@ export function MainHeader({
 
       {actionBar ? (
         // Collapses its own labels to fit, so unlike the cluster below it never wraps.
-        <ActionBar items={actions} compact={mobile} leading={<Menu aria-label="More" items={MENU_ITEMS} />} />
+        // `leading` is the bar's far-left item, so the overflow menu travels with the group.
+        <ActionBar items={actions} leading={<Menu aria-label="More" items={MENU_ITEMS} />} />
       ) : (
         <div
           style={{

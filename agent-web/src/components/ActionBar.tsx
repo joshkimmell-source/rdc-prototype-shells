@@ -2,9 +2,9 @@
  * Action bar — the labelled control row that sits at the right of a content page header.
  *
  * Built for the `?ab=b` arm of the FAB-placement test, but not specific to it: any content
- * page can hand it a set of actions. The primary action renders in the RealAssist+ brand
- * gradient, secondary ones as light or dark pills, and an action with no label stays a
- * circle (the `•••` overflow toggle).
+ * page can hand it a set of actions. The `•••` overflow menu is the bar's far-left item and
+ * the primary action its rightmost, rendered in the RealAssist+ brand gradient; secondary
+ * actions sit between them as light or dark pills. Items are spacing-300 (8px) apart.
  *
  * Responsive behaviour is measured, not guessed at a breakpoint, and it is graduated: the
  * bar renders a hidden full-width mirror of itself, measures each pill in it, and drops
@@ -34,11 +34,17 @@ export interface ActionItem {
 
 interface ActionBarProps {
   items: ActionItem[]
-  /** Rendered ahead of the actions and never collapsed — it has no label to drop. */
+  /**
+   * The overflow menu, rendered as the bar's far-left item. Never collapsed and never
+   * scrolled out of reach — it has no label to drop, so it is the one control that cannot
+   * pay for the row's overflow. It sits outside the scrolling row for that reason, one gap
+   * from its first action.
+   */
   leading?: ReactNode
-  /** Tighter gaps below the shell's mobile breakpoint. */
-  compact?: boolean
 }
+
+/** spacing-300. The gap between every item in the bar, at every width. */
+const GAP = 8
 
 /**
  * Geometry shared with the Ask pill in `search-map.html` and `tours-map.html`. Those pages
@@ -134,17 +140,17 @@ function Action({
   )
 }
 
-export function ActionBar({ items, leading, compact = false }: ActionBarProps) {
+export function ActionBar({ items, leading }: ActionBarProps) {
+  const boxRef = useRef<HTMLDivElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const mirrorRef = useRef<HTMLDivElement>(null)
+  const leadRef = useRef<HTMLDivElement>(null)
   /**
    * How many actions, counting from the left, are showing icons only. `0` is all labelled,
    * `items.length` is all collapsed.
    */
   const [collapsedCount, setCollapsedCount] = useState(0)
   const [tip, setTip] = useState<{ label: string; left: number; top: number } | null>(null)
-
-  const gap = compact ? 6 : 8
 
   /**
    * Measured off the mirror, which always carries every label — so the widths read here
@@ -153,17 +159,29 @@ export function ActionBar({ items, leading, compact = false }: ActionBarProps) {
    * oscillating: the input to the calculation never changes as its output is applied.
    */
   const measure = useCallback(() => {
+    const box = boxRef.current
     const wrap = wrapRef.current
     const mirror = mirrorRef.current
-    if (!wrap || !mirror) return
+    if (!box || !wrap || !mirror) return
 
-    const avail = wrap.clientWidth
     const pills = Array.from(mirror.children) as HTMLElement[]
     if (!pills.length) return
 
+    // Against the outer box, whose width does not depend on what is in it: its flex basis is
+    // 0 and it is the header's only growing child, so the space it gets is a function of the
+    // header and the title alone. Measuring anything the collapse decision itself resizes —
+    // the scroller, or a box sized to its content — feeds the decision back into its own
+    // input, and it then settles at whichever answer it happened to arrive from.
+    //
+    // The overflow menu is in the row but not in the mirror: it has no label, so it is a
+    // fixed cost against the space the labels have to fit in rather than something to
+    // measure. It is a circle at every width.
+    const lead = leadRef.current ? leadRef.current.offsetWidth + GAP : 0
+    const avail = box.clientWidth - lead
+
     // Every label dropped takes the pill down to a HEIGHT-wide circle; the gaps are
     // unchanged by collapsing, so they are a constant here.
-    const gaps = gap * (pills.length - 1)
+    const gaps = GAP * (pills.length - 1)
     const expanded = pills.map((el) => el.offsetWidth)
     const total = expanded.reduce((a, b) => a + b, 0) + gaps
 
@@ -178,21 +196,22 @@ export function ActionBar({ items, leading, compact = false }: ActionBarProps) {
 
     // Below ~430px even the circles overflow. Rest at the end of the scroll range rather
     // than the start, so what is visible without scrolling is the primary action — the
-    // same end of the row the labels were kept on.
+    // same end of the row the labels were kept on. Only the actions pay for this; the
+    // overflow menu is outside the scroller and so is never the item that scrolls away.
     wrap.scrollLeft = wrap.scrollWidth
-  }, [gap])
+  }, [])
 
   useLayoutEffect(measure)
 
   useEffect(() => {
-    const wrap = wrapRef.current
+    const box = boxRef.current
     const mirror = mirrorRef.current
-    if (!wrap || !mirror) return
+    if (!box || !mirror) return
 
     // Both boxes: the available space changes with the window and the panel drag, and the
     // needed width changes when a toggle's label does.
     const ro = new ResizeObserver(measure)
-    ro.observe(wrap)
+    ro.observe(box)
     ro.observe(mirror)
 
     // The display face loads async, and the labels are wider once it lands.
@@ -222,48 +241,61 @@ export function ActionBar({ items, leading, compact = false }: ActionBarProps) {
 
   return (
     <div
+      ref={boxRef}
       style={{
-        // Grows into the space left by the title; `minWidth: 0` is what lets it be squeezed
-        // below its content width instead of pushing the header wider.
-        flex: '1 1 auto',
-        minWidth: 0,
+        // `1 1 0`, not `1 1 auto`: the basis is what makes the box's width independent of its
+        // own content, which is what `measure` relies on. The title is `0 1 auto` beside it,
+        // so the box takes all the space the title does not need.
+        flex: '1 1 0',
+        // A floor of exactly the overflow menu and its gap, not 0. The box justifies its
+        // content to the end, so anything narrower than its contents overflows to the
+        // *left* — and at the widths where the shell squeezes `main` to almost nothing,
+        // what overflowed was the menu, out of the box and across the title. The scroller
+        // keeps `minWidth: 0` and absorbs the squeeze instead, which is what it is for.
+        minWidth: leading ? HEIGHT + GAP : 0,
         display: 'flex',
         justifyContent: 'flex-end',
         alignItems: 'center',
-        gap,
+        // The box is the bar: it holds the overflow menu and the scrolling actions as its
+        // two children, so one `gap` sets the spacing between every item in the row.
+        gap: GAP,
         // Anchors the absolutely-positioned mirror and tooltip below.
         position: 'relative',
       }}
     >
-      {/* Outside the scroller: it has no label to drop, so it must not be what scrolls away. */}
-      {leading}
+      {/*
+        Outside the scroller by design. The scroller rests at the end of its range so the
+        primary action stays visible, which means its *first* item is the one that scrolls
+        out of view — and that item must not be the overflow menu. Kept here it is always
+        at the row's left edge, one gap from the first action, whatever the actions do.
+      */}
+      {leading && (
+        <div ref={leadRef} style={{ display: 'flex', flex: 'none' }}>
+          {leading}
+        </div>
+      )}
 
       <div
         ref={wrapRef}
         className="ra-scroll-x"
         style={{
-          flex: '1 1 auto',
+          // `1 1 auto` with `minWidth: 0` would let the scroller claim the whole box and
+          // strand the actions away from the menu. `0 1 auto` sizes it to its content and
+          // only shrinks when the content will not fit, which is when it starts scrolling.
+          flex: '0 1 auto',
           minWidth: 0,
           display: 'flex',
           alignItems: 'center',
-          // Even collapsed to circles, five actions plus the title can exceed a 320px
-          // screen. Scrolling keeps the overflow reachable; clipping would not.
+          gap: GAP,
+          // Even collapsed to circles, five actions can exceed a 320px screen. Scrolling
+          // keeps them reachable; clipping would not.
           overflowX: 'auto',
           overflowY: 'hidden',
         }}
       >
-        {/*
-          `marginLeft: auto` rather than the scroller's `justifyContent: flex-end`, which
-          looks equivalent and is not: `flex-end` sends the overflow off the *start* edge,
-          and a LTR scroller cannot scroll that way — the leftmost actions end up clipped
-          and unreachable while still being focusable. An auto margin collapses to zero
-          once the row overflows, so the overflow goes off the end, where it can scroll.
-        */}
-        <div style={{ display: 'flex', alignItems: 'center', gap, flex: 'none', marginLeft: 'auto' }}>
-          {items.map((item, i) => (
-            <Action key={item.id} item={item} collapsed={i < collapsedCount} onTip={onTip} />
-          ))}
-        </div>
+        {items.map((item, i) => (
+          <Action key={item.id} item={item} collapsed={i < collapsedCount} onTip={onTip} />
+        ))}
       </div>
 
       {/*
@@ -280,7 +312,7 @@ export function ActionBar({ items, leading, compact = false }: ActionBarProps) {
           top: 0,
           display: 'flex',
           alignItems: 'center',
-          gap,
+          gap: GAP,
           flex: 'none',
           visibility: 'hidden',
           pointerEvents: 'none',

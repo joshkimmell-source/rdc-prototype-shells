@@ -110,15 +110,11 @@ export function IconChat({ size = 20, ...p }: S) {
   )
 }
 
-export function IconMore({ size = 16, ...p }: S) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...p}>
-      <circle cx="5" cy="12" r="1.8" />
-      <circle cx="12" cy="12" r="1.8" />
-      <circle cx="19" cy="12" r="1.8" />
-    </svg>
-  )
-}
+/*
+ * There is deliberately no bare three-dot icon here. A ⋯ in this shell always means an
+ * overflow menu, so the glyph is only reachable through `Menu` (via `IconMenuDots` below) —
+ * exporting it loose is what let inert copies of it appear in the subnav's rows.
+ */
 
 export function IconPlus({ size = 15, ...p }: S) {
   return (

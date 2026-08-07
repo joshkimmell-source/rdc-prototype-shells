@@ -12,6 +12,12 @@
   body { display:flex; flex-direction:column; overflow:hidden; }
   a { color:#1A1816; } a:hover { color:#D92228; }
   .topbar { display:flex; align-items:center; gap:16px; padding:12px 16px 10px; flex:none; }
+  /*
+   * The action bar: the overflow menu, "Save search", and Ask, spacing-300 (8px) apart. A
+   * group of its own rather than topbar children, so the 16px between the topbar's separate
+   * regions (MLS, search field, action bar) doesn't also open up the items inside this one.
+   */
+  .actionbar { display:flex; align-items:center; gap:8px; flex:none; }
   .mls { display:flex; align-items:center; gap:10px; border:1px solid #D3CFCA; border-radius:40px; padding:6px 16px; cursor:pointer; background:#FFFFFF; }
   .mls:hover { box-shadow:0 1px 4px rgba(26,24,22,0.16); }
   .mls .lab { font-size:11px; font-weight:700; line-height:13px; }
@@ -19,9 +25,23 @@
   .searchbox { flex:none; width:420px; display:flex; align-items:center; gap:10px; border:1px solid #D3CFCA; border-radius:40px; padding:0 18px; height:44px; background:#FFFFFF; }
   .searchbox input { border:none; outline:none; flex:1; font-size:14px; font-family:inherit; color:#1A1816; background:transparent; }
   .searchbox input::placeholder { color:#958A7F; }
-  .iconbtn { width:36px; height:36px; border-radius:50%; border:1px solid #D3CFCA; background:#FFFFFF; color:#1A1816; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:box-shadow 120ms; }
+  .iconbtn { width:36px; height:36px; flex:none; border-radius:50%; border:1px solid #D3CFCA; background:#FFFFFF; color:#1A1816; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:box-shadow 120ms; }
   .iconbtn:hover { box-shadow:0 1px 4px rgba(26,24,22,0.16); }
-  .savebtn { border:none; background:#1A1816; color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:700; border-radius:40px; height:40px; padding:0 20px; cursor:pointer; transition:box-shadow 120ms; }
+  /* Open: inverted, matching src/components/Menu.tsx's MenuToggle. */
+  .iconbtn[aria-expanded="true"] { border-color:#1A1816; background:#1A1816; color:#FFFFFF; }
+
+  /*
+   * Overflow menu, mirroring the panel in src/components/Menu.tsx — a ⋯ button opens a menu
+   * everywhere in this shell, and a public/ page cannot import that component.
+   */
+  .menuwrap { position:relative; display:inline-flex; flex:none; }
+  /* z-index clears Leaflet's own control containers (1000), which the panel drops over. */
+  .menupanel { position:absolute; top:calc(100% + 8px); right:0; min-width:180px; background:#FFFFFF; border:1px solid #E9E7E4; border-radius:16px; box-shadow:0 1px 2px rgba(26,24,22,0.08), 0 8px 24px rgba(26,24,22,0.16); padding:6px; z-index:1100; display:none; flex-direction:column; gap:2px; }
+  .menuwrap.open .menupanel { display:flex; }
+  .menuitem { display:flex; align-items:center; height:38px; padding:0 12px; border:none; border-radius:10px; background:transparent; color:#1A1816; font-family:inherit; font-size:14px; font-weight:500; text-align:left; white-space:nowrap; cursor:pointer; transition:background 120ms; }
+  .menuitem:hover { background:#F2F0EF; }
+  /* 36px/13px: it is an action bar item, and the bar's items share one geometry. */
+  .savebtn { border:none; background:#1A1816; color:#FFFFFF; font-family:inherit; font-size:13px; font-weight:700; line-height:1; border-radius:40px; height:36px; padding:0 16px; cursor:pointer; transition:box-shadow 120ms; }
   .savebtn:hover { box-shadow:0 4px 12px rgba(26,24,22,0.3); }
 
   /*
@@ -88,11 +108,12 @@
    * its own; everything else wraps beneath.
    */
   @media (max-width:768px) {
+    /* `.actionbar` keeps its own 8px whatever the topbar's regions do. */
     .topbar { flex-wrap:wrap; gap:8px; padding:10px 12px 8px; }
     .searchbox { flex:1 1 100%; width:auto; min-width:0; order:-1; height:40px; padding:0 14px; }
     .mls { flex:1 1 auto; min-width:0; padding:6px 12px; gap:8px; }
     .mls .val { font-size:12.5px; white-space:normal; }
-    .savebtn { height:36px; padding:0 14px; font-size:13px; }
+    /* `.savebtn` is already 36px/13px/16px here — the action bar's shared geometry. */
     .chiprow { padding:0 12px 10px; }
     .viewbtn { width:36px; }
     .listings { left:12px; bottom:16px; }
@@ -111,17 +132,28 @@
       <input type="text" placeholder="City, neighborhood, address, school...">
     </div>
     <div style="flex:1;"></div>
-    <button class="iconbtn" aria-label="More">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
-    </button>
-    <button class="savebtn">Save search</button>
-    <button class="askbtn" id="askBtn" aria-label="Ask RealAssist+ AI" title="Ask RealAssist+ AI">
-      <!-- The RealAssist+ mark from src/icons.tsx (IconRealAssist), duplicated because a
-           public/ page cannot import the app's modules. 20 units of artwork inset 2 units
-           in a 24-unit box, so the glyph scales with the box instead of being clipped. -->
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:block;flex:none;"><g transform="translate(2, 2)"><path d="M 10.351 0 C 10.351 5.327 14.673 9.649 20 9.649 L 20 10.351 C 14.673 10.351 10.351 14.673 10.351 20 L 9.649 20 C 9.649 14.673 5.327 10.351 0 10.351 L 0 9.649 C 5.327 9.649 9.649 5.327 9.649 0 L 10.351 0 Z" fill-rule="evenodd"></path><path d="M 17.024 13.27 C 17.024 14.864 18.315 16.165 19.92 16.165 L 19.92 16.375 C 18.326 16.375 17.025 17.665 17.024 19.27 L 16.815 19.27 C 16.815 17.675 15.525 16.375 13.92 16.375 L 13.92 16.165 C 15.514 16.165 16.815 14.874 16.815 13.27 L 17.024 13.27 Z" fill-rule="evenodd"></path><path d="M 16.92 2.899 C 17.472 2.899 17.92 3.347 17.92 3.899 C 17.92 4.452 17.472 4.899 16.92 4.899 C 16.368 4.899 15.92 4.452 15.92 3.899 C 15.92 3.347 16.368 2.899 16.92 2.899 Z" fill-rule="evenodd"></path></g></svg>
-      <span class="lbl">Ask RealAssist&trade;+ AI</span>
-    </button>
+    <div class="actionbar">
+      <!-- Far left of the action bar, and a real overflow menu — see the .menupanel rules. -->
+      <div class="menuwrap" id="moreWrap">
+        <button class="iconbtn" id="moreBtn" aria-label="More" aria-haspopup="menu" aria-expanded="false">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
+        </button>
+        <div class="menupanel" role="menu">
+          <button class="menuitem" role="menuitem">Save this search</button>
+          <button class="menuitem" role="menuitem">Email results to client</button>
+          <button class="menuitem" role="menuitem">Export results</button>
+          <button class="menuitem" role="menuitem">Search settings</button>
+        </div>
+      </div>
+      <button class="savebtn">Save search</button>
+      <button class="askbtn" id="askBtn" aria-label="Ask RealAssist+ AI" title="Ask RealAssist+ AI">
+        <!-- The RealAssist+ mark from src/icons.tsx (IconRealAssist), duplicated because a
+             public/ page cannot import the app's modules. 20 units of artwork inset 2 units
+             in a 24-unit box, so the glyph scales with the box instead of being clipped. -->
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:block;flex:none;"><g transform="translate(2, 2)"><path d="M 10.351 0 C 10.351 5.327 14.673 9.649 20 9.649 L 20 10.351 C 14.673 10.351 10.351 14.673 10.351 20 L 9.649 20 C 9.649 14.673 5.327 10.351 0 10.351 L 0 9.649 C 5.327 9.649 9.649 5.327 9.649 0 L 10.351 0 Z" fill-rule="evenodd"></path><path d="M 17.024 13.27 C 17.024 14.864 18.315 16.165 19.92 16.165 L 19.92 16.375 C 18.326 16.375 17.025 17.665 17.024 19.27 L 16.815 19.27 C 16.815 17.675 15.525 16.375 13.92 16.375 L 13.92 16.165 C 15.514 16.165 16.815 14.874 16.815 13.27 L 17.024 13.27 Z" fill-rule="evenodd"></path><path d="M 16.92 2.899 C 17.472 2.899 17.92 3.347 17.92 3.899 C 17.92 4.452 17.472 4.899 16.92 4.899 C 16.368 4.899 15.92 4.452 15.92 3.899 C 15.92 3.347 16.368 2.899 16.92 2.899 Z" fill-rule="evenodd"></path></g></svg>
+        <span class="lbl">Ask RealAssist&trade;+ AI</span>
+      </button>
+    </div>
   </div>
   <div class="chiprow">
     <div class="chips">
@@ -184,6 +216,25 @@
   map.fitBounds(L.latLngBounds(LISTINGS.map(l => l.ll)).pad(0.25));
   document.getElementById('listingCount').textContent =
     LISTINGS.length + (LISTINGS.length === 1 ? ' Listing' : ' Listings');
+
+  // Overflow menu. Click-outside and Escape close it, matching src/components/Menu.tsx.
+  const moreWrap = document.getElementById('moreWrap');
+  const moreBtn = document.getElementById('moreBtn');
+  function setMenu(open) {
+    moreWrap.classList.toggle('open', open);
+    moreBtn.setAttribute('aria-expanded', String(open));
+  }
+  moreBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    setMenu(!moreWrap.classList.contains('open'));
+  });
+  moreWrap.querySelectorAll('.menuitem').forEach(it => it.addEventListener('click', () => setMenu(false)));
+  document.addEventListener('mousedown', e => {
+    if (!moreWrap.contains(e.target)) setMenu(false);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') setMenu(false);
+  });
 
   // ── Action bar, variant B of the FAB-placement test ─────────────────────────────
   //
