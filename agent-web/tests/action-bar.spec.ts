@@ -128,5 +128,25 @@ for (const { name, path, folds, collapseWidth, foldWidth } of MAP_PAGES) {
       // A folded action appears as an appended .mi-folded row carrying the pill's label.
       await expect(panel.locator('.mi-folded', { hasText: folds })).toBeVisible()
     })
+
+    test('opens the overflow menu on-screen at a narrow width', async ({ page }) => {
+      // The ⋯ toggle is the bar's leftmost item, so a panel aligned to its right edge (the CSS
+      // default) grows left off the viewport and truncates its labels. It is placed from script
+      // to open rightward and stay on screen. A width where the 180px panel comfortably fits but
+      // the old right-aligned panel would have spilled off the left.
+      const width = 460
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto(path)
+      await page.waitForTimeout(300)
+
+      await page.getByRole('button', { name: 'More' }).click()
+      const panel = page.locator('.menupanel')
+      await expect(panel).toBeVisible()
+
+      const box = (await panel.boundingBox())!
+      // Fully within the viewport: left edge not clipped, right edge before the frame's width.
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(width + 1)
+    })
   })
 }

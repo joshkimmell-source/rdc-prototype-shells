@@ -33,7 +33,35 @@
     var row = bar.parentElement
     var menuWrap = bar.querySelector('.menuwrap')
     var panel = menuWrap ? menuWrap.querySelector('.menupanel') : null
+    var toggle = menuWrap ? menuWrap.querySelector('.iconbtn') : null
     if (!row || !menuWrap || !panel) return
+
+    /*
+     * Panel placement, mirroring src/components/Menu.tsx. The ⋯ toggle is the action bar's
+     * leftmost item, so a panel that grew leftward (the CSS default, `right:0`) would spill off
+     * the left edge of a narrow frame and truncate its labels. Instead the panel is positioned
+     * from script: `fixed` so it escapes any clipping ancestor, its left edge anchored to the
+     * toggle so it opens rightward into the map, and clamped to the viewport with an 8px margin.
+     */
+    var EDGE = 8
+    var PANEL_MIN_W = 180
+    function placeMenu() {
+      if (!menuWrap.classList.contains('open') || !toggle) return
+      var r = toggle.getBoundingClientRect()
+      var w = Math.max(panel.offsetWidth, PANEL_MIN_W)
+      var h = panel.offsetHeight
+      // Grow rightward from the toggle's left edge.
+      var left = Math.min(Math.max(r.left, EDGE), Math.max(window.innerWidth - w - EDGE, EDGE))
+      // Below by preference; above when the panel would run off the bottom.
+      var below = r.bottom + EDGE
+      var flip = h > 0 && below + h > window.innerHeight - EDGE && r.top - EDGE - h >= EDGE
+      var top = flip ? r.top - EDGE - h : below
+      top = Math.min(Math.max(top, EDGE), Math.max(window.innerHeight - h - EDGE, EDGE))
+      panel.style.position = 'fixed'
+      panel.style.left = left + 'px'
+      panel.style.top = top + 'px'
+      panel.style.right = 'auto'
+    }
 
     // Action buttons: every bar child except the overflow menu, left-to-right.
     var actionsAll = Array.prototype.filter.call(bar.children, function (el) {
@@ -165,6 +193,9 @@
 
     schedule()
     window.addEventListener('resize', schedule)
+    // The panel's fixed coordinates go stale the moment the toggle moves; keep them current.
+    window.addEventListener('resize', placeMenu)
+    document.addEventListener('scroll', placeMenu, true)
     // The display face lands after first paint and its labels are wider.
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(schedule).catch(function () {})
@@ -172,6 +203,12 @@
     // `ab-b` and `ask-open` are toggled as body classes; both change which actions show and
     // how much room the row has, so re-measure whenever the body class list changes.
     new MutationObserver(schedule).observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+    })
+    // The page's own handler toggles `.open` on the menu wrapper; place the panel each time it
+    // opens (its size is only known once it is displayed), from this shared, dynamic logic.
+    new MutationObserver(placeMenu).observe(menuWrap, {
       attributes: true,
       attributeFilter: ['class'],
     })
