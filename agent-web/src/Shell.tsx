@@ -244,6 +244,8 @@ export function Shell() {
 
     setMsgs((prev) => [
       ...prev,
+      // The flow's acknowledgement ("Got it — 10:00 AM…") leads, before the cards it introduces.
+      ...(result.preReply ? [{ role: 'ai', text: result.preReply } as Msg] : []),
       ...result.cards.map((card): Msg => ({ role: 'ai', text: '', card })),
       { role: 'ai', text: result.reply },
     ])

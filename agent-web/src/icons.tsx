@@ -372,6 +372,95 @@ export function IconRealAssist({ size = 24, ...p }: { size?: number; className?:
   )
 }
 
+/* ---------------------------------------------------------------------------
+ * Capability-menu glyphs. The assistant's home state lists what RealAssist+ can
+ * do, one outline icon per card. Drawn to the same 24-box stroke grid as the
+ * other line icons here so they sit consistently at ~20px.
+ * ------------------------------------------------------------------------- */
+
+/** Add Client — a person with a plus. */
+export function IconUserPlus({ size = 20, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <circle cx="9" cy="7" r="3.4" />
+      <path d="M2.6 20v-1a5.4 5.4 0 0 1 5.4-5.4h1.5" />
+      <path d="M18 8.5v5" />
+      <path d="M15.5 11h5" />
+    </svg>
+  )
+}
+
+/** Catch Up — a person with a circular refresh arrow, for the daily briefing. */
+export function IconCatchUp({ size = 20, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <circle cx="8.5" cy="7" r="3.2" />
+      <path d="M2.6 20v-1a5.2 5.2 0 0 1 5.2-5.2h1" />
+      <path d="M20.4 8.6a4 4 0 0 0-6.8-2.2" />
+      <path d="M13.2 3.4v3h3" />
+      <path d="M13.6 15.4a4 4 0 0 0 6.8 2.2" />
+      <path d="M20.8 20.6v-3h-3" />
+    </svg>
+  )
+}
+
+/** Check Listing Status — a check inside a circle. */
+export function IconCircleCheck({ size = 20, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.3 12.4l2.6 2.6 4.8-5.4" />
+    </svg>
+  )
+}
+
+/** Manage Client Notes — a note with lines and a folded corner. */
+export function IconNote({ size = 20, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <path d="M4 6a2 2 0 0 1 2-2h8l6 6v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+      <path d="M14 4v4a2 2 0 0 0 2 2h4" />
+      <path d="M8 13h6" />
+      <path d="M8 16.5h4" />
+    </svg>
+  )
+}
+
+/** Search Optimization — a magnifier with a sparkle. */
+export function IconSearchSpark({ size = 20, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <circle cx="10" cy="11" r="6" />
+      <path d="M18.5 19.5 15 16" />
+      <path d="M18.6 3.2l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9L16 5.8l1.9-.7Z" />
+    </svg>
+  )
+}
+
+/** Coordinate Tour — a calendar with a clock, for showings on a timeline. */
+export function IconCalendarClock({ size = 20, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <path d="M20 10.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6.5" />
+      <path d="M7.5 2.5v3" />
+      <path d="M15.5 2.5v3" />
+      <path d="M3 9h17" />
+      <circle cx="17.5" cy="17.5" r="4" />
+      <path d="M17.5 15.8v1.9l1.3.9" />
+    </svg>
+  )
+}
+
+/** The composer's send arrow on the home state — an outline paper-plane. */
+export function IconComposerSend({ size = 18, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <path d="M21 3 10.5 13.5" />
+      <path d="M21 3l-6.7 18-3.8-8.2L2.3 9.2Z" />
+    </svg>
+  )
+}
+
 /** Three-dot menu toggle glyph — ported from components/Menu.jsx. */
 export function IconMenuDots(p: SVGProps<SVGSVGElement>) {
   return (
