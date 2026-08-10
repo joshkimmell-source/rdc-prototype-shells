@@ -176,9 +176,10 @@ export function MainHeader({
       </h1>
 
       {actionBar ? (
-        // Collapses its own labels to fit, so unlike the cluster below it never wraps.
-        // `leading` is the bar's far-left item, so the overflow menu travels with the group.
-        <ActionBar items={actions} leading={<Menu aria-label="More" items={MENU_ITEMS} />} />
+        // Collapses its own labels to fit and folds what still will not fit into its overflow
+        // menu, so unlike the cluster below it never wraps. `menuItems` are the menu's static
+        // rows; folded actions append below them.
+        <ActionBar items={actions} menuItems={MENU_ITEMS} menuLabel="More" />
       ) : (
         <div
           style={{

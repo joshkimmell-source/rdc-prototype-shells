@@ -8,12 +8,17 @@
  * their own inert ⋯ (the subnav header, its list rows) can adopt it without changing shape.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { IconMenuDots } from '../icons'
 import { C } from '../theme'
 
 export interface MenuItem {
-  label: string
+  label?: string
+  /** Shown left of the label. Folded `ActionBar` actions carry their pill icon in here. */
+  icon?: ReactNode
   destructive?: boolean
+  /** A hairline rule instead of a row — used to fence folded actions off from static items. */
+  separator?: boolean
   onSelect?: () => void
 }
 
@@ -242,44 +247,66 @@ export function Menu({
             gap: 2,
           }}
         >
-          {resolved.map((it) => (
-            <button
-              key={it.label}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false)
-                it.onSelect?.()
-                onSelect?.(it.label)
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = C.alt
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                height: 38,
-                padding: '0 12px',
-                borderRadius: 10,
-                border: 'none',
-                background: 'transparent',
-                color: it.destructive ? C.brand : C.dark,
-                fontFamily: 'inherit',
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: 'pointer',
-                textAlign: 'left',
-                whiteSpace: 'nowrap',
-                transition: 'background 120ms',
-              }}
-            >
-              {it.label}
-            </button>
-          ))}
+          {resolved.map((it, i) =>
+            it.separator ? (
+              <div
+                key={`sep-${i}`}
+                role="separator"
+                style={{ height: 1, background: C.hair, margin: '5px 8px' }}
+              />
+            ) : (
+              <button
+                key={it.label}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false)
+                  it.onSelect?.()
+                  if (it.label) onSelect?.(it.label)
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = C.alt
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  height: 38,
+                  padding: '0 12px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: 'transparent',
+                  color: it.destructive ? C.brand : C.dark,
+                  fontFamily: 'inherit',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  whiteSpace: 'nowrap',
+                  transition: 'background 120ms',
+                }}
+              >
+                {it.icon && (
+                  <span
+                    style={{
+                      display: 'flex',
+                      flex: 'none',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 18,
+                      color: C.muted,
+                    }}
+                  >
+                    {it.icon}
+                  </span>
+                )}
+                {it.label}
+              </button>
+            )
+          )}
         </div>
       )}
     </div>

@@ -53,11 +53,11 @@
   /* `ask-open` is set from the shell while the assistant panel is on screen. */
   body.ab-b:not(.ask-open) .pill.brand { display:flex; }
   .pill.brand:hover { box-shadow:0 4px 12px rgba(217,34,40,0.36); transform:translateY(-1px); }
-  /* 1200px, matching `search-map.html`: the same pill should not collapse at two thresholds. */
-  @media (max-width:1200px) {
-    body.ab-b .hdr .pill { width:36px; padding:0; justify-content:center; }
-    body.ab-b .hdr .pill .lbl { display:none; }
-  }
+  /*
+   * Responsive collapse-then-fold is measured in map-actionbar.js, not keyed to a breakpoint —
+   * it drops labels to circles and then folds circles into the overflow menu, matching
+   * src/components/ActionBar.tsx. `.mi-folded` rows the script appends inherit `.menuitem`.
+   */
   .seg { display:flex; align-items:center; justify-content:flex-end; padding:4px 24px 8px; flex:none; }
   .segwrap { display:inline-flex; background:var(--gray-100,#F2F0EF); border-radius:9999px; padding:4px; }
   .segbtn { border:none; background:transparent; color:#1A1816; font-family:inherit; font-size:14px; font-weight:600; height:32px; padding:0 16px; border-radius:9999px; cursor:pointer; transition:background 120ms, box-shadow 120ms; }
@@ -308,5 +308,7 @@
     });
   }
 </script>
+<!-- Measured collapse-then-fold for the action bar; shared with search-map.html. -->
+<script src="map-actionbar.js"></script>
 </body>
 </html>
