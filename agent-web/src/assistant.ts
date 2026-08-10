@@ -21,7 +21,18 @@ import {
   type Client,
   type TagColor,
 } from './data'
-import { LISTINGS as SAMPLE_LISTINGS, formatPrice } from './data/sample'
+import {
+  LISTINGS as SAMPLE_LISTINGS,
+  TOURS as SAMPLE_TOURS,
+  formatListingMeta,
+  formatMinutes,
+  formatPrice,
+  formatTourDate,
+  getListing,
+  type Tour as SampleTour,
+  type TourStop,
+  type TourStopStatus,
+} from './data/sample'
 
 export interface ClientCard {
   kind: 'client'
@@ -44,7 +55,62 @@ export interface TourCard {
   when: string
 }
 
-export type Card = ClientCard | TourCard
+/** One row of a tour plan's stop table. */
+export interface TourStopRow {
+  order: string
+  address: string
+  /** `"$1,125,000 · 3 bd · 2 ba · 2,008 sqft"`. */
+  meta: string
+  /** `"10:00 AM"`, or `"Time TBD"` for a stop with no confirmed slot. */
+  time: string
+  status: TourStopStatus
+}
+
+/** A recommended next step, ranked. `confidence` drives the marker the card shows. */
+export interface TourStep {
+  label: string
+  confidence: 'high' | 'medium' | 'low'
+}
+
+/**
+ * The multi-stop tour plan the assistant assembles for a client: the ordered stops, the
+ * conflicts it found, and the ranked next steps. All derived from the client's real
+ * upcoming tour, so the table, the conflicts and the steps agree with the Tours screen.
+ */
+export interface TourPlanCard {
+  kind: 'tourPlan'
+  client: string
+  clientId: string
+  greetingName: string
+  /** `"Sat, Aug 15"`. */
+  when: string
+  /** ISO `YYYY-MM-DD` of the tour date — the picker opens on this month. */
+  dateISO: string
+  driveLabel: string
+  stops: TourStopRow[]
+  conflicts: string[]
+  steps: TourStep[]
+}
+
+/**
+ * The calendar the plan hands off to when the agent chooses to lock a date. Renders the
+ * tour month; picking a day sends a scheduling prompt the responder resolves.
+ */
+export interface DatePickerCard {
+  kind: 'datePicker'
+  client: string
+  clientId: string
+  greetingName: string
+  /** The first stop — what the confirmation card names. */
+  address: string
+  /** Year and 0-indexed month the calendar opens on. */
+  year: number
+  month: number
+  /** Day-of-month of the client's current tour date, pre-highlighted. */
+  suggestedDay: number
+}
+
+export type Card = ClientCard | TourCard | TourPlanCard | DatePickerCard
 
 export interface ScheduledTour {
   client: Client
@@ -132,6 +198,118 @@ function findListing(address: string) {
   return LISTINGS.find(
     (l) => l.address.toLowerCase().includes(head) || a.includes(l.address.toLowerCase())
   )
+}
+
+/** The client's soonest upcoming tour, if they have one — the plan is built from it. */
+function upcomingTourFor(clientId: string): SampleTour | undefined {
+  return SAMPLE_TOURS.filter((t) => t.clientId === clientId && t.state === 'Upcoming').sort((a, b) =>
+    a.date.localeCompare(b.date)
+  )[0]
+}
+
+/** A stop's address, meta and slot — joined to its listing where the id resolves. */
+function toStopRow(stop: TourStop): TourStopRow {
+  const listing = getListing(stop.listingId)
+  const address = listing?.address.line1 ?? stop.address
+  const meta = listing
+    ? `${formatPrice(listing.price)} · ${formatListingMeta(listing)}`
+    : stop.listingStatus
+  return {
+    order: stop.order,
+    address,
+    meta,
+    time: stop.time ?? 'Time TBD',
+    status: stop.tourStatus,
+  }
+}
+
+/**
+ * The conflicts a tour carries, read off its stops rather than authored: a stop with no
+ * confirmed showing time is the scheduling risk the plan has to call out, and the drive
+ * budget between three stops is the logistics one. Empty when every stop is confirmed.
+ */
+function conflictsFor(tour: SampleTour): string[] {
+  const out: string[] = []
+  const unconfirmed = tour.stops.filter((s) => s.tourStatus !== 'Confirmed')
+  if (unconfirmed.length) {
+    const labels = unconfirmed.map((s) => `${s.order} (${getListing(s.listingId)?.address.line1 ?? s.address})`)
+    out.push(
+      `${unconfirmed.length} of ${tour.stops.length} stops have no confirmed showing time yet — ${labels.join(', ')}.`
+    )
+  }
+  const noSlot = tour.stops.filter((s) => !s.time)
+  if (noSlot.length >= 2) {
+    out.push(
+      `Stops ${noSlot.map((s) => s.order).join(' and ')} both need a time, so the ${formatMinutes(tour.driveTimeMins)} of drive time between them isn’t locked.`
+    )
+  }
+  const openHouse = tour.stops
+    .map((s) => getListing(s.listingId))
+    .filter((l) => l && l.openHouse.length > 0)
+  if (openHouse.length) {
+    out.push(
+      `${openHouse[0]!.address.line1} only shows during its open house (${openHouse[0]!.openHouse[0]}), which may not line up with the other stops.`
+    )
+  }
+  return out
+}
+
+/**
+ * The ranked next steps, derived from the same conflicts so the priority order reflects
+ * the tour's actual state. Confirming showing times leads when stops are unconfirmed;
+ * routing and client sign-off follow.
+ */
+function stepsFor(tour: SampleTour, greetingName: string): TourStep[] {
+  const steps: TourStep[] = []
+  const unconfirmed = tour.stops.filter((s) => s.tourStatus !== 'Confirmed')
+  if (unconfirmed.length) {
+    steps.push({
+      label: `Confirm showing times for ${unconfirmed.length === 1 ? 'the open stop' : `all ${unconfirmed.length} open stops`} with the listing agents`,
+      confidence: 'high',
+    })
+  }
+  steps.push({
+    label: `Lock the route in stop order to keep drive time near ${formatMinutes(tour.driveTimeMins)}`,
+    confidence: unconfirmed.length ? 'medium' : 'high',
+  })
+  steps.push({
+    label: `Send ${greetingName} the plan to confirm the ${formatTourDate(tour.date)} date`,
+    confidence: 'medium',
+  })
+  return steps
+}
+
+/** Assemble the full plan card for a client's upcoming tour. */
+function toTourPlanCard(client: Client, tour: SampleTour): TourPlanCard {
+  return {
+    kind: 'tourPlan',
+    client: client.name,
+    clientId: client.id,
+    greetingName: client.greetingName,
+    when: formatTourDate(tour.date),
+    dateISO: tour.date,
+    driveLabel: `${formatMinutes(tour.driveTimeMins)} driving · ${tour.stopCount} stops`,
+    stops: tour.stops.map(toStopRow),
+    conflicts: conflictsFor(tour),
+    steps: stepsFor(tour, client.greetingName),
+  }
+}
+
+/** The date-picker card for a client's tour — opens on the tour month, that day marked. */
+function toDatePickerCard(client: Client, tour: SampleTour): DatePickerCard {
+  const [y, m, d] = tour.date.split('-').map(Number)
+  const first = tour.stops[0]
+  const address = first ? getListing(first.listingId)?.address.line1 ?? first.address : ''
+  return {
+    kind: 'datePicker',
+    client: client.name,
+    clientId: client.id,
+    greetingName: client.greetingName,
+    address,
+    year: y,
+    month: m - 1,
+    suggestedDay: d,
+  }
 }
 
 /** `"Sat Aug 1"` — the label format the tour cards and Home screen already use. */
@@ -267,6 +445,48 @@ const CITIES = Array.from(new Set(SAMPLE_LISTINGS.map((l) => l.address.city)))
 function respondLocally(text: string, clients: Client[]): AssistantResult {
   const t = text.toLowerCase()
   const cards: Card[] = []
+
+  // plan_tour — "plan a tour for Jordan and Mia" / "build a tour plan". Distinct from
+  // schedule_tour: no single property or time, it lays out the client's whole upcoming
+  // tour as a table with the conflicts and ranked next steps the image walks through.
+  if (/\b(plan|put together|build|map out|organi[sz]e)\b/.test(t) && /\btour\b/.test(t)) {
+    const named = clients.find((c) => mentions(t, c))
+    if (!named) return { cards, reply: 'Which client should I plan a tour for?' }
+    const tour = upcomingTourFor(named.id)
+    if (!tour) {
+      return {
+        cards,
+        reply: `${named.greetingName} has no upcoming tour on the books yet. Tell me a property and a day and I’ll set the first stop up.`,
+      }
+    }
+    cards.push(toTourPlanCard(named, tour))
+    const conflicts = conflictsFor(tour)
+    const lead = conflicts.length
+      ? `${conflicts.length === 1 ? 'One thing needs' : `${conflicts.length} things need`} sorting before it’s locked`
+      : 'Everything lines up'
+    return {
+      cards,
+      reply:
+        `Here’s the ${formatTourDate(tour.date)} tour for ${named.greetingName} — ${tour.stopCount} stops, ` +
+        `${formatMinutes(tour.driveTimeMins)} of driving. ${lead}. When you’re ready, tell me to start the tour and I’ll pull up the calendar.`,
+    }
+  }
+
+  // start_tour / pick a date — surfaces the calendar card for a planned client's tour.
+  if (
+    /\b(start|kick off|lock in|confirm|pick|choose|set) (the |a )?(tour|date|day)\b/.test(t) ||
+    (/\bcalendar\b/.test(t) && /\btour\b/.test(t))
+  ) {
+    const named = clients.find((c) => mentions(t, c)) ?? clients.find((c) => upcomingTourFor(c.id))
+    const tour = named ? upcomingTourFor(named.id) : undefined
+    if (named && tour) {
+      cards.push(toDatePickerCard(named, tour))
+      return {
+        cards,
+        reply: `Pick the day for ${named.greetingName}’s tour and I’ll send the invites out to the listing agents.`,
+      }
+    }
+  }
 
   // schedule_tour — needs a client, a property, and a day/time.
   if (/\b(tour|showing|show(ing)?s?|visit)\b/.test(t) && /\b(set up|schedule|book|arrange)\b/.test(t)) {

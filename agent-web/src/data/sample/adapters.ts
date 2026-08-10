@@ -830,8 +830,8 @@ export const threads: Thread[] = [
 // ─── Assistant suggestion chips ───────────────────────────────────────────────
 
 export const chips: string[] = [
+  `Plan a tour for ${greetingName(ROSTER[0])}`,
   `What is ${greetingName(ROSTER[0])} looking for?`,
-  `Set up a tour for ${greetingName(ROSTER[0])} at ${SAMPLE_LISTINGS[0].address.line1} on Saturday morning`,
   'Who needs a follow-up this week?',
   `How does the ${SAMPLE_LISTINGS[6].address.city} market look right now?`,
 ]
@@ -878,8 +878,8 @@ export const assistantNudges: AssistantNudge[] = (() => {
         `just listed at ${formatPrice(featured.price)} and fits what they have been saving.`,
       actions: [
         {
-          label: 'Set up a tour',
-          prompt: `Set up a tour for ${first} at ${featured.address.line1} this Saturday at 10am`,
+          label: 'Plan a tour',
+          prompt: `Plan a tour for ${first}`,
         },
         {
           label: 'See their activity',

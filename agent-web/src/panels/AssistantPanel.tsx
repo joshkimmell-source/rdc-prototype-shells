@@ -4,6 +4,7 @@
  * fill everything but the nav rail.
  */
 import { Tag } from '@rdc-npm/rdc-ui-v4'
+import { useState } from 'react'
 import type { RefObject } from 'react'
 import { C, DISPLAY_FONT, EASE } from '../theme'
 import { CircleButton, HoverButton, Initials } from '../components/primitives'
@@ -19,7 +20,15 @@ import {
   IconSpark,
 } from '../icons'
 import { AGENT_FIRST_NAME, CHIPS, assistantNudges, attentionCount, type Thread } from '../data'
-import type { Card, ClientCard, TourCard } from '../assistant'
+import type {
+  Card,
+  ClientCard,
+  DatePickerCard,
+  TourCard,
+  TourPlanCard,
+  TourStopRow,
+  TourStep,
+} from '../assistant'
 
 export interface Msg {
   role: 'user' | 'ai'
@@ -258,6 +267,227 @@ function TourCardView({ card }: { card: TourCard }) {
         <LightPill padding="6px 13px" fontSize={12}>
           Edit details
         </LightPill>
+      </div>
+    </div>
+  )
+}
+
+/** Stop-status → Tag colour, mirroring the client-stage mapping the shell already uses. */
+const STOP_STATUS_COLOR: Record<TourStopRow['status'], 'greenSubtle' | 'orangeSubtle' | 'graySubtle'> = {
+  Confirmed: 'greenSubtle',
+  Requested: 'orangeSubtle',
+  'No status': 'graySubtle',
+}
+
+/** Confidence → the dot colour before a ranked step. */
+const CONFIDENCE_COLOR: Record<TourStep['confidence'], string> = {
+  high: C.online,
+  medium: C.amber,
+  low: C.muted,
+}
+
+function TourPlanCardView({ card, onStart }: { card: TourPlanCard; onStart: () => void }) {
+  return (
+    <div style={CHAT_CARD}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px' }}>
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            flex: 'none',
+            borderRadius: 12,
+            background: C.tourTile,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: C.muted,
+          }}
+        >
+          <IconHomeFilled size={22} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Tour plan for {card.client}</div>
+          <div className="ty-numeric-caption100" style={{ fontSize: 12, color: C.sub }}>
+            {card.when} · {card.driveLabel}
+          </div>
+        </div>
+      </div>
+
+      {/* The stops, in tour order — the table the image leads with. */}
+      <div style={CARD_SECTION}>
+        {card.stops.map((stop) => (
+          <div key={stop.order} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <span
+              style={{
+                width: 20,
+                height: 20,
+                flex: 'none',
+                borderRadius: '50%',
+                background: C.alt,
+                color: C.sub,
+                fontSize: 11,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginTop: 1,
+              }}
+            >
+              {stop.order}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600 }}>{stop.address}</div>
+              <div className="ty-numeric-caption100" style={{ fontSize: 11.5, color: C.muted }}>
+                {stop.meta}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flex: 'none' }}>
+              <Tag dataColor={STOP_STATUS_COLOR[stop.status]}>{stop.status}</Tag>
+              <span style={{ fontSize: 11, color: C.sub }}>{stop.time}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Potential conflicts — only when the tour has any. */}
+      {card.conflicts.length > 0 && (
+        <div style={CARD_SECTION}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: C.brand }}>
+            POTENTIAL CONFLICTS
+          </div>
+          {card.conflicts.map((conflict, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <span
+                style={{ width: 5, height: 5, flex: 'none', borderRadius: '50%', background: C.brand, marginTop: 6 }}
+              />
+              <span style={{ color: C.sub, lineHeight: 1.5 }}>{conflict}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Recommended next steps, in priority order, each with a confidence dot. */}
+      <div style={CARD_SECTION}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: C.muted }}>
+          RECOMMENDED NEXT STEPS
+        </div>
+        {card.steps.map((step, i) => (
+          <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <span style={{ color: C.muted, fontWeight: 700, flex: 'none' }}>{i + 1}.</span>
+            <span style={{ flex: 1, color: C.dark, lineHeight: 1.5 }}>{step.label}</span>
+            <span
+              title={`${step.confidence} confidence`}
+              style={{
+                width: 8,
+                height: 8,
+                flex: 'none',
+                borderRadius: '50%',
+                background: CONFIDENCE_COLOR[step.confidence],
+                marginTop: 5,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div style={CARD_FOOTER}>
+        <DarkPill onClick={onStart}>
+          <IconSpark size={12} />
+          <span>Start the tour</span>
+        </DarkPill>
+        <LightPill padding="6px 13px" fontSize={12}>
+          Edit plan
+        </LightPill>
+      </div>
+    </div>
+  )
+}
+
+/** The seven weekday initials the calendar heads its columns with. */
+const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+function DatePickerCardView({ card, onPick }: { card: DatePickerCard; onPick: (day: number, label: string) => void }) {
+  // Local, so tapping a day marks it before the scheduling round-trips.
+  const [picked, setPicked] = useState<number | null>(null)
+  const daysInMonth = new Date(card.year, card.month + 1, 0).getDate()
+  const firstWeekday = new Date(card.year, card.month, 1).getDay()
+  // Leading blanks so the 1st lands under its weekday column.
+  const cells: Array<number | null> = [
+    ...Array.from({ length: firstWeekday }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ]
+
+  const label = (day: number) =>
+    `${new Date(card.year, card.month, day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`
+
+  return (
+    <div style={CHAT_CARD}>
+      <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>Pick a day for the tour</div>
+        <div style={{ fontSize: 11.5, color: C.muted }}>
+          {card.address ? `Starting at ${card.address}` : card.client}
+        </div>
+      </div>
+
+      <div style={{ borderTop: `1px solid ${C.alt}`, padding: '12px 16px' }}>
+        <div style={{ fontWeight: 600, fontSize: 13, textAlign: 'center', marginBottom: 10 }}>
+          {MONTH_NAMES[card.month]} {card.year}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+          {WEEKDAYS.map((d, i) => (
+            <div key={i} style={{ textAlign: 'center', fontSize: 10.5, fontWeight: 700, color: C.muted, paddingBottom: 4 }}>
+              {d}
+            </div>
+          ))}
+          {cells.map((day, i) => {
+            if (day === null) return <div key={`b${i}`} />
+            const isPicked = picked === day
+            const isSuggested = picked === null && day === card.suggestedDay
+            const marked = isPicked || isSuggested
+            return (
+              <HoverButton
+                key={day}
+                onClick={() => {
+                  setPicked(day)
+                  onPick(day, label(day))
+                }}
+                aria-label={label(day)}
+                aria-pressed={isPicked}
+                style={{
+                  aspectRatio: '1 / 1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: isSuggested ? `1px solid ${C.brand}` : '1px solid transparent',
+                  borderRadius: '50%',
+                  background: isPicked ? C.brand : 'transparent',
+                  color: isPicked ? C.white : C.dark,
+                  fontSize: 12.5,
+                  fontWeight: marked ? 700 : 500,
+                  cursor: 'pointer',
+                  transition: 'background 120ms, border-color 120ms',
+                }}
+                hoverStyle={{ background: isPicked ? C.brand : C.alt }}
+              >
+                {day}
+              </HoverButton>
+            )
+          })}
+        </div>
+      </div>
+
+      <div style={{ ...CARD_FOOTER, alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 11.5, color: C.muted }}>
+          Suggested: {MONTH_NAMES[card.month].slice(0, 3)} {card.suggestedDay}
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.sub }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', border: `1px solid ${C.brand}` }} />
+          Best fit
+        </span>
       </div>
     </div>
   )
@@ -554,6 +784,24 @@ export function AssistantPanel({
                         />
                       )}
                       {m.card?.kind === 'tour' && <TourCardView card={m.card} />}
+                      {m.card?.kind === 'tourPlan' && (
+                        <TourPlanCardView
+                          card={m.card}
+                          onStart={() =>
+                            onSend(`Start the tour for ${(m.card as TourPlanCard).greetingName}`)
+                          }
+                        />
+                      )}
+                      {m.card?.kind === 'datePicker' && (
+                        <DatePickerCardView
+                          card={m.card}
+                          onPick={(_day, label) =>
+                            onSend(
+                              `Schedule the tour for ${(m.card as DatePickerCard).greetingName} at ${(m.card as DatePickerCard).address} on ${label}`
+                            )
+                          }
+                        />
+                      )}
                     </div>
                   )
                 })}
