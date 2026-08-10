@@ -258,6 +258,12 @@ const AGENT_NAME = { first: 'Georgia', last: 'Booth' }
 
 export const AGENT_FULL_NAME = `${AGENT_NAME.first} ${AGENT_NAME.last}`
 export const AGENT_INITIALS = `${AGENT_NAME.first[0]}${AGENT_NAME.last[0]}`
+/**
+ * Headshot for the nav rail's Account item. A fixed seed keeps the same face between runs,
+ * matching how the home-photo library is addressed; `initials` remain the fallback if it
+ * fails to load.
+ */
+export const AGENT_AVATAR = 'https://i.pravatar.cc/120?img=47'
 
 export const buyers: Buyer[] = [
   {

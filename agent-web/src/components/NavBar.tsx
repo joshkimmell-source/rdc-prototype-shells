@@ -9,9 +9,10 @@
  * is the rail footer's only content.
  */
 import { token } from 'styled-system/tokens'
-import { C, DISPLAY_FONT } from '../theme'
+import { C } from '../theme'
 import { HoverButton } from './primitives'
-import { AGENT_FULL_NAME, AGENT_INITIALS } from '../data'
+import { AccountAvatar } from './AccountAvatar'
+import { AGENT_FULL_NAME } from '../data'
 import { NAV_ITEMS, type NavId } from './NavRail'
 
 /**
@@ -87,26 +88,10 @@ export function NavBar({ activeNav, onNavigate }: NavBarProps) {
         )
       })}
 
-      {/* Inert, like the rail's own footer avatar — there is no account screen behind it. */}
+      {/* Inert, like the rail's own footer avatar — there is no account screen behind it. The
+          same shared headshot as the rail, sized down for the tab. */}
       <div style={{ ...TAB, color: C.sub, cursor: 'default' }} title={AGENT_FULL_NAME}>
-        <span
-          style={{
-            width: 20,
-            height: 20,
-            flex: 'none',
-            borderRadius: '50%',
-            background: C.border,
-            color: C.action,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: DISPLAY_FONT,
-            fontWeight: 600,
-            fontSize: 9,
-          }}
-        >
-          {AGENT_INITIALS}
-        </span>
+        <AccountAvatar size={20} />
         <span style={LABEL}>Account</span>
       </div>
     </nav>

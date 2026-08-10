@@ -6,16 +6,25 @@
  * the primary action its rightmost, rendered in the RealAssist+ brand gradient; secondary
  * actions sit between them as light or dark pills. Items are spacing-300 (8px) apart.
  *
- * Responsive behaviour is measured, not guessed at a breakpoint, and it is graduated: the
- * bar renders a hidden full-width mirror of itself, measures each pill in it, and drops
- * labels one at a time from the left until the row fits. The primary action is last, so it
- * keeps its label longest and the row degrades to icon-only rather than jumping there.
+ * Responsive behaviour is measured, not guessed at a breakpoint, and it degrades in two
+ * graduated stages. The bar renders a hidden full-width mirror of itself, measures each pill,
+ * and:
+ *   1. drops labels one at a time from the left — each action becomes an icon-only circle —
+ *      until the row fits. The primary action is last, so it keeps its label longest.
+ *   2. if every action is already a circle and the row still overflows, it folds circles into
+ *      the overflow menu one at a time from the left, again primary-last. Folded actions
+ *      appear as labelled rows below the menu's static items, fenced off by a separator.
+ *
+ * Folding rather than scrolling keeps every action reachable at any width without a
+ * horizontal scroller — which also means the row never clips its own vertical overflow, so
+ * the hover lift and its shadow are never sheared off.
  *
  * Measuring beats a media query because the space available depends on the title beside it,
  * the nav rail, and the assistant panel's dragged width — none of which a breakpoint sees.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import { Menu, type MenuItem } from './Menu'
 import { BRAND_GRADIENT_PILL, C, EASE } from '../theme'
 
 /** `brand` is the primary action; `dark` reads as an engaged toggle, `light` as an idle one. */
@@ -23,7 +32,7 @@ export type ActionTone = 'brand' | 'dark' | 'light'
 
 export interface ActionItem {
   id: string
-  /** Also the tooltip and the accessible name, so it is never dropped — only hidden. */
+  /** Also the tooltip and the accessible name, so it is never dropped — only hidden or folded. */
   label: string
   icon: ReactNode
   tone?: ActionTone
@@ -35,12 +44,13 @@ export interface ActionItem {
 interface ActionBarProps {
   items: ActionItem[]
   /**
-   * The overflow menu, rendered as the bar's far-left item. Never collapsed and never
-   * scrolled out of reach — it has no label to drop, so it is the one control that cannot
-   * pay for the row's overflow. It sits outside the scrolling row for that reason, one gap
-   * from its first action.
+   * Static rows for the overflow menu, shown at its top. Actions that overflow the bar are
+   * folded in below these, separated by a rule. The menu is the bar's far-left item and is
+   * always present, so it is the one control that never has to pay for the row's overflow.
    */
-  leading?: ReactNode
+  menuItems?: Array<string | MenuItem>
+  /** Accessible name for the overflow toggle. */
+  menuLabel?: string
 }
 
 /** spacing-300. The gap between every item in the bar, at every width. */
@@ -140,65 +150,74 @@ function Action({
   )
 }
 
-export function ActionBar({ items, leading }: ActionBarProps) {
+export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionBarProps) {
   const boxRef = useRef<HTMLDivElement>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
   const mirrorRef = useRef<HTMLDivElement>(null)
   const leadRef = useRef<HTMLDivElement>(null)
   /**
-   * How many actions, counting from the left, are showing icons only. `0` is all labelled,
-   * `items.length` is all collapsed.
+   * `collapsedCount` — how many of the still-visible actions, counting from the left, show
+   * icons only. `foldedCount` — how many actions, from the left, have moved into the menu.
+   * Folding only begins once every visible action is already a circle, so in practice
+   * `collapsedCount` is `items.length` whenever `foldedCount > 0`.
    */
   const [collapsedCount, setCollapsedCount] = useState(0)
+  const [foldedCount, setFoldedCount] = useState(0)
   const [tip, setTip] = useState<{ label: string; left: number; top: number } | null>(null)
 
   /**
-   * Measured off the mirror, which always carries every label — so the widths read here
-   * describe the fully expanded row whatever the live row is currently showing. Deriving
-   * the answer from fixed geometry rather than from the live row is what keeps this from
-   * oscillating: the input to the calculation never changes as its output is applied.
+   * Measured off the mirror, which always carries every action fully labelled — so the widths
+   * read here describe the fully expanded row whatever the live row is currently showing.
+   * Deriving the answer from fixed geometry rather than from the live row is what keeps this
+   * from oscillating: the input to the calculation never changes as its output is applied.
    */
   const measure = useCallback(() => {
     const box = boxRef.current
-    const wrap = wrapRef.current
     const mirror = mirrorRef.current
-    if (!box || !wrap || !mirror) return
+    if (!box || !mirror) return
 
     const pills = Array.from(mirror.children) as HTMLElement[]
     if (!pills.length) return
 
-    // Against the outer box, whose width does not depend on what is in it: its flex basis is
-    // 0 and it is the header's only growing child, so the space it gets is a function of the
-    // header and the title alone. Measuring anything the collapse decision itself resizes —
-    // the scroller, or a box sized to its content — feeds the decision back into its own
-    // input, and it then settles at whichever answer it happened to arrive from.
-    //
-    // The overflow menu is in the row but not in the mirror: it has no label, so it is a
-    // fixed cost against the space the labels have to fit in rather than something to
-    // measure. It is a circle at every width.
-    const lead = leadRef.current ? leadRef.current.offsetWidth + GAP : 0
-    const avail = box.clientWidth - lead
-
-    // Every label dropped takes the pill down to a HEIGHT-wide circle; the gaps are
-    // unchanged by collapsing, so they are a constant here.
-    const gaps = GAP * (pills.length - 1)
+    // The overflow menu is always in the row and never folds — it is a fixed cost against the
+    // space the actions have to fit in, so it is measured once and subtracted, not iterated.
+    const menuW = leadRef.current ? leadRef.current.offsetWidth : HEIGHT
+    // Against the outer box, whose width does not depend on what is in it: its flex basis is 0
+    // and it is the header's only growing child, so the space it gets is a function of the
+    // header and the title alone. Measuring anything the collapse/fold decision itself resizes
+    // would feed the decision back into its own input and let it settle wherever it started.
+    const avail = box.clientWidth
+    const n = pills.length
     const expanded = pills.map((el) => el.offsetWidth)
-    const total = expanded.reduce((a, b) => a + b, 0) + gaps
 
-    let width = total
-    let n = 0
-    // Left to right: the rightmost action is the primary one, so it yields last.
-    while (width > avail && n < pills.length) {
-      width -= expanded[n] - HEIGHT
-      n += 1
+    // Row width for a given (collapsed, folded) state. Folded actions leave the row entirely;
+    // of the rest, the first `collapsed` show as HEIGHT-wide circles and the others at their
+    // expanded width. The menu and one gap per remaining item complete the row.
+    const widthFor = (collapsed: number, folded: number) => {
+      let w = menuW
+      for (let i = folded; i < n; i += 1) {
+        w += GAP + (i < collapsed ? HEIGHT : expanded[i])
+      }
+      return w
     }
-    setCollapsedCount(n)
 
-    // Below ~430px even the circles overflow. Rest at the end of the scroll range rather
-    // than the start, so what is visible without scrolling is the primary action — the
-    // same end of the row the labels were kept on. Only the actions pay for this; the
-    // overflow menu is outside the scroller and so is never the item that scrolls away.
-    wrap.scrollLeft = wrap.scrollWidth
+    // Try states in order of increasing degradation: drop labels left-to-right first (the
+    // primary action is rightmost, so its label goes last), then — only once all are circles —
+    // fold circles into the menu left-to-right (primary folds last). The first state that fits
+    // wins; if none do, the most-folded state (menu alone) is the floor.
+    let chosen = { collapsed: 0, folded: 0 }
+    outer: {
+      for (let c = 0; c <= n; c += 1) {
+        chosen = { collapsed: c, folded: 0 }
+        if (widthFor(c, 0) <= avail) break outer
+      }
+      for (let f = 1; f <= n; f += 1) {
+        chosen = { collapsed: n, folded: f }
+        if (widthFor(n, f) <= avail) break outer
+      }
+    }
+
+    setCollapsedCount(chosen.collapsed)
+    setFoldedCount(chosen.folded)
   }, [])
 
   useLayoutEffect(measure)
@@ -226,8 +245,6 @@ export function ActionBar({ items, leading }: ActionBarProps) {
       return
     }
     const r = el.getBoundingClientRect()
-    // Fixed, not absolute: the bar clips its own overflow, which is what lets it be
-    // measured, and an absolute tooltip below a pill would be cut off by that clip.
     setTip({
       label,
       // Kept off both edges — a right-hand action's tooltip would otherwise run off-screen.
@@ -236,8 +253,22 @@ export function ActionBar({ items, leading }: ActionBarProps) {
     })
   }, [])
 
-  // Only the collapsed pills need one — a visible label explains itself.
   const tipShown = !!tip
+
+  // Static rows first, then the folded actions below a separator — each carrying its own icon
+  // and firing its original handler, so a folded control does exactly what its pill did.
+  const staticItems: MenuItem[] = menuItems.map((it) =>
+    typeof it === 'string' ? { label: it } : it
+  )
+  const foldedItems: MenuItem[] = items.slice(0, foldedCount).map((item) => ({
+    label: item.label,
+    icon: item.icon,
+    onSelect: item.onClick,
+  }))
+  const resolvedMenu: MenuItem[] =
+    foldedItems.length && staticItems.length
+      ? [...staticItems, { separator: true }, ...foldedItems]
+      : [...staticItems, ...foldedItems]
 
   return (
     <div
@@ -247,61 +278,50 @@ export function ActionBar({ items, leading }: ActionBarProps) {
         // own content, which is what `measure` relies on. The title is `0 1 auto` beside it,
         // so the box takes all the space the title does not need.
         flex: '1 1 0',
-        // A floor of exactly the overflow menu and its gap, not 0. The box justifies its
-        // content to the end, so anything narrower than its contents overflows to the
-        // *left* — and at the widths where the shell squeezes `main` to almost nothing,
-        // what overflowed was the menu, out of the box and across the title. The scroller
-        // keeps `minWidth: 0` and absorbs the squeeze instead, which is what it is for.
-        minWidth: leading ? HEIGHT + GAP : 0,
+        minWidth: 0,
         display: 'flex',
         justifyContent: 'flex-end',
         alignItems: 'center',
-        // The box is the bar: it holds the overflow menu and the scrolling actions as its
-        // two children, so one `gap` sets the spacing between every item in the row.
+        // The box is the bar: it holds the overflow menu and the visible actions, so one `gap`
+        // sets the spacing between every item in the row.
         gap: GAP,
         // Anchors the absolutely-positioned mirror and tooltip below.
         position: 'relative',
       }}
     >
       {/*
-        Outside the scroller by design. The scroller rests at the end of its range so the
-        primary action stays visible, which means its *first* item is the one that scrolls
-        out of view — and that item must not be the overflow menu. Kept here it is always
-        at the row's left edge, one gap from the first action, whatever the actions do.
+        The overflow menu, always the row's leftmost item and never folded. Owned by the bar
+        so overflowing actions can be appended to it — its `items` prop carries the static
+        rows plus whatever has folded in, so an open panel updates as the width changes.
       */}
-      {leading && (
-        <div ref={leadRef} style={{ display: 'flex', flex: 'none' }}>
-          {leading}
-        </div>
-      )}
+      <div ref={leadRef} style={{ display: 'flex', flex: 'none' }}>
+        <Menu aria-label={menuLabel} items={resolvedMenu} />
+      </div>
 
       <div
-        ref={wrapRef}
-        className="ra-scroll-x"
         style={{
-          // `1 1 auto` with `minWidth: 0` would let the scroller claim the whole box and
-          // strand the actions away from the menu. `0 1 auto` sizes it to its content and
-          // only shrinks when the content will not fit, which is when it starts scrolling.
-          flex: '0 1 auto',
-          minWidth: 0,
           display: 'flex',
           alignItems: 'center',
           gap: GAP,
-          // Even collapsed to circles, five actions can exceed a 320px screen. Scrolling
-          // keeps them reachable; clipping would not.
-          overflowX: 'auto',
-          overflowY: 'hidden',
+          flex: 'none',
         }}
       >
-        {items.map((item, i) => (
-          <Action key={item.id} item={item} collapsed={i < collapsedCount} onTip={onTip} />
+        {items.slice(foldedCount).map((item, i) => (
+          // `i` is the index within the visible slice; an action is a circle when its position
+          // from the left of that slice is below the collapse count.
+          <Action
+            key={item.id}
+            item={item}
+            collapsed={i + foldedCount < collapsedCount}
+            onTip={onTip}
+          />
         ))}
       </div>
 
       {/*
-        Measurement mirror, kept out of the scroller so it cannot add to its scroll width.
-        `visibility: hidden` leaves it out of the tab order and the a11y tree while still
-        giving it a layout box to measure, which `display: none` would not.
+        Measurement mirror, always the full labelled set. `visibility: hidden` leaves it out of
+        the tab order and the a11y tree while still giving it a layout box to measure, which
+        `display: none` would not.
       */}
       <div
         ref={mirrorRef}

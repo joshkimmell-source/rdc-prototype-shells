@@ -20,7 +20,7 @@ import { readAbParam } from './abParam'
 import { ASK_MESSAGE } from './askBridge'
 import { HoverButton } from './components/primitives'
 import { IconHamburger } from './icons'
-import { NavRail, type NavId } from './components/NavRail'
+import { NavRail, RAIL_WIDTH, type NavId } from './components/NavRail'
 import { NAV_BAR_HEIGHT, NavBar } from './components/NavBar'
 import { Subnav } from './components/Subnav'
 import { MainHeader, type ToggleId, type Toggles } from './components/MainHeader'
@@ -52,11 +52,10 @@ import {
 } from './data'
 
 /**
- * The DC file exposed these three as authoring props (`railMode`, `subnavWidth`,
- * `pushWidth`) with an editor UI. There's no equivalent surface in a Vite app, so the
- * defaults from its `data-props` block are constants here.
+ * The DC file exposed these as authoring props (`subnavWidth`, `pushWidth`) with an editor
+ * UI. There's no equivalent surface in a Vite app, so the defaults from its `data-props`
+ * block are constants here. (`railMode` is gone: the rail is static and no longer expands.)
  */
-const RAIL_MODE: 'hover' | 'click' = 'hover'
 const SUBNAV_WIDTH = 320
 const PUSH_WIDTH = 420
 
@@ -133,9 +132,6 @@ export function Shell() {
   const [variant] = useState(readAbParam)
   const actionBar = variant === 'b'
 
-  // Nav rail
-  const [hover, setHover] = useState(false)
-  const [pinned, setPinned] = useState(false)
   // Seeded from `?view=` so a linked or reloaded URL lands on the screen it names.
   const [activeNav, setActiveNav] = useState<NavId>(readNavParam)
   // Open beside the content on desktop, closed on a phone: as a full-height overlay it
@@ -166,8 +162,10 @@ export function Shell() {
   // Header toggles
   const [toggles, setToggles] = useState<Toggles>({ bell: false, flame: true, chart: false, star: false })
 
-  // Push panel — like the subnav, docked open on desktop and closed on a phone.
-  const [pushContent, setPushContent] = useState(() => !isMobileViewport())
+  // Push panel — the RealAssist+ assistant. Closed by default everywhere; the agent opens it
+  // deliberately (the FAB, an Ask action, or a deep link), rather than it occupying the
+  // content on arrival.
+  const [pushContent, setPushContent] = useState(false)
   const [pushExpanded, setPushExpanded] = useState(false)
   const [pushOver, setPushOver] = useState(false)
   const [fabHover, setFabHover] = useState(false)
@@ -264,9 +262,6 @@ export function Shell() {
   }
 
   // ── Derived layout ────────────────────────────────────────────────────────────
-  const clicky = RAIL_MODE === 'click'
-  const railExpanded = clicky ? pinned : hover
-
   const isClients = activeNav === 'clients'
   const isSearch = activeNav === 'search'
   const isTours = activeNav === 'tours'
@@ -329,7 +324,7 @@ export function Shell() {
     : isMobile
       ? '100%'
       : pushExpanded
-        ? 'calc(100% - 64px)'
+        ? `calc(100% - ${RAIL_WIDTH}px)`
         : `${pushW}px`
   const mainMarginRight = !isMobile && pushContent && !pushExpanded ? pushW : 0
   // Only draggable while docked open — expanded width is the expand control's, a closed
@@ -363,7 +358,6 @@ export function Shell() {
   const navigate = (id: NavId) => {
     setActiveNav(id)
     writeNavParam(id)
-    setPinned(false)
     setPushExpanded(false)
   }
 
@@ -415,22 +409,7 @@ export function Shell() {
       }}
     >
       <div style={{ flex: 1, display: 'flex', minHeight: 0, position: 'relative' }}>
-        {!isMobile && (
-          <NavRail
-            expanded={railExpanded}
-            activeNav={activeNav}
-            onNavigate={navigate}
-            onEnter={() => {
-              if (!clicky) setHover(true)
-            }}
-            onLeave={() => {
-              if (!clicky) setHover(false)
-            }}
-            onClick={() => {
-              if (clicky) setPinned((p) => !p)
-            }}
-          />
-        )}
+        {!isMobile && <NavRail activeNav={activeNav} onNavigate={navigate} />}
 
         <Subnav
           open={subnavOpen}
