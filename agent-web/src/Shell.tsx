@@ -254,11 +254,12 @@ export function Shell() {
     setBusy(false)
 
     if (result.scheduled) {
-      const { client, address, when, at } = result.scheduled
+      const { client, address, when, type, at } = result.scheduled
       setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, nextTour: when } : c)))
-      // Sorted in by date — appending would put a nearer tour below a later one.
+      // Replace any existing row for this client so re-running the flow re-creates rather than
+      // duplicates, then sort by date — appending would put a nearer tour below a later one.
       setUpcomingTours((prev) =>
-        [...prev, { when, address, client: client.name, type: 'Buyer tour · 1 stop', at }].sort(
+        [...prev.filter((tt) => tt.client !== client.name), { when, address, client: client.name, type, at }].sort(
           (a, b) => a.at - b.at
         )
       )

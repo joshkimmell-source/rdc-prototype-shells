@@ -49,6 +49,14 @@ async function ask(page: Page, text: string) {
 const clientChip = (page: Page) =>
   transcript(page).getByRole('button').filter({ hasText: 'Jordan & Mia Castellanos' }).filter({ hasText: 'saved homes' })
 
+/**
+ * The Home screen's "Upcoming tours" card. Anchored to its `<h3>` heading and walked up to the
+ * enclosing card, so a scoped search hits the tour rows and not the client table (which also
+ * carries the client names) or the assistant panel's own upcoming-tour card.
+ */
+const upcomingToursCard = (page: Page) =>
+  page.getByRole('heading', { name: 'Upcoming tours' }).locator('..').locator('..')
+
 test.describe('RealAssist+ stepwise tour-coordination flow', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
@@ -145,5 +153,31 @@ test.describe('RealAssist+ stepwise tour-coordination flow', () => {
 
     await expect(transcript(page).getByText(/Upcoming Tour –/)).toBeVisible()
     await expect(transcript(page).getByText('Completed', { exact: true })).toBeVisible()
+  })
+
+  test('the Home list shows only already-created tours, not Jordan & Mia’s', async ({ page }) => {
+    // Priyanka's tour is pre-created, so it shows from the start; Jordan & Mia's is
+    // coordinated through the assistant, so it is withheld until the flow schedules it.
+    const card = upcomingToursCard(page)
+    await expect(card.getByText(/Priyanka Raman.*Buyer tour.*1 stop/)).toBeVisible()
+    await expect(card.getByText(/Jordan & Mia Castellanos.*Buyer tour/)).toHaveCount(0)
+  })
+
+  test('creating Jordan & Mia’s tour adds it to the Home upcoming-tours list', async ({ page }) => {
+    const card = upcomingToursCard(page)
+    await expect(card.getByText(/Jordan & Mia Castellanos.*Buyer tour/)).toHaveCount(0)
+
+    // Run the flow to completion: top 3 → date & time → build → confirm & schedule.
+    await ask(page, 'Choose the top 3 listings for Jordan and Mia')
+    const cta = transcript(page).getByRole('button', { name: /Choose a date & start time/ })
+    await expect(cta).toBeVisible()
+    await cta.click()
+    await transcript(page).getByRole('button', { name: /Build the plan/ }).click()
+    const confirm = page.getByRole('button', { name: /Confirm & schedule/ })
+    await expect(confirm).toBeVisible()
+    await confirm.click()
+
+    // Now it is on the calendar — the Home list carries it with all three stops.
+    await expect(card.getByText(/Jordan & Mia Castellanos.*Buyer tour.*3 stops/)).toBeVisible()
   })
 })

@@ -252,6 +252,8 @@ export interface ScheduledTour {
   client: Client
   address: string
   when: string
+  /** `"Buyer tour · 3 stops"` — the display line for the created upcoming-tour row. */
+  type: string
   /** Epoch ms of the tour date, so the shell can sort it into the upcoming list. */
   at: number
 }
@@ -1100,6 +1102,7 @@ function respondLocally(text: string, clients: Client[]): AssistantResult {
           client: named,
           address: first.line1,
           when: `${formatTourDate(tour.date)} · ${tour.startTime ?? first.timeRange.split(' – ')[0]}`,
+          type: `Buyer tour · ${tour.stopCount} ${tour.stopCount === 1 ? 'stop' : 'stops'}`,
           at: isoToEpoch(tour.date),
         },
       }
@@ -1126,7 +1129,13 @@ function respondLocally(text: string, clients: Client[]): AssistantResult {
     return {
       cards,
       reply: `Requested ${listing.address} for ${named.name} on ${when.label} — the invite is out to the listing agent.`,
-      scheduled: { client: named, address: listing.address, when: when.label, at: when.at },
+      scheduled: {
+        client: named,
+        address: listing.address,
+        when: when.label,
+        type: 'Buyer tour · 1 stop',
+        at: when.at,
+      },
     }
   }
 
@@ -1235,6 +1244,7 @@ export async function runAssistant(text: string, clients: Client[]): Promise<Ass
                   client: c,
                   address: l ? l.address : address,
                   when,
+                  type: 'Buyer tour · 1 stop',
                   at: whenToEpoch(when),
                 }
               return `Tour requested. Card displayed to ${AGENT_FIRST_NAME} and the client record was updated.`
