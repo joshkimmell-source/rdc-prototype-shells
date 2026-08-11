@@ -105,8 +105,10 @@ const PILL_BASE = {
 } as const
 
 const CHAT_CARD = {
+  // Fill the transcript column (capped at 720px by the scroll container) rather than sitting
+  // as a narrow 340px strip — the assistant's rich cards read as full-width responses, like
+  // the home-state capability cards above them.
   width: '100%',
-  maxWidth: 340,
   background: C.white,
   border: `1px solid ${C.hair}`,
   borderRadius: 16,
