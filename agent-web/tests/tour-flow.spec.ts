@@ -243,4 +243,15 @@ test.describe('Dynamic Tours subnav', () => {
     // And the map switches from Priyanka's tour to the freshly-booked coordinated one.
     await expect(mapTourClient(page)).toHaveText('Jordan & Mia Castellanos')
   })
+
+  test('the map follows the tour selected in the subnav', async ({ page }) => {
+    // Opens on Priyanka's default-selected tour.
+    await expect(mapTourClient(page)).toHaveText('Priyanka Raman')
+
+    // Selecting one of cli_02's past tours drives the map to it — the map is not pinned to a
+    // single featured tour, it draws whatever the subnav has selected.
+    await page.getByRole('button', { name: /^Past \(/ }).click()
+    await subnavRow(page, 'Jordan & Mia Castellanos').first().click()
+    await expect(mapTourClient(page)).toHaveText('Jordan & Mia Castellanos')
+  })
 })

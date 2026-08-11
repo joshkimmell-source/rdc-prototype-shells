@@ -41,6 +41,7 @@ import {
   STAGES,
   THREADS,
   TOURS,
+  TOUR_MAP_DATA,
   WITHHELD_TOUR_IDS,
   activeClientCount,
   clientNeeds,
@@ -615,9 +616,8 @@ export function Shell() {
               onOpenSubnav={() => setSubnavOpen(true)}
               variant={variant}
               askOpen={pushContent}
-              // The embedded map mirrors the assistant-coordinated tour, so it only draws once
-              // that tour has been booked; until then the frame shows its empty state.
-              tourVisible={createdTourIds.has(DEFAULT_TOUR_ID)}
+              // The embedded map follows the Tours subnav: it draws whichever tour is selected.
+              selectedTour={TOUR_MAP_DATA[selectedTour]}
             />
           )}
 

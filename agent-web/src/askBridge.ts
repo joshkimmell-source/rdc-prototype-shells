@@ -16,12 +16,13 @@ export const ASK_MESSAGE = 'ra:ask'
 export const ASK_VISIBLE_MESSAGE = 'ra:ask-visible'
 
 /**
- * Sent down to the Tours map to say whether the assistant-coordinated tour (Jordan & Mia's)
- * has been booked yet. Once it is, the map switches to that tour; until then it stays on
- * Priyanka's already-created tour, so a tour the agent hasn't created isn't the one on screen.
- * Posted on each frame load and on change.
+ * Sent down to the Tours map with the full payload of the tour to draw — whichever one the
+ * Tours subnav has selected. The map is a pure renderer of this message: the subnav opens on
+ * Priyanka's already-created tour, and booking the assistant-coordinated tour (Jordan & Mia's)
+ * selects it, so a tour the agent hasn't created is never the one on screen. Posted on each
+ * frame load and whenever the selection changes.
  */
-export const TOUR_VISIBLE_MESSAGE = 'ra:tour-visible'
+export const TOUR_SELECT_MESSAGE = 'ra:tour-select'
 
 /**
  * Pushes the panel's state into a framed map. Returns the poster as well, for the frame's
@@ -42,17 +43,18 @@ export function useAskVisibility(ref: RefObject<HTMLIFrameElement | null>, visib
 }
 
 /**
- * Pushes the coordinated tour's booked/withheld state into the Tours map. Same shape as
+ * Pushes the selected tour's full payload into the Tours map. Same shape as
  * `useAskVisibility`: posts on change, and returns the poster for the frame's `onLoad` so a
- * freshly (re)loaded frame is told which of its two tours to show.
+ * freshly (re)loaded frame is told which tour to draw. `tour` is a `MapTour`, kept as an
+ * opaque payload here so the bridge stays free of a data-layer import.
  */
-export function useTourVisibility(ref: RefObject<HTMLIFrameElement | null>, visible: boolean) {
+export function useSelectedTour(ref: RefObject<HTMLIFrameElement | null>, tour: unknown) {
   const post = useCallback(() => {
     ref.current?.contentWindow?.postMessage(
-      { type: TOUR_VISIBLE_MESSAGE, visible },
+      { type: TOUR_SELECT_MESSAGE, tour },
       window.location.origin
     )
-  }, [ref, visible])
+  }, [ref, tour])
 
   useEffect(post, [post])
 
