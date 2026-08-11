@@ -96,7 +96,13 @@ export const BUYERS: Buyer[] = sample.buyers
 
 export const TOURS: TourListItem[] = sample.tours
 
+/** Upcoming tours held back from the Tours subnav until the assistant flow schedules them. */
+export const WITHHELD_TOUR_IDS: string[] = sample.withheldTourIds
+
 export const INITIAL_UPCOMING_TOURS: UpcomingTour[] = sample.initialUpcomingTours
+
+/** Every roster tour keyed by id, in the shape the framed Tours map renders. */
+export const TOUR_MAP_DATA = sample.tourMapData
 
 export const STAGES: Array<[string, string]> = sample.stages
 
@@ -175,4 +181,6 @@ export type {
   ClientListingGroup,
   ClientNeed,
   ListingPill,
+  MapTour,
+  MapTourStop,
 } from './data/sample/adapters'

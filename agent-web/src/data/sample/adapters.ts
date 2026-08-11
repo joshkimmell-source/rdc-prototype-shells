@@ -76,6 +76,16 @@ const ROSTER: SampleClient[] = SAMPLE_CLIENTS.filter(c => ROSTER_IDS.includes(c.
  */
 const ROSTER_TOURS: SampleTour[] = SAMPLE_TOURS.filter(t => ROSTER_IDS.includes(t.clientId))
 
+/**
+ * Clients whose upcoming tour is *coordinated through the assistant*, not pre-baked into the
+ * displayed lists. Their tour data still exists (the RealAssist+ flow reads it to build the
+ * plan), but the tour stays out of the Home "Upcoming tours" card and the Tours subnav until
+ * the flow schedules it — the shell reveals it on "Confirm & schedule". Jordan & Mia
+ * (`cli_02`) is the flow's subject; Priyanka (`cli_03`) and the rest read as already-created
+ * and show from the start. Past tours are unaffected — they happened, so they always show.
+ */
+const ASSISTANT_COORDINATED_CLIENT_IDS = new Set(['cli_02'])
+
 /** The dataset's `upcomingTours()`, narrowed to the roster. Soonest first. */
 const upcomingRosterTours = (): SampleTour[] =>
   ROSTER_TOURS.filter(t => t.state === 'Upcoming').sort((a, b) => a.date.localeCompare(b.date))
@@ -318,6 +328,15 @@ export const tours: TourListItem[] = TOURS_ORDERED.map(t => ({
 }))
 
 /**
+ * Upcoming tours coordinated through the assistant rather than pre-created — held back from
+ * the Tours subnav (and the Home card) until the flow schedules them. The shell seeds its
+ * "created" set as every tour minus these, then adds one back when the flow books it.
+ */
+export const withheldTourIds: string[] = upcomingRosterTours()
+  .filter(t => ASSISTANT_COORDINATED_CLIENT_IDS.has(t.clientId))
+  .map(t => t.id)
+
+/**
  * The tour the Tours subnav starts on. Deliberately the richest upcoming tour rather
  * than the soonest: `public/tours-map.html` is a static file that hardcodes one tour's
  * stops, and it mirrors this one. Picking the soonest instead would open the subnav on
@@ -361,7 +380,101 @@ function toUpcomingTour(t: SampleTour): UpcomingTour {
   }
 }
 
-export const initialUpcomingTours: UpcomingTour[] = upcomingRosterTours().map(toUpcomingTour)
+export const initialUpcomingTours: UpcomingTour[] = upcomingRosterTours()
+  .filter(t => !ASSISTANT_COORDINATED_CLIENT_IDS.has(t.clientId))
+  .map(toUpcomingTour)
+
+// ─── Tours map (public/tours-map.html) ──────────────────────────────────────────
+
+/** One pin/row on the tour map, in the shape the framed page renders. */
+export interface MapTourStop {
+  order: string
+  /** Listing status, e.g. "Price Change" — the map's "Status" column. */
+  status: string
+  /** Street line, read off the joined listing (see `stopAddress`). */
+  addr: string
+  /** `"Summit Grove, ST"`. */
+  city: string
+  /** `null` where the stop has no time locked in yet. */
+  time: string | null
+  tourStatus: string
+  /** Pseudo-coordinate — see `coordFor`; the dataset carries no real location. */
+  ll: [number, number]
+}
+
+/** A whole tour, as `public/tours-map.html` draws it. Posted into the frame per selection. */
+export interface MapTour {
+  id: string
+  client: string
+  date: string
+  /** `null` for a single-stop tour, which has no leg to drive or walk. */
+  drive: string | null
+  walk: string | null
+  stops: MapTourStop[]
+}
+
+/** `"2026-08-15"` → `"Sat, Aug 15 '26"` — the tour-map header's own date format. */
+function mapTourDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  const weekday = dt.toLocaleDateString('en-US', { weekday: 'short' })
+  const month = dt.toLocaleDateString('en-US', { month: 'short' })
+  return `${weekday}, ${month} ${d} '${String(y).slice(2)}`
+}
+
+/** Minutes → `"36 min"`, `"4 hr"`, `"13 hr 5 min"`; 0 or less → `null` (nothing to show). */
+function durationLabel(mins: number): string | null {
+  if (!mins || mins <= 0) return null
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (!h) return `${m} min`
+  return m ? `${h} hr ${m} min` : `${h} hr`
+}
+
+/**
+ * A stable pseudo-coordinate per address. The dataset's cities are fictional and carry no
+ * real location; the map only needs pins that are separated and don't jump between renders,
+ * so a small hash of the street spreads them ~±0.03° (a few km) around one base point.
+ */
+function coordFor(addr: string): [number, number] {
+  let h = 0
+  for (let i = 0; i < addr.length; i++) h = (h * 31 + addr.charCodeAt(i)) >>> 0
+  const lat = 37.54 + ((h % 1000) / 1000 - 0.5) * 0.06
+  const lng = -122.05 + ((Math.floor(h / 1000) % 1000) / 1000 - 0.5) * 0.06
+  return [Number(lat.toFixed(4)), Number(lng.toFixed(4))]
+}
+
+function toMapTour(t: SampleTour): MapTour {
+  const multi = t.stops.length > 1
+  return {
+    id: t.id,
+    client: clientName(t.clientId),
+    date: mapTourDate(t.date),
+    drive: multi ? durationLabel(t.driveTimeMins) : null,
+    walk: multi ? durationLabel(t.walkTimeMins) : null,
+    stops: t.stops.map(s => {
+      const l = getListing(s.listingId)
+      const addr = stopAddress(s)
+      return {
+        order: s.order,
+        status: l?.status ?? s.listingStatus,
+        addr,
+        city: l ? `${l.address.city}, ${l.address.state}` : '',
+        time: s.time ?? null,
+        tourStatus: s.tourStatus,
+        ll: coordFor(addr),
+      }
+    }),
+  }
+}
+
+/**
+ * Every roster tour keyed by id, in the shape `public/tours-map.html` renders. The shell
+ * posts the selected tour's entry into the frame, so the map follows the Tours subnav.
+ */
+export const tourMapData: Record<string, MapTour> = Object.fromEntries(
+  TOURS_ORDERED.map(t => [t.id, toMapTour(t)])
+)
 
 // ─── Home: client needs ───────────────────────────────────────────────────────
 
@@ -830,8 +943,8 @@ export const threads: Thread[] = [
 // ─── Assistant suggestion chips ───────────────────────────────────────────────
 
 export const chips: string[] = [
+  `Plan a tour for ${greetingName(ROSTER[0])}`,
   `What is ${greetingName(ROSTER[0])} looking for?`,
-  `Set up a tour for ${greetingName(ROSTER[0])} at ${SAMPLE_LISTINGS[0].address.line1} on Saturday morning`,
   'Who needs a follow-up this week?',
   `How does the ${SAMPLE_LISTINGS[6].address.city} market look right now?`,
 ]
@@ -878,8 +991,8 @@ export const assistantNudges: AssistantNudge[] = (() => {
         `just listed at ${formatPrice(featured.price)} and fits what they have been saving.`,
       actions: [
         {
-          label: 'Set up a tour',
-          prompt: `Set up a tour for ${first} at ${featured.address.line1} this Saturday at 10am`,
+          label: 'Plan a tour',
+          prompt: `Plan a tour for ${first}`,
         },
         {
           label: 'See their activity',

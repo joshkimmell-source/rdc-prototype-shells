@@ -4,15 +4,23 @@
  * The DC prototype called `window.claude.complete({ system, messages, max_tokens, tools })`,
  * which only exists inside the Claude Design runtime. A Vite app has no such global, so this
  * module provides a local rule-based stand-in that reproduces the same contract: it returns
- * plain-text replies and can emit the two tool results the chat renders — `show_client_card`
- * and `schedule_tour`.
+ * plain-text replies and can emit the cards the chat renders.
+ *
+ * The centrepiece is the multi-turn **tour-coordination flow**, a faithful reproduction of the
+ * design walkthrough: the assistant pulls a client's saved listings, lays out a plan, asks for
+ * a start time, then builds the full timeline, per-agent outreach drafts, conflicts and ranked
+ * next steps, and finally schedules the tour onto a calendar. Every section, heading and label
+ * matches the design; only the client, dates and properties are the workspace's real sample
+ * data (Jordan & Mia Castellanos and their three saved listings), and the per-property facts —
+ * status, notice, access, urgency — are read off those real listings rather than invented.
  *
  * If a host ever does inject `window.claude.complete`, `runAssistant` defers to it and the
- * tool `run` handlers push cards exactly as the DC version did — so this stays a drop-in.
+ * tool `run` handlers push the client/tour cards exactly as the DC version did.
  */
 import {
   AGENT_BROKERAGE,
   AGENT_FIRST_NAME,
+  AGENT_FULL_NAME,
   CLIENTS,
   LISTINGS,
   PROTOTYPE_TODAY,
@@ -21,7 +29,17 @@ import {
   type Client,
   type TagColor,
 } from './data'
-import { LISTINGS as SAMPLE_LISTINGS, formatPrice } from './data/sample'
+import {
+  LISTINGS as SAMPLE_LISTINGS,
+  TOURS as SAMPLE_TOURS,
+  formatBaths,
+  formatPrice,
+  formatTourDate,
+  getListing,
+  type Listing as SampleListing,
+  type ListingStatus,
+  type Tour as SampleTour,
+} from './data/sample'
 
 export interface ClientCard {
   kind: 'client'
@@ -44,12 +62,204 @@ export interface TourCard {
   when: string
 }
 
-export type Card = ClientCard | TourCard
+// ─── Tour-coordination flow ─────────────────────────────────────────────────
+
+/** A ranked step / conflict / note whose leading clause is emphasised, as in the design. */
+export interface LeadNote {
+  /** The bold lead — a property or agent name. Omit for an unemphasised line. */
+  lead?: string
+  /** The rest of the sentence, appended after the lead. */
+  text: string
+}
+
+/** One property in the flow, with everything the cards downstream need. */
+export interface PlanProperty {
+  /** The tour-stop letter, `A`–`C`. */
+  order: string
+  /** 1-based position, for the plan table. */
+  index: number
+  line1: string
+  city: string
+  price: number
+  beds: number
+  /** `"2 BA"` or `"2.5 BA"`. */
+  bathsLabel: string
+  sqft: number | null
+  photo: string
+  /** The dataset status, and its display label + dot colour. */
+  status: ListingStatus
+  statusLabel: string
+  /** One of the responder's status-dot colour keys. */
+  statusTone: 'green' | 'amber' | 'gray'
+
+  // Outreach — invented listing-agent contacts, real showing facts.
+  agentName: string
+  agentFirst: string
+  brokerage: string
+  phone: string
+  email: string
+  noticeRequired: string
+  access: string
+  openHouse: string
+  urgency: string
+  draft: string
+
+  // Timeline
+  timeRange: string
+  duration: string
+  /** `"Travel: ~18 min to Old Quarter"`, or null after the last stop. */
+  travelToNext: string | null
+}
+
+/** The tool-call trace the design shows before the first card. */
+export interface ToolTraceCard {
+  kind: 'toolTrace'
+  lines: string[]
+  toolCount: number
+  found: string
+}
+
+/** The listing-selection card: "Here's what I'm working with", with checkbox rows. */
+export interface TourListingsCard {
+  kind: 'tourListings'
+  greetingName: string
+  properties: PlanProperty[]
+}
+
+/** "Tour plan for X" — the property table and the pre-flight notes. */
+export interface TourPlanCard {
+  kind: 'tourPlan'
+  client: string
+  greetingName: string
+  properties: PlanProperty[]
+  notes: LeadNote[]
+}
+
+/** "📝 Tour Timeline — X" — the routing note and the proposed schedule. */
+export interface TimelineCard {
+  kind: 'tourTimeline'
+  members: string
+  routingNote: string
+  properties: PlanProperty[]
+  totalDuration: string
+  finish: string
+}
+
+/** "📝 Showing Requirements & Outreach" — the per-property field tables and drafts. */
+export interface OutreachCard {
+  kind: 'tourOutreach'
+  properties: PlanProperty[]
+}
+
+/** "⚠️ Potential Conflicts" + "✅ Recommended Next Steps" + confidence + what-next. */
+export interface SummaryCard {
+  kind: 'tourSummary'
+  /** The client, so the confirm action can name them when it schedules the tour. */
+  greetingName: string
+  conflicts: LeadNote[]
+  steps: LeadNote[]
+  confidence: LeadNote
+  nextOptions: string[]
+}
+
+/** The final "Upcoming Tour" panel: the scheduled tour, its stops and follow-on chips. */
+export interface UpcomingTourCard {
+  kind: 'upcomingTour'
+  title: string
+  client: string
+  greetingName: string
+  members: string
+  dateLabel: string
+  stopCount: number
+  stops: Array<{
+    line1: string
+    statusLabel: string
+    statusTone: 'green' | 'amber' | 'gray'
+    beds: number
+    bathsLabel: string
+    sqft: number | null
+    photo: string
+  }>
+  suggestions: string[]
+}
+
+/**
+ * Step 1 of the stepwise flow — "For whom do you wish to coordinate a tour?". Chips for
+ * each client who has a tour to coordinate; picking one sends the step-2 prompt.
+ */
+export interface ClientPickerCard {
+  kind: 'clientPicker'
+  title: string
+  clients: Array<{
+    id: string
+    name: string
+    greetingName: string
+    initials: string
+    stage: string
+    dataColor: TagColor
+    meta: string
+    /** The prompt the chip sends — names the client so the responder can resolve them. */
+    prompt: string
+  }>
+}
+
+/**
+ * Step 2 — "How would you like to select listings?". Three methods; only "Choose the top 3"
+ * is wired for now, the others render as disabled "coming soon" chips.
+ */
+export interface SelectMethodCard {
+  kind: 'selectMethod'
+  greetingName: string
+  title: string
+  methods: Array<{ label: string; description: string; prompt: string; enabled: boolean }>
+}
+
+/**
+ * Step 4 — a calendar plus start-time chips. Picking a day and a time together sends the
+ * step-5 prompt that builds the full coordination plan.
+ */
+export interface DateTimeCard {
+  kind: 'dateTime'
+  client: string
+  clientId: string
+  greetingName: string
+  /** The first stop — what the card names. */
+  address: string
+  /** Year and 0-indexed month the calendar opens on. */
+  year: number
+  month: number
+  /** Day-of-month of the client's tour date, pre-highlighted. */
+  suggestedDay: number
+  /** The start-time options offered as chips. */
+  times: string[]
+}
+
+export type Card =
+  | ClientCard
+  | TourCard
+  | ClientPickerCard
+  | SelectMethodCard
+  | ToolTraceCard
+  | TourListingsCard
+  | TourPlanCard
+  | DateTimeCard
+  | TimelineCard
+  | OutreachCard
+  | SummaryCard
+  | UpcomingTourCard
 
 export interface ScheduledTour {
   client: Client
   address: string
   when: string
+  /** `"Buyer tour · 3 stops"` — the display line for the created upcoming-tour row. */
+  type: string
+  /**
+   * The dataset tour id this booked, when it maps to one. Set by the coordination flow so
+   * the shell can reveal the withheld tour in the Tours subnav; absent for ad-hoc,
+   * single-property tours that don't correspond to a dataset record.
+   */
+  tourId?: string
   /** Epoch ms of the tour date, so the shell can sort it into the upcoming list. */
   at: number
 }
@@ -57,6 +267,8 @@ export interface ScheduledTour {
 export interface AssistantResult {
   cards: Card[]
   reply: string
+  /** An AI line rendered *before* the cards — the flow's acknowledgements ("Got it — …"). */
+  preReply?: string
   /** Set when the responder scheduled a tour, so the shell can update client + tour state. */
   scheduled?: ScheduledTour
 }
@@ -134,6 +346,531 @@ function findListing(address: string) {
   )
 }
 
+// ─── Flow builders ────────────────────────────────────────────────────────────
+
+/** The client's soonest upcoming tour, if they have one — the flow is built from it. */
+function upcomingTourFor(clientId: string): SampleTour | undefined {
+  return SAMPLE_TOURS.filter((t) => t.clientId === clientId && t.state === 'Upcoming').sort((a, b) =>
+    a.date.localeCompare(b.date)
+  )[0]
+}
+
+/** `"2 BA"` / `"2.5 BA"` — half baths count as `.5`, per MLS convention. */
+const bathsLabel = (l: SampleListing): string => `${formatBaths(l)} BA`
+
+/** Dataset status → the label and dot colour the cards show. */
+function statusDisplay(status: ListingStatus): { label: string; tone: 'green' | 'amber' | 'gray' } {
+  switch (status) {
+    case 'New':
+      return { label: 'New listing', tone: 'green' }
+    case 'Active':
+      return { label: 'For sale', tone: 'green' }
+    case 'Price Change':
+      return { label: 'Price reduced', tone: 'amber' }
+    case 'Coming Soon':
+      return { label: 'Coming soon', tone: 'amber' }
+    case 'Closed':
+      return { label: 'Closed', tone: 'gray' }
+  }
+}
+
+/** `615` (minutes since midnight) → `"10:15 AM"`. */
+function fmtClock(mins: number): string {
+  const h24 = Math.floor(mins / 60) % 24
+  const m = mins % 60
+  const ampm = h24 < 12 ? 'AM' : 'PM'
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
+}
+
+/**
+ * The acknowledgement label for the step-5 preReply, e.g. `"Sat, Aug 15 at 10:00 AM start
+ * time"`. The step-4 picker sends `"…on <day> at <time>"`, so the day is lifted from the
+ * message; failing that it falls back to the tour's own date.
+ */
+function whenLabelFrom(text: string, tour: SampleTour, startClock: string): string {
+  const onMatch = text.match(/\bon\s+(.+?)(?:\s+at\b|$)/i)
+  const day = onMatch ? onMatch[1].trim() : formatTourDate(tour.date)
+  return `${day} at ${startClock} start time`
+}
+
+/** `"10:00 AM"` → minutes since midnight, or 600 (10:00) if unparseable. */
+function parseClock(text: string): number {
+  const m = text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i)
+  if (!m) return 600
+  let h = Number(m[1]) % 12
+  if (/pm/i.test(m[3])) h += 12
+  return h * 60 + Number(m[2] ?? '0')
+}
+
+/** A stable, invented listing-agent identity per address — the outreach contacts. */
+const LISTING_AGENTS: Record<
+  string,
+  { name: string; brokerage: string; phone: string; email: string }
+> = {
+  '195 Stanton Way': {
+    name: 'Elena Marsh',
+    brokerage: 'Summit Grove Realty',
+    phone: '(555) 204-0148',
+    email: 'elena.marsh@example.com',
+  },
+  '1678 Wallace Ave': {
+    name: 'Trevor Okafor',
+    brokerage: 'Old Quarter Homes',
+    phone: '(555) 331-0292',
+    email: 'trevor.okafor@example.com',
+  },
+  '3975 Turnley Ct': {
+    name: 'Bianca Reyes',
+    brokerage: 'Cedar Vale Properties',
+    phone: '(555) 418-0173',
+    email: 'bianca.reyes@example.com',
+  },
+}
+
+/**
+ * Showing requirements, read off the real listing. A recently-reduced listing shows on a
+ * lockbox with no special notice; a long-on-market one is treated as agent-present with
+ * 24-hour notice; a brand-new listing needs notice and confirmed access. Open-house and
+ * urgency come from the listing's own fields.
+ */
+function showingFacts(l: SampleListing): {
+  notice: string
+  access: string
+  openHouse: string
+  urgency: string
+} {
+  const openHouse = l.openHouse.length ? l.openHouse[0] : 'Not yet scheduled'
+  switch (l.status) {
+    case 'Price Change':
+      // The flow carries two reduced listings: the fresh reduction shows easily; the
+      // long-on-market one is the harder access. Split on days-on-market.
+      return l.daysOnMarket > 60
+        ? {
+            notice: '24 hours — seller occupied',
+            access: 'Agent must be present — no lockbox',
+            openHouse,
+            urgency: `Low — ${l.daysOnMarket} days on market, room to negotiate`,
+          }
+        : {
+            notice: 'No special notice indicated',
+            access: 'Electronic lockbox — SUPRA key required',
+            openHouse,
+            urgency: 'Medium — recently reduced, expect increased interest',
+          }
+    case 'New':
+      return {
+        notice: '24 hours required',
+        access: 'Lockbox — code provided upon confirmed appointment',
+        openHouse,
+        urgency: 'High — new listing, expect strong early interest',
+      }
+    case 'Coming Soon':
+      return {
+        notice: '48 hours — seller occupied',
+        access: 'Agent must be present — no lockbox',
+        openHouse,
+        urgency: 'Low — pre-market, showings not yet open',
+      }
+    default:
+      return {
+        notice: 'No special notice indicated',
+        access: 'Electronic lockbox — SUPRA key required',
+        openHouse,
+        urgency: 'Medium',
+      }
+  }
+}
+
+/** The per-agent outreach draft, worded to the listing's access requirements. */
+function draftFor(p: {
+  agentFirst: string
+  line1: string
+  members: string
+  time: string
+  status: ListingStatus
+  daysOnMarket: number
+  first: boolean
+}): string {
+  const head =
+    `Hi ${p.agentFirst}, this is ${AGENT_FULL_NAME}. I'd like to schedule a showing at ${p.line1} ` +
+    `for my clients ${p.members}. `
+  if (p.status === 'New') {
+    return (
+      head +
+      `We're looking at [DAY] around ${p.time} for approximately 30 minutes. I understand 24-hour ` +
+      `notice is required — please confirm access and whether this time works. Thanks! - ${AGENT_FIRST_NAME} (your phone #)`
+    )
+  }
+  if (p.status === 'Price Change' && p.daysOnMarket > 60) {
+    return (
+      head +
+      `We're looking at this coming [DAY] around ${p.time} for about 30 minutes. I understand 24-hour ` +
+      `notice is required and the listing agent must be present — please confirm if this time works or ` +
+      `suggest an alternative. Thanks! - ${AGENT_FIRST_NAME} (your phone #)`
+    )
+  }
+  return (
+    head +
+    `We're looking at this coming [DAY] at ${p.time} for about 30 minutes.` +
+    (p.first ? ' This is the first stop on a 3-property tour.' : '') +
+    ` Can you confirm access and let me know if this time works? Thanks! - ${AGENT_FIRST_NAME} (your phone #)`
+  )
+}
+
+/** Full member names joined for a sentence — `"Jordan and Mia Castellanos"`. */
+function memberNames(client: Client): string {
+  // The display name carries the shared surname. `"Jordan & Mia Castellanos"` → `"Jordan and
+  // Mia Castellanos"`.
+  return client.name.replace(/\s*&\s*/g, ' and ')
+}
+
+/** `["A","B","C"]` → `"A, B, and C"`. */
+function listCities(cities: string[]): string {
+  if (cities.length <= 1) return cities.join('')
+  return `${cities.slice(0, -1).join(', ')}, and ${cities[cities.length - 1]}`
+}
+
+/**
+ * Assemble every property in the tour, with its schedule slot, showing facts and outreach
+ * draft. The stops keep the dataset's tour order; travel time is the tour's own drive budget
+ * split evenly across the legs, and each showing is a 30-minute block.
+ */
+function planProperties(client: Client, tour: SampleTour): PlanProperty[] {
+  const members = memberNames(client)
+  const stops = tour.stops
+  const legs = Math.max(stops.length - 1, 1)
+  const perLeg = Math.round(tour.driveTimeMins / legs)
+  const SHOWING = 30
+
+  let cursor = parseClock(tour.startTime ?? '10:00 AM')
+
+  return stops.map((stop, i) => {
+    const listing = getListing(stop.listingId)!
+    const disp = statusDisplay(listing.status)
+    const facts = showingFacts(listing)
+    const contact = LISTING_AGENTS[listing.address.line1] ?? {
+      name: 'Listing Agent',
+      brokerage: 'Listing Brokerage',
+      phone: '(555) 000-0000',
+      email: 'listing.agent@example.com',
+    }
+    const start = cursor
+    const end = start + SHOWING
+    const timeRange = `${fmtClock(start)} – ${fmtClock(end)}`
+    const next = stops[i + 1]
+    const travelToNext = next
+      ? `Travel: ~${perLeg} min to ${getListing(next.listingId)!.address.city}`
+      : null
+    cursor = end + perLeg
+
+    return {
+      order: stop.order,
+      index: i + 1,
+      line1: listing.address.line1,
+      city: listing.address.city,
+      price: listing.price,
+      beds: listing.beds,
+      bathsLabel: bathsLabel(listing),
+      sqft: listing.sqft,
+      photo: listing.primaryPhoto,
+      status: listing.status,
+      statusLabel: disp.label,
+      statusTone: disp.tone,
+      agentName: `${contact.name} (${contact.brokerage})`,
+      agentFirst: contact.name.split(' ')[0],
+      brokerage: contact.brokerage,
+      phone: contact.phone,
+      email: contact.email,
+      noticeRequired: facts.notice,
+      access: facts.access,
+      openHouse: facts.openHouse,
+      urgency: facts.urgency,
+      draft: draftFor({
+        agentFirst: contact.name.split(' ')[0],
+        line1: listing.address.line1,
+        members,
+        time: fmtClock(start),
+        status: listing.status,
+        daysOnMarket: listing.daysOnMarket,
+        first: i === 0,
+      }),
+      timeRange,
+      duration: `${SHOWING} min`,
+      travelToNext,
+    }
+  })
+}
+
+/** The pre-flight notes — one line per real caveat, plus the spread-across-cities warning. */
+function planNotes(props: PlanProperty[]): LeadNote[] {
+  const notes: LeadNote[] = []
+  for (const p of props) {
+    if (p.status === 'New') {
+      notes.push({
+        lead: p.line1,
+        text: ` just came on the market — showings need a confirmed appointment, so reach out early to lock a time.`,
+      })
+    } else if (p.status === 'Price Change' && p.urgency.startsWith('Low')) {
+      notes.push({
+        lead: p.line1,
+        text: ` has a 24-hour notice requirement and the listing agent must be present — confirm access a full day ahead.`,
+      })
+    }
+  }
+  const cities = Array.from(new Set(props.map((p) => p.city)))
+  if (cities.length > 1) {
+    notes.push({
+      text: `These properties are spread across ${listCities(cities)} — that's real driving distance between stops, so the order matters.`,
+    })
+  }
+  return notes
+}
+
+/** The conflicts, read off the stops' real statuses and showing facts. */
+function conflictNotes(tour: SampleTour, props: PlanProperty[]): LeadNote[] {
+  const notes: LeadNote[] = []
+  for (const p of props) {
+    if (p.status === 'New') {
+      notes.push({
+        lead: p.line1,
+        text: ` just listed and has no confirmed showing time yet — confirm access before locking the route.`,
+      })
+    } else if (p.status === 'Price Change' && p.urgency.startsWith('Low')) {
+      notes.push({
+        lead: p.line1,
+        text: ` requires 24-hour notice and the listing agent must be present — reach out at least a full day before the tour date.`,
+      })
+    }
+  }
+  const cities = Array.from(new Set(props.map((p) => p.city)))
+  notes.push({
+    lead: 'Significant drive times',
+    text: ` — the stops span ${listCities(cities)}, roughly ${tour.driveTimeMins} minutes of driving in total. If any property falls through, the remaining two are far apart.`,
+  })
+  return notes
+}
+
+/** The ranked next steps, unconfirmed access first, then confirming the date. */
+function stepNotes(client: Client, props: PlanProperty[]): LeadNote[] {
+  const steps: LeadNote[] = []
+  for (const p of props) {
+    if (p.status === 'Price Change' && p.urgency.startsWith('Low')) {
+      steps.push({
+        lead: `Contact ${p.agentFirst} now`,
+        text: ` — satisfy the 24-hour notice for ${p.line1}`,
+      })
+    }
+  }
+  for (const p of props) {
+    if (p.status === 'New') {
+      steps.push({
+        lead: `Contact ${p.agentFirst} now`,
+        text: ` — confirm a showing time for the new ${p.line1} listing`,
+      })
+    }
+  }
+  const anchor = props[0]
+  steps.push({
+    lead: `Contact ${anchor.agentFirst}`,
+    text: ` — confirm the ${anchor.timeRange.split(' – ')[0]} slot at ${anchor.line1}`,
+  })
+  steps.push({
+    lead: `Confirm the tour date with ${client.name}`,
+    text: ` once showings are locked in`,
+  })
+  return steps
+}
+
+/** The tool-trace card, worded to the client. */
+function toolTraceCard(client: Client): ToolTraceCard {
+  const first = client.greetingName
+  return {
+    kind: 'toolTrace',
+    lines: [
+      `Let me pull up ${first}’s group to see their saved listings.`,
+      `Good, I have their group info. Now let me fetch the property details for the first 3 listings in their feed (most recently added).`,
+    ],
+    toolCount: 2,
+    found: 'Found listing information',
+  }
+}
+
+function tourListingsCard(client: Client, props: PlanProperty[]): TourListingsCard {
+  return { kind: 'tourListings', greetingName: client.greetingName, properties: props }
+}
+
+function tourPlanCard(client: Client, props: PlanProperty[]): TourPlanCard {
+  return {
+    kind: 'tourPlan',
+    client: client.greetingName,
+    greetingName: client.greetingName,
+    properties: props,
+    notes: planNotes(props),
+  }
+}
+
+function timelineCard(client: Client, props: PlanProperty[]): TimelineCard {
+  const cities = Array.from(new Set(props.map((p) => p.city)))
+  const route = cities.join(' → ')
+  const last = props[props.length - 1]
+  // Total from the first start to the last end.
+  const startMins = parseClock(props[0].timeRange.split(' – ')[0])
+  const endMins = parseClock(last.timeRange.split(' – ')[1])
+  const total = endMins - startMins
+  const hrs = Math.floor(total / 60)
+  const mins = total % 60
+  const totalDuration =
+    hrs > 0
+      ? `~${hrs} hour${hrs === 1 ? '' : 's'}${mins ? ` ${mins} minutes` : ''}`
+      : `~${mins} minutes`
+  return {
+    kind: 'tourTimeline',
+    members: memberNames(client),
+    routingNote:
+      `These properties are spread across ${listCities(cities)}. I've ordered them geographically to ` +
+      `minimize backtracking (${route}), but you can adjust if preferred.`,
+    properties: props,
+    totalDuration: `${totalDuration} (including travel)`,
+    finish: last.timeRange.split(' – ')[1],
+  }
+}
+
+function outreachCard(props: PlanProperty[]): OutreachCard {
+  return { kind: 'tourOutreach', properties: props }
+}
+
+function summaryCard(client: Client, tour: SampleTour, props: PlanProperty[]): SummaryCard {
+  return {
+    kind: 'tourSummary',
+    greetingName: client.greetingName,
+    conflicts: conflictNotes(tour, props),
+    steps: stepNotes(client, props),
+    confidence: {
+      lead: 'Confidence: Medium (60%)',
+      text:
+        ` — the timeline is solid and the anchor stop is confirmed, but access is unconfirmed for the other ` +
+        `two properties, so the route isn't locked yet.`,
+    },
+    nextOptions: [
+      "Send these draft messages (I'll let you review/edit each one first)",
+      'Adjust the tour order or timing',
+      'Confirm access for the two open stops',
+      'Confirm and put the tour on the calendar',
+    ],
+  }
+}
+
+/** Step 1 — the roster of clients who have saved listings to tour. */
+function clientPickerCard(clients: Client[]): ClientPickerCard {
+  const withTours = clients.filter((c) => upcomingTourFor(c.id))
+  return {
+    kind: 'clientPicker',
+    title: 'For whom do you wish to coordinate a tour?',
+    clients: withTours.map((c) => {
+      const tour = upcomingTourFor(c.id)!
+      return {
+        id: c.id,
+        name: c.name,
+        greetingName: c.greetingName,
+        initials: c.initials,
+        stage: c.stage,
+        dataColor: TAGC[c.stage] ?? 'graySubtle',
+        meta: `${c.saved} saved homes · ${tour.stopCount} ${tour.stopCount === 1 ? 'stop' : 'stops'} to plan`,
+        prompt: `Coordinate a tour for ${c.greetingName}`,
+      }
+    }),
+  }
+}
+
+/** Step 2 — the three listing-selection methods (only "top 3" is wired for now). */
+function selectMethodCard(client: Client): SelectMethodCard {
+  return {
+    kind: 'selectMethod',
+    greetingName: client.greetingName,
+    title: 'How would you like to select listings?',
+    methods: [
+      {
+        label: 'Choose from a list',
+        description: 'Hand-pick from all of their saved homes',
+        prompt: '',
+        enabled: false,
+      },
+      {
+        label: 'Search for listings to include',
+        description: 'Search the MLS and add matches to the tour',
+        prompt: '',
+        enabled: false,
+      },
+      {
+        label: 'Choose the top 3 listings for this client',
+        description: 'I’ll pull the three most relevant saved homes',
+        prompt: `Choose the top 3 listings for ${client.greetingName}`,
+        enabled: true,
+      },
+    ],
+  }
+}
+
+/** The start-time options the date/time picker offers. */
+const START_TIMES = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM']
+
+/** Step 4 — the calendar-plus-time-chips picker, opened on the client's tour month. */
+function dateTimeCard(client: Client, tour: SampleTour): DateTimeCard {
+  const [y, m, d] = tour.date.split('-').map(Number)
+  const first = tour.stops[0]
+  const address = first ? getListing(first.listingId)?.address.line1 ?? first.address : ''
+  return {
+    kind: 'dateTime',
+    client: client.name,
+    clientId: client.id,
+    greetingName: client.greetingName,
+    address,
+    year: y,
+    month: m - 1,
+    suggestedDay: d,
+    times: START_TIMES,
+  }
+}
+
+/** The final scheduled-tour panel. */
+function upcomingTourCard(client: Client, tour: SampleTour, props: PlanProperty[]): UpcomingTourCard {
+  const [y, mo, d] = tour.date.split('-').map(Number)
+  const dateLabel = new Date(y, mo - 1, d).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+  return {
+    kind: 'upcomingTour',
+    title: `Upcoming Tour – ${dateLabel}`,
+    client: client.name,
+    greetingName: client.greetingName,
+    members: memberNames(client),
+    dateLabel,
+    stopCount: tour.stopCount,
+    stops: props.map((p) => ({
+      line1: p.line1,
+      statusLabel: p.statusLabel,
+      statusTone: p.statusTone,
+      beds: p.beds,
+      bathsLabel: p.bathsLabel,
+      sqft: p.sqft,
+      photo: p.photo,
+    })),
+    suggestions: [
+      `Share the tour with ${client.greetingName}`,
+      'Review drafts to listing agents',
+      'Create a search',
+      'Client pulse',
+      'Tour coordinator',
+    ],
+  }
+}
+
+// ─── Broad, non-tour intents (client cards, follow-ups, market) ────────────────
+
 /** `"Sat Aug 1"` — the label format the tour cards and Home screen already use. */
 const dayLabel = (d: Date) =>
   d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -154,8 +891,7 @@ function relativeDays(days: number): Date {
 
 /**
  * "saturday morning" / "sat at 10am" / "tomorrow" → a concrete slot, resolved against
- * `PROTOTYPE_TODAY` so the day names match the dataset's tour dates. Returns both the
- * display label and the resolved date, so the caller can sort by it.
+ * `PROTOTYPE_TODAY` so the day names match the dataset's tour dates.
  */
 function parseWhen(text: string): { label: string; at: number } | null {
   const t = text.toLowerCase()
@@ -190,13 +926,18 @@ function parseWhen(text: string): { label: string; at: number } | null {
 
 /**
  * Best-effort epoch ms for a `when` string a host model produced ("Sat Aug 8 · 10:00 AM").
- * The year is not in the string, so it is taken from `PROTOTYPE_TODAY`. Unparseable
- * strings sort last rather than jumping to the top of the list.
+ * The year is not in the string, so it is taken from `PROTOTYPE_TODAY`.
  */
 function whenToEpoch(when: string): number {
   const day = when.split('·')[0].trim()
   const parsed = Date.parse(`${day} ${PROTOTYPE_TODAY.getFullYear()}`)
   return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed
+}
+
+/** Local-time epoch ms for an ISO `YYYY-MM-DD`. */
+function isoToEpoch(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d).getTime()
 }
 
 /**
@@ -261,15 +1002,122 @@ function marketReply(city: string): string | null {
 const CITIES = Array.from(new Set(SAMPLE_LISTINGS.map((l) => l.address.city)))
 
 /**
- * Mock reasoning over the seeded book of business. Mirrors the DC system prompt's rules:
- * plain text, 1–4 short sentences, no markdown, prices like $612,000.
+ * Mock reasoning over the seeded book of business. The tour-coordination flow is the rich
+ * multi-card path; everything else (client cards, follow-ups, market context) stays a short
+ * plain-text reply, mirroring the DC system prompt's rules.
  */
 function respondLocally(text: string, clients: Client[]): AssistantResult {
   const t = text.toLowerCase()
   const cards: Card[] = []
 
-  // schedule_tour — needs a client, a property, and a day/time.
-  if (/\b(tour|showing|show(ing)?s?|visit)\b/.test(t) && /\b(set up|schedule|book|arrange)\b/.test(t)) {
+  // ── step 3 · choose the top 3 ── the wired listing-selection method. Pulls the client's
+  // saved listings and lays out the coordinated tour *without any times or dates* — the plan
+  // table and pre-flight notes only — then invites the agent to choose a date and start time.
+  if (/\btop (3|three)\b/.test(t)) {
+    const named = clients.find((c) => mentions(t, c)) ?? clients.find((c) => upcomingTourFor(c.id))
+    const tour = named ? upcomingTourFor(named.id) : undefined
+    if (named && tour) {
+      const props = planProperties(named, tour)
+      cards.push(toolTraceCard(named), tourListingsCard(named, props), tourPlanCard(named, props))
+      return {
+        cards,
+        reply:
+          `Here's the coordinated tour for ${named.greetingName} — three stops, no times locked in yet. ` +
+          `When you're ready, choose a date and start time and I'll build out the full timeline, showing ` +
+          `instructions, and draft outreach for each listing agent.`,
+      }
+    }
+  }
+
+  // ── step 1 & 2 · create / coordinate a tour ── with no client named, ask whom the tour is
+  // for (step 1); with a client named, acknowledge and ask how to select listings (step 2).
+  if (
+    /\b(plan|coordinate|create|put together|build|map out|organi[sz]e|set up|start)\b/.test(t) &&
+    /\btour\b/.test(t) &&
+    !/\bstart the tour\b/.test(t)
+  ) {
+    const named = clients.find((c) => mentions(t, c))
+    if (!named) {
+      // Step 1 — "Create a tour". The picker card carries the question in its heading.
+      cards.push(clientPickerCard(clients))
+      return { cards, preReply: 'I can do that.', reply: '' }
+    }
+    const tour = upcomingTourFor(named.id)
+    if (!tour) {
+      return {
+        cards,
+        reply: `${named.greetingName} has no saved listings to tour yet. Add a few homes to their feed and I’ll coordinate a tour from there.`,
+      }
+    }
+    // Step 2 — a client was chosen. The method card carries the question in its heading.
+    cards.push(selectMethodCard(named))
+    return { cards, preReply: `Okay, I'll coordinate a tour for ${named.greetingName}.`, reply: '' }
+  }
+
+  // ── step 4 · choose a date and start time ── surfaces the calendar-plus-time-chips picker.
+  if (
+    /\bchoose a date\b/.test(t) ||
+    /\bdate and (a )?(start )?time\b/.test(t) ||
+    /\bpick (a )?(date|day)\b/.test(t) ||
+    (/\b(set|lock in|confirm)\b/.test(t) && /\b(date|day)\b/.test(t)) ||
+    (/\bcalendar\b/.test(t) && /\btour\b/.test(t))
+  ) {
+    const named = clients.find((c) => mentions(t, c)) ?? clients.find((c) => upcomingTourFor(c.id))
+    const tour = named ? upcomingTourFor(named.id) : undefined
+    if (named && tour) {
+      cards.push(dateTimeCard(named, tour))
+      return {
+        cards,
+        reply: `Pick a day and a start time for ${named.greetingName}’s tour and I’ll build out the full coordination plan.`,
+      }
+    }
+  }
+
+  // ── step 5 · build the coordination plan ── the picker's day+time selection ("Start the
+  // tour for X on <day> at <time>"). Builds the timeline, per-agent outreach, conflicts and
+  // ranked next steps, then invites the agent to confirm and book.
+  if (/\bstart the tour\b/.test(t)) {
+    const named = clients.find((c) => mentions(t, c)) ?? clients.find((c) => upcomingTourFor(c.id))
+    const tour = named ? upcomingTourFor(named.id) : undefined
+    if (named && tour) {
+      const startClock = fmtClock(parseClock(text))
+      const props = planProperties(named, { ...tour, startTime: startClock })
+      const when = whenLabelFrom(text, tour, startClock)
+      cards.push(timelineCard(named, props), outreachCard(props), summaryCard(named, tour, props))
+      return {
+        cards,
+        preReply: `Got it — ${when}. Let me build out the full coordination plan.`,
+        reply: 'What would you like to do next?',
+      }
+    }
+  }
+
+  // ── step 6 · schedule the tour ── "Confirm & book". Shows the final upcoming-tour panel and
+  // updates client + tour state.
+  if (/\bschedule\b/.test(t) && /\btour\b/.test(t)) {
+    const named = clients.find((c) => mentions(t, c)) ?? clients.find((c) => upcomingTourFor(c.id))
+    const tour = named ? upcomingTourFor(named.id) : undefined
+    if (named && tour) {
+      const props = planProperties(named, tour)
+      cards.push(upcomingTourCard(named, tour, props))
+      const first = props[0]
+      return {
+        cards,
+        reply: `Done — ${named.greetingName}’s ${formatTourDate(tour.date)} tour is on the calendar with all ${tour.stopCount} stops. I’ll send the drafts to the listing agents once you give the word.`,
+        scheduled: {
+          client: named,
+          address: first.line1,
+          when: `${formatTourDate(tour.date)} · ${tour.startTime ?? first.timeRange.split(' – ')[0]}`,
+          type: `Buyer tour · ${tour.stopCount} ${tour.stopCount === 1 ? 'stop' : 'stops'}`,
+          tourId: tour.id,
+          at: isoToEpoch(tour.date),
+        },
+      }
+    }
+  }
+
+  // ── single-property schedule ── the legacy "set up a tour for X at <address> on <day>".
+  if (/\b(tour|showing|show(ing)?s?|visit)\b/.test(t) && /\b(set up|book|arrange)\b/.test(t)) {
     const named = clients.find((c) => mentions(t, c))
     const listing = LISTINGS.find((l) => t.includes(l.address.toLowerCase()))
     const when = parseWhen(t)
@@ -287,8 +1135,14 @@ function respondLocally(text: string, clients: Client[]): AssistantResult {
     })
     return {
       cards,
-      reply: `Requested ${listing.address} for ${named.name} on ${when.label} — the invite is out to the listing agent. Want me to add a second stop nearby while you are in ${listing.hood}?`,
-      scheduled: { client: named, address: listing.address, when: when.label, at: when.at },
+      reply: `Requested ${listing.address} for ${named.name} on ${when.label} — the invite is out to the listing agent.`,
+      scheduled: {
+        client: named,
+        address: listing.address,
+        when: when.label,
+        type: 'Buyer tour · 1 stop',
+        at: when.at,
+      },
     }
   }
 
@@ -302,8 +1156,6 @@ function respondLocally(text: string, clients: Client[]): AssistantResult {
   if (named) {
     if (/\bdraft\b/.test(t)) {
       const first = named.greetingName
-      // `looking` is the em dash for a client with no saved search — don't paste that
-      // into a note. Fall back to a line that needs no search criteria.
       const brief = named.looking.startsWith('—')
         ? 'new listings coming up in your area'
         : `${named.looking.split(',')[0].toLowerCase()} in your range`
@@ -330,7 +1182,7 @@ function respondLocally(text: string, clients: Client[]): AssistantResult {
   return {
     cards,
     reply:
-      `I can pull up any of your ${clients.length} clients, set up a tour, or give you context on the ` +
+      `I can pull up any of your ${clients.length} clients, coordinate a tour, or give you context on the ` +
       `${LISTINGS.length} listings you are working. Try asking about ${names.join(', ')}, or a city like ${CITIES[0]}.`,
   }
 }
@@ -399,6 +1251,7 @@ export async function runAssistant(text: string, clients: Client[]): Promise<Ass
                   client: c,
                   address: l ? l.address : address,
                   when,
+                  type: 'Buyer tour · 1 stop',
                   at: whenToEpoch(when),
                 }
               return `Tour requested. Card displayed to ${AGENT_FIRST_NAME} and the client record was updated.`

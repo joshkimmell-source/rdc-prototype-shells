@@ -130,6 +130,7 @@ export function Subnav(props: SubnavProps) {
       }}
     >
       <div
+        data-subnav={variant ?? undefined}
         style={{
           // In flow the inner column keeps its full width so the content slides out of a
           // shrinking frame; as a drawer the frame is already the target width.

@@ -204,70 +204,120 @@
     </div>
   </div>
 <script>
-  // Mirrors tour_01 in src/data/sample/sample-data.json — the tour the subnav opens on.
-  // This file is served from public/, so it cannot import the dataset; if the sample
-  // data changes, these three rows have to be updated by hand.
+  // This page is a pure renderer: the shell posts the tour to draw (whichever the Tours
+  // subnav has selected) via `ra:tour-select` — see TOUR_SELECT_MESSAGE / MapTour in
+  // src/askBridge.ts and src/data/sample/adapters.ts, which derive it from the dataset.
   //
-  // The dataset's cities are fictional and carry no coordinates. The lat/lngs below are
-  // arbitrary map positions chosen only to give the route three separated pins.
-  const TOUR = { client: 'Jordan & Mia Castellanos', date: "Sat, Aug 15 '26", drive: '36 min', walk: '13 hr 5 min' };
-  const STOPS = [
-    { order: 'A', status: 'Price Change', addr: '195 Stanton Way', city: 'Summit Grove, ST', time: '10:00 AM', tourStatus: 'Confirmed', ll: [37.5288, -122.0532] },
-    { order: 'B', status: 'Price Change', addr: '1678 Wallace Ave', city: 'Old Quarter, ST',  time: null,      tourStatus: 'Requested', ll: [37.5568, -122.0478] },
-    { order: 'C', status: 'New',          addr: '3975 Turnley Ct',  city: 'Cedar Vale, ST',   time: null,      tourStatus: 'No status', ll: [37.5462, -122.0421] }
-  ];
-  document.getElementById('tourClient').textContent = TOUR.client;
-  document.getElementById('tourDate').textContent = TOUR.date;
-  document.getElementById('driveTime').textContent = TOUR.drive;
-  document.getElementById('walkTime').textContent = TOUR.walk;
+  // The one baked-in tour below is a FALLBACK for when this page is opened standalone (the
+  // action-bar tests load it outside the shell, so no message ever arrives). It mirrors the
+  // subnav's default selection — Priyanka's already-created tour. The dataset's cities are
+  // fictional and carry no coordinates, so the lat/lng is an arbitrary map position.
+  const FALLBACK = {
+    id: 'fallback',
+    client: 'Priyanka Raman',
+    date: "Sun, Aug 9 '26",
+    drive: null, walk: null,
+    stops: [
+      { order: 'A', status: 'Price Change', addr: '1442 92nd Court', city: 'Rivertown, ST', time: '2:30 PM', tourStatus: 'Requested', ll: [37.5410, -122.0490] }
+    ]
+  };
+  // Where the map sits when a tour has no stops to frame (e.g. a just-created empty tour).
+  const BASE_VIEW = [37.5410, -122.0490];
 
   const dim = '<span style="color:#958A7F;">\u2014</span>';
-  document.getElementById('rows').innerHTML = STOPS.map(s =>
-    '<tr>' +
-    '<td><button class="rowbtn" aria-label="Move"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></td>' +
-    '<td>' + s.order + '</td>' +
-    '<td>' + s.status + '</td>' +
-    '<td>' + dim + '</td>' +
-    '<td>' + s.addr + '</td>' +
-    '<td>' + dim + '</td>' +
-    '<td>' + dim + '</td>' +
-    (s.time ? '<td>' + s.time + '</td>' : '<td class="dim">-- : -- &nbsp;--</td>') +
-    '<td><span class="statussel">' + s.tourStatus + ' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></span></td>' +
-    '<td><a class="notelink">Add note</a></td>' +
-    '<td>' + dim + '</td>' +
-    '<td>' + dim + '</td>' +
-    '<td><button class="rowbtn" aria-label="Remove"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="m9 9 6 6M15 9l-6 6"></path></svg></button></td>' +
-    '</tr>').join('');
-  const map = L.map('map', { zoomControl: false });
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
-  STOPS.forEach(s => {
-    const icon = L.divIcon({ className: 'stop-pin', html: '<span class="sq">' + s.order + '</span>', iconSize: [0, 0] });
-    L.marker(s.ll, { icon }).addTo(map).bindPopup('<b>' + s.addr + '</b><br>' + s.city);
-  });
-  map.fitBounds(L.latLngBounds(STOPS.map(s => s.ll)).pad(0.35));
-  let routeLayer = null;
-  function drawFallback() {
-    routeLayer = L.polyline(STOPS.map(s => s.ll), { color: '#6B7F9E', weight: 5, opacity: 0.85, dashArray: '8 8' }).addTo(map);
+  function rowHtml(s) {
+    return '<tr>' +
+      '<td><button class="rowbtn" aria-label="Move"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></td>' +
+      '<td>' + s.order + '</td>' +
+      '<td>' + s.status + '</td>' +
+      '<td>' + dim + '</td>' +
+      '<td>' + s.addr + '</td>' +
+      '<td>' + dim + '</td>' +
+      '<td>' + dim + '</td>' +
+      (s.time ? '<td>' + s.time + '</td>' : '<td class="dim">-- : -- &nbsp;--</td>') +
+      '<td><span class="statussel">' + s.tourStatus + ' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></span></td>' +
+      '<td><a class="notelink">Add note</a></td>' +
+      '<td>' + dim + '</td>' +
+      '<td>' + dim + '</td>' +
+      '<td><button class="rowbtn" aria-label="Remove"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="m9 9 6 6M15 9l-6 6"></path></svg></button></td>' +
+      '</tr>';
   }
-  // Real driving route via OSRM public routing (falls back to straight legs if unreachable)
-  fetch('https://router.project-osrm.org/route/v1/driving/' + STOPS.map(s => s.ll[1] + ',' + s.ll[0]).join(';') + '?overview=full&geometries=geojson')
-    .then(r => r.json())
-    .then(d => {
-      if (d.routes && d.routes[0]) {
-        routeLayer = L.geoJSON(d.routes[0].geometry, { style: { color: '#6B7F9E', weight: 6, opacity: 0.9 } }).addTo(map);
-        map.fitBounds(routeLayer.getBounds().pad(0.2));
-      } else drawFallback();
-    })
-    .catch(drawFallback);
+  // One map, re-populated per tour. `tourLayer` holds the current tour's pins and route so a
+  // switch can drop them cleanly; `routeToken` lets a switch ignore a late OSRM response for
+  // the tour it replaced. renderTour() is a no-op when asked for the tour already showing,
+  // keyed by id so a fresh copy of the same tour (posted again on reload) doesn't refetch.
+  let map = null;
+  let tourLayer = null;
+  let routeToken = 0;
+  let currentTourId = null;
+  function drawFallback(stops) {
+    return L.polyline(stops.map(s => s.ll), { color: '#6B7F9E', weight: 5, opacity: 0.85, dashArray: '8 8' });
+  }
+  function renderTour(tour) {
+    if (!tour || tour.id === currentTourId) return;
+    currentTourId = tour.id;
+
+    document.getElementById('tourClient').textContent = tour.client;
+    document.getElementById('tourDate').textContent = tour.date;
+    // A tour with fewer than two stops has no leg to drive or walk, so the commute is hidden.
+    const commute = document.querySelector('.commute');
+    if (tour.stops.length > 1) {
+      commute.style.display = '';
+      document.getElementById('driveTime').textContent = tour.drive || '';
+      document.getElementById('walkTime').textContent = tour.walk || '';
+    } else {
+      commute.style.display = 'none';
+    }
+    document.getElementById('rows').innerHTML = tour.stops.map(rowHtml).join('');
+
+    if (!map) {
+      map = L.map('map', { zoomControl: false });
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+    }
+    if (tourLayer) tourLayer.remove();
+    tourLayer = L.featureGroup().addTo(map);
+    tour.stops.forEach(s => {
+      const icon = L.divIcon({ className: 'stop-pin', html: '<span class="sq">' + s.order + '</span>', iconSize: [0, 0] });
+      L.marker(s.ll, { icon }).addTo(tourLayer).bindPopup('<b>' + s.addr + '</b><br>' + s.city);
+    });
+    const token = ++routeToken;
+    if (tour.stops.length > 1) {
+      map.fitBounds(L.latLngBounds(tour.stops.map(s => s.ll)).pad(0.35));
+      // Real driving route via OSRM public routing (falls back to straight legs if unreachable).
+      fetch('https://router.project-osrm.org/route/v1/driving/' + tour.stops.map(s => s.ll[1] + ',' + s.ll[0]).join(';') + '?overview=full&geometries=geojson')
+        .then(r => r.json())
+        .then(d => {
+          if (token !== routeToken) return; // a newer tour took over while this was in flight
+          if (d.routes && d.routes[0]) {
+            L.geoJSON(d.routes[0].geometry, { style: { color: '#6B7F9E', weight: 6, opacity: 0.9 } }).addTo(tourLayer);
+            map.fitBounds(tourLayer.getBounds().pad(0.2));
+          } else drawFallback(tour.stops).addTo(tourLayer);
+        })
+        .catch(() => { if (token === routeToken) drawFallback(tour.stops).addTo(tourLayer); });
+    } else if (tour.stops.length === 1) {
+      // One stop, so there is no route — centre on the pin rather than fit a zero-size box.
+      map.setView(tour.stops[0].ll, 15);
+    } else {
+      // No stops yet (a freshly-created, still-empty tour) — sit at the base view, no pins.
+      map.setView(BASE_VIEW, 13);
+    }
+    // The frame may have been off-screen until now, so let Leaflet remeasure its container.
+    setTimeout(() => map.invalidateSize(), 60);
+  }
+
   document.getElementById('segV').addEventListener('click', () => setLayout(false));
   document.getElementById('segH').addEventListener('click', () => setLayout(true));
   function setLayout(horizontal) {
     document.getElementById('content').classList.toggle('horizontal', horizontal);
     document.getElementById('segV').classList.toggle('on', !horizontal);
     document.getElementById('segH').classList.toggle('on', horizontal);
-    setTimeout(() => map.invalidateSize(), 240);
+    if (map) setTimeout(() => map.invalidateSize(), 240);
   }
+
+  // Draw the fallback immediately so a standalone open (the action-bar tests) has a tour on
+  // screen; when framed, the shell posts the selected tour on load and overrides this at once.
+  renderTour(FALLBACK);
 
   // Overflow menu. Click-outside and Escape close it, matching src/components/Menu.tsx.
   const moreWrap = document.getElementById('moreWrap');
@@ -286,6 +336,15 @@
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') setMenu(false);
+  });
+
+  // The shell posts the tour to draw — whichever the Tours subnav has selected — see
+  // TOUR_SELECT_MESSAGE in src/askBridge.ts. Posted on each frame load and whenever the
+  // selection changes, so a frame that loaded before a change catches up once it happens.
+  window.addEventListener('message', e => {
+    if (e.origin !== location.origin) return;
+    if (!e.data || e.data.type !== 'ra:tour-select') return;
+    if (e.data.tour) renderTour(e.data.tour);
   });
 
   // ── Action bar, variant B of the FAB-placement test ─────────────────────────────

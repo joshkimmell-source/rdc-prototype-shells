@@ -7,7 +7,8 @@ import { C } from '../theme'
 import { HoverButton } from '../components/primitives'
 import { IconHamburger } from '../icons'
 import { withAbParam, type AbVariant } from '../abParam'
-import { useAskVisibility } from '../askBridge'
+import { useAskVisibility, useSelectedTour } from '../askBridge'
+import type { MapTour } from '../data'
 
 interface ToursScreenProps {
   showSubnavButton: boolean
@@ -16,11 +17,14 @@ interface ToursScreenProps {
   variant: AbVariant
   /** Posted into the frame so its Ask button can hide while the panel is open. */
   askOpen: boolean
+  /** The tour the map draws — whichever the Tours subnav has selected. */
+  selectedTour?: MapTour
 }
 
-export function ToursScreen({ showSubnavButton, onOpenSubnav, variant, askOpen }: ToursScreenProps) {
+export function ToursScreen({ showSubnavButton, onOpenSubnav, variant, askOpen, selectedTour }: ToursScreenProps) {
   const frameRef = useRef<HTMLIFrameElement>(null)
   const postAskVisible = useAskVisibility(frameRef, !askOpen)
+  const postSelectedTour = useSelectedTour(frameRef, selectedTour)
 
   return (
     <div
@@ -63,7 +67,10 @@ export function ToursScreen({ showSubnavButton, onOpenSubnav, variant, askOpen }
         ref={frameRef}
         src={withAbParam('tours-map.html', variant)}
         title="Tour route"
-        onLoad={postAskVisible}
+        onLoad={() => {
+          postAskVisible()
+          postSelectedTour()
+        }}
         style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
       />
     </div>

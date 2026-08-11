@@ -41,6 +41,8 @@ import {
   STAGES,
   THREADS,
   TOURS,
+  TOUR_MAP_DATA,
+  WITHHELD_TOUR_IDS,
   activeClientCount,
   clientNeeds,
   feedFor,
@@ -146,7 +148,16 @@ export function Shell() {
   // Subnav — tours
   const [tourQ, setTourQ] = useState('')
   const [toursTab, setToursTab] = useState<'upcoming' | 'past' | 'all'>('upcoming')
-  const [selectedTour, setSelectedTour] = useState(DEFAULT_TOUR_ID)
+  // The subnav shows only "created" tours: everything but the assistant-coordinated ones,
+  // which the flow reveals on booking. Past tours are always in. The default selection is
+  // the first visible upcoming tour, since the coordinated tour it would otherwise open on
+  // isn't there yet.
+  const [createdTourIds, setCreatedTourIds] = useState<Set<string>>(
+    () => new Set(TOURS.filter((t) => !WITHHELD_TOUR_IDS.includes(t.id)).map((t) => t.id))
+  )
+  const [selectedTour, setSelectedTour] = useState(
+    () => TOURS.find((t) => t.upcoming && !WITHHELD_TOUR_IDS.includes(t.id))?.id ?? DEFAULT_TOUR_ID
+  )
 
   // Clients screen
   const [clientFilter, setClientFilter] = useState('active')
@@ -244,20 +255,31 @@ export function Shell() {
 
     setMsgs((prev) => [
       ...prev,
+      // The flow's acknowledgement ("Got it — 10:00 AM…") leads, before the cards it introduces.
+      ...(result.preReply ? [{ role: 'ai', text: result.preReply } as Msg] : []),
       ...result.cards.map((card): Msg => ({ role: 'ai', text: '', card })),
-      { role: 'ai', text: result.reply },
+      // A question card carries its prompt in its own heading, so the reply can be empty —
+      // don't push an empty bubble in that case.
+      ...(result.reply ? [{ role: 'ai', text: result.reply } as Msg] : []),
     ])
     setBusy(false)
 
     if (result.scheduled) {
-      const { client, address, when, at } = result.scheduled
+      const { client, address, when, type, tourId, at } = result.scheduled
       setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, nextTour: when } : c)))
-      // Sorted in by date — appending would put a nearer tour below a later one.
+      // Replace any existing row for this client so re-running the flow re-creates rather than
+      // duplicates, then sort by date — appending would put a nearer tour below a later one.
       setUpcomingTours((prev) =>
-        [...prev, { when, address, client: client.name, type: 'Buyer tour · 1 stop', at }].sort(
+        [...prev.filter((tt) => tt.client !== client.name), { when, address, client: client.name, type, at }].sort(
           (a, b) => a.at - b.at
         )
       )
+      // Reveal the booked tour in the Tours subnav (and the map) and select it, so a jump to
+      // the Tours tab lands on the tour that was just created.
+      if (tourId) {
+        setCreatedTourIds((prev) => (prev.has(tourId) ? prev : new Set(prev).add(tourId)))
+        setSelectedTour(tourId)
+      }
     }
   }
 
@@ -307,11 +329,16 @@ export function Shell() {
   const buyers = BUYERS.filter((b) => b.name.toLowerCase().includes(buyerQuery))
 
   const tourQuery = tourQ.trim().toLowerCase()
-  const tourList = TOURS.filter(
+  // Only tours that have been created show in the subnav — the assistant-coordinated one
+  // stays hidden until the flow books it (see `createdTourIds`).
+  const visibleTours = TOURS.filter((t) => createdTourIds.has(t.id))
+  const tourList = visibleTours.filter(
     (t) =>
       (toursTab === 'all' || (toursTab === 'upcoming' ? t.upcoming : !t.upcoming)) &&
       t.name.toLowerCase().includes(tourQuery)
   )
+  const upcomingTourCount = visibleTours.filter((t) => t.upcoming).length
+  const pastTourCount = visibleTours.filter((t) => !t.upcoming).length
 
   const threadQuery = threadQ.trim().toLowerCase()
   const threadItems = THREADS.filter((t) => t.title.toLowerCase().includes(threadQuery))
@@ -433,8 +460,8 @@ export function Shell() {
           onSelectTour={setSelectedTour}
           toursTab={toursTab}
           onToursTab={setToursTab}
-          upcomingCount={TOURS.filter((t) => t.upcoming).length}
-          pastCount={TOURS.filter((t) => !t.upcoming).length}
+          upcomingCount={upcomingTourCount}
+          pastCount={pastTourCount}
         />
 
         {/*
@@ -589,6 +616,8 @@ export function Shell() {
               onOpenSubnav={() => setSubnavOpen(true)}
               variant={variant}
               askOpen={pushContent}
+              // The embedded map follows the Tours subnav: it draws whichever tour is selected.
+              selectedTour={TOUR_MAP_DATA[selectedTour]}
             />
           )}
 
