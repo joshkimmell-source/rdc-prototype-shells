@@ -16,7 +16,7 @@ interface ToursScreenProps {
   variant: AbVariant
   /** Posted into the frame so its Ask button can hide while the panel is open. */
   askOpen: boolean
-  /** Whether the coordinated tour has been booked — the map draws only when it has. */
+  /** Whether the coordinated tour is booked — the map shows it once it is, else Priyanka's. */
   tourVisible: boolean
 }
 

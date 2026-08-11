@@ -187,6 +187,9 @@ test.describe('RealAssist+ stepwise tour-coordination flow', () => {
  * tour (Jordan & Mia's `tour_01`) is held out of the Upcoming list until the flow books it,
  * while every already-created tour — Priyanka's upcoming one, and cli_02's own past tours — is
  * there from the start. Only the *upcoming* coordinated tour is withheld; past tours never are.
+ *
+ * The framed map follows suit: it shows Priyanka's already-created tour until the coordinated
+ * tour is booked, then switches to it — never an empty state.
  */
 test.describe('Dynamic Tours subnav', () => {
   test.beforeEach(async ({ page }) => {
@@ -199,18 +202,26 @@ test.describe('Dynamic Tours subnav', () => {
   const subnavRow = (page: Page, name: string) =>
     page.locator('[data-subnav="tours"]').locator('button').filter({ hasText: name })
 
+  /** The framed tour map. Its `#tourClient` header names whichever tour it is drawing. */
+  const mapTourClient = (page: Page) => page.frameLocator('iframe[title="Tour route"]').locator('#tourClient')
+
   test('withholds the coordinated tour from the upcoming list until it is booked', async ({ page }) => {
     // Upcoming opens with only the already-created tour (Priyanka); Jordan & Mia's is withheld.
     await expect(page.getByRole('button', { name: 'Upcoming (1)' })).toBeVisible()
     await expect(subnavRow(page, 'Priyanka Raman')).toBeVisible()
     await expect(subnavRow(page, 'Jordan & Mia Castellanos')).toHaveCount(0)
 
+    // The map shows Priyanka's tour by default, standing in for the un-booked coordinated one.
+    await expect(mapTourClient(page)).toHaveText('Priyanka Raman')
+
     // Its past tours are never withheld, so cli_02 still shows under Past (it has two).
     await page.getByRole('button', { name: /^Past \(/ }).click()
     await expect(subnavRow(page, 'Jordan & Mia Castellanos').first()).toBeVisible()
   })
 
-  test('booking the coordinated tour reveals it in the upcoming list', async ({ page }) => {
+  test('booking the coordinated tour reveals it in the subnav and the map', async ({ page }) => {
+    await expect(mapTourClient(page)).toHaveText('Priyanka Raman')
+
     await fab(page).click()
     await expect(page.getByRole('button', { name: 'Close panel' })).toBeVisible()
 
@@ -228,5 +239,8 @@ test.describe('Dynamic Tours subnav', () => {
     // The subnav now carries Jordan & Mia's tour in the upcoming list, and the count ticks up.
     await expect(page.getByRole('button', { name: 'Upcoming (2)' })).toBeVisible()
     await expect(subnavRow(page, 'Jordan & Mia Castellanos')).toBeVisible()
+
+    // And the map switches from Priyanka's tour to the freshly-booked coordinated one.
+    await expect(mapTourClient(page)).toHaveText('Jordan & Mia Castellanos')
   })
 })

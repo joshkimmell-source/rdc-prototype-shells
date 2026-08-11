@@ -16,9 +16,10 @@ export const ASK_MESSAGE = 'ra:ask'
 export const ASK_VISIBLE_MESSAGE = 'ra:ask-visible'
 
 /**
- * Sent down to the Tours map to say whether its (assistant-coordinated) tour has been booked
- * yet. The map draws its route only once this is true; until then it shows an empty state, so
- * a tour the agent hasn't created isn't on screen. Posted on each frame load and on change.
+ * Sent down to the Tours map to say whether the assistant-coordinated tour (Jordan & Mia's)
+ * has been booked yet. Once it is, the map switches to that tour; until then it stays on
+ * Priyanka's already-created tour, so a tour the agent hasn't created isn't the one on screen.
+ * Posted on each frame load and on change.
  */
 export const TOUR_VISIBLE_MESSAGE = 'ra:tour-visible'
 
@@ -43,7 +44,7 @@ export function useAskVisibility(ref: RefObject<HTMLIFrameElement | null>, visib
 /**
  * Pushes the coordinated tour's booked/withheld state into the Tours map. Same shape as
  * `useAskVisibility`: posts on change, and returns the poster for the frame's `onLoad` so a
- * freshly (re)loaded frame is told before it decides whether to draw.
+ * freshly (re)loaded frame is told which of its two tours to show.
  */
 export function useTourVisibility(ref: RefObject<HTMLIFrameElement | null>, visible: boolean) {
   const post = useCallback(() => {

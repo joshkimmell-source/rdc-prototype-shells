@@ -65,21 +65,6 @@
   .segbtn.on { background:#FFFFFF; box-shadow:var(--shadow-raised, 0 1px 3px rgba(26,24,22,0.16)); }
   #content { flex:1; min-height:0; display:flex; flex-direction:column; }
   #content.horizontal { flex-direction:row; }
-
-  /*
-   * Empty state. This page mirrors one assistant-coordinated tour (tour_01), which the
-   * subnav withholds until the RealAssist+ flow schedules it — see WITHHELD_TOUR_IDS and
-   * TOUR_VISIBLE_MESSAGE. While framed and un-booked the shell posts `ra:tour-visible`
-   * with `visible:false`, and this state stands in for the header/table/map so a tour the
-   * agent hasn't created isn't drawn. Loaded standalone (the action-bar tests), the page
-   * renders the tour immediately and this never shows.
-   */
-  #emptyState { display:none; flex:1; min-height:0; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; padding:24px; }
-  body.tour-empty .hdr, body.tour-empty .seg, body.tour-empty #content { display:none; }
-  body.tour-empty #emptyState { display:flex; }
-  #emptyState .es-icon { width:56px; height:56px; border-radius:16px; background:var(--gray-100,#F2F0EF); display:flex; align-items:center; justify-content:center; color:#958A7F; }
-  #emptyState h2 { margin:0; font-family:var(--font-display); font-weight:700; font-size:20px; line-height:24px; letter-spacing:-0.02em; }
-  #emptyState p { margin:0; max-width:340px; font-size:14px; font-weight:600; line-height:20px; color:#958A7F; }
   #pane { display:flex; flex-direction:column; flex:none; }
   #content.horizontal #pane { width:52%; min-width:0; overflow:auto; border-right:1px solid #E9E7E4; }
   .tblwrap { overflow-x:auto; padding:0 24px; }
@@ -218,77 +203,109 @@
       </button>
     </div>
   </div>
-  <div id="emptyState">
-    <div class="es-icon">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l-6 3V6l6-3 6 3 6-3v9"></path><path d="M9 3v15M15 6v4"></path><circle cx="18" cy="17" r="3"></circle><path d="M20.2 19.2 22 21"></path></svg>
-    </div>
-    <h2>No tour to show yet</h2>
-    <p>Plan a tour with RealAssist&trade;+ and it'll appear here with its route, stops and timing.</p>
-  </div>
 <script>
-  // Mirrors tour_01 in src/data/sample/sample-data.json — the tour the subnav opens on.
+  // Mirrors two roster tours in src/data/sample/sample-data.json.
   // This file is served from public/, so it cannot import the dataset; if the sample
   // data changes, these three rows have to be updated by hand.
   //
   // The dataset's cities are fictional and carry no coordinates. The lat/lngs below are
   // arbitrary map positions chosen only to give the route three separated pins.
-  const TOUR = { client: 'Jordan & Mia Castellanos', date: "Sat, Aug 15 '26", drive: '36 min', walk: '13 hr 5 min' };
-  const STOPS = [
-    { order: 'A', status: 'Price Change', addr: '195 Stanton Way', city: 'Summit Grove, ST', time: '10:00 AM', tourStatus: 'Confirmed', ll: [37.5288, -122.0532] },
-    { order: 'B', status: 'Price Change', addr: '1678 Wallace Ave', city: 'Old Quarter, ST',  time: null,      tourStatus: 'Requested', ll: [37.5568, -122.0478] },
-    { order: 'C', status: 'New',          addr: '3975 Turnley Ct',  city: 'Cedar Vale, ST',   time: null,      tourStatus: 'No status', ll: [37.5462, -122.0421] }
-  ];
-  document.getElementById('tourClient').textContent = TOUR.client;
-  document.getElementById('tourDate').textContent = TOUR.date;
-  document.getElementById('driveTime').textContent = TOUR.drive;
-  document.getElementById('walkTime').textContent = TOUR.walk;
+  const TOURS = {
+    priyanka: {
+      client: 'Priyanka Raman',
+      date: "Sun, Aug 9 '26",
+      drive: null, walk: null,
+      stops: [
+        { order: 'A', status: 'Price Change', addr: '1442 92nd Court', city: 'Rivertown, ST', time: '2:30 PM', tourStatus: 'Requested', ll: [37.5410, -122.0490] }
+      ]
+    },
+    castellanos: {
+      client: 'Jordan & Mia Castellanos',
+      date: "Sat, Aug 15 '26",
+      drive: '36 min', walk: '13 hr 5 min',
+      stops: [
+        { order: 'A', status: 'Price Change', addr: '195 Stanton Way', city: 'Summit Grove, ST', time: '10:00 AM', tourStatus: 'Confirmed', ll: [37.5288, -122.0532] },
+        { order: 'B', status: 'Price Change', addr: '1678 Wallace Ave', city: 'Old Quarter, ST',  time: null,      tourStatus: 'Requested', ll: [37.5568, -122.0478] },
+        { order: 'C', status: 'New',          addr: '3975 Turnley Ct',  city: 'Cedar Vale, ST',   time: null,      tourStatus: 'No status', ll: [37.5462, -122.0421] }
+      ]
+    }
+  };
 
   const dim = '<span style="color:#958A7F;">\u2014</span>';
-  document.getElementById('rows').innerHTML = STOPS.map(s =>
-    '<tr>' +
-    '<td><button class="rowbtn" aria-label="Move"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></td>' +
-    '<td>' + s.order + '</td>' +
-    '<td>' + s.status + '</td>' +
-    '<td>' + dim + '</td>' +
-    '<td>' + s.addr + '</td>' +
-    '<td>' + dim + '</td>' +
-    '<td>' + dim + '</td>' +
-    (s.time ? '<td>' + s.time + '</td>' : '<td class="dim">-- : -- &nbsp;--</td>') +
-    '<td><span class="statussel">' + s.tourStatus + ' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></span></td>' +
-    '<td><a class="notelink">Add note</a></td>' +
-    '<td>' + dim + '</td>' +
-    '<td>' + dim + '</td>' +
-    '<td><button class="rowbtn" aria-label="Remove"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="m9 9 6 6M15 9l-6 6"></path></svg></button></td>' +
-    '</tr>').join('');
-  // The map (and its OSRM route) come to life only once the tour is revealed: Leaflet needs
-  // a sized, on-screen container, and while framed-and-unbooked this page shows #emptyState
-  // in its place. renderTour() is idempotent, so a repeated `ra:tour-visible` can't re-init.
-  let map = null;
-  let routeLayer = null;
-  function drawFallback() {
-    routeLayer = L.polyline(STOPS.map(s => s.ll), { color: '#6B7F9E', weight: 5, opacity: 0.85, dashArray: '8 8' }).addTo(map);
+  function rowHtml(s) {
+    return '<tr>' +
+      '<td><button class="rowbtn" aria-label="Move"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></td>' +
+      '<td>' + s.order + '</td>' +
+      '<td>' + s.status + '</td>' +
+      '<td>' + dim + '</td>' +
+      '<td>' + s.addr + '</td>' +
+      '<td>' + dim + '</td>' +
+      '<td>' + dim + '</td>' +
+      (s.time ? '<td>' + s.time + '</td>' : '<td class="dim">-- : -- &nbsp;--</td>') +
+      '<td><span class="statussel">' + s.tourStatus + ' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></span></td>' +
+      '<td><a class="notelink">Add note</a></td>' +
+      '<td>' + dim + '</td>' +
+      '<td>' + dim + '</td>' +
+      '<td><button class="rowbtn" aria-label="Remove"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="m9 9 6 6M15 9l-6 6"></path></svg></button></td>' +
+      '</tr>';
   }
-  function renderTour() {
-    if (map) return;
-    map = L.map('map', { zoomControl: false });
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-    STOPS.forEach(s => {
+  // One map, re-populated per tour. `tourLayer` holds the current tour's pins and route so a
+  // switch can drop them cleanly; `routeToken` lets a switch ignore a late OSRM response for
+  // the tour it replaced. renderTour() is a no-op when asked for the tour already showing.
+  let map = null;
+  let tourLayer = null;
+  let routeToken = 0;
+  let currentTour = null;
+  function drawFallback(stops) {
+    return L.polyline(stops.map(s => s.ll), { color: '#6B7F9E', weight: 5, opacity: 0.85, dashArray: '8 8' });
+  }
+  function renderTour(tour) {
+    if (tour === currentTour) return;
+    currentTour = tour;
+
+    document.getElementById('tourClient').textContent = tour.client;
+    document.getElementById('tourDate').textContent = tour.date;
+    // A single-stop tour has no leg to drive or walk, so its commute row is hidden.
+    const commute = document.querySelector('.commute');
+    if (tour.stops.length > 1) {
+      commute.style.display = '';
+      document.getElementById('driveTime').textContent = tour.drive;
+      document.getElementById('walkTime').textContent = tour.walk;
+    } else {
+      commute.style.display = 'none';
+    }
+    document.getElementById('rows').innerHTML = tour.stops.map(rowHtml).join('');
+
+    if (!map) {
+      map = L.map('map', { zoomControl: false });
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+    }
+    if (tourLayer) tourLayer.remove();
+    tourLayer = L.featureGroup().addTo(map);
+    tour.stops.forEach(s => {
       const icon = L.divIcon({ className: 'stop-pin', html: '<span class="sq">' + s.order + '</span>', iconSize: [0, 0] });
-      L.marker(s.ll, { icon }).addTo(map).bindPopup('<b>' + s.addr + '</b><br>' + s.city);
+      L.marker(s.ll, { icon }).addTo(tourLayer).bindPopup('<b>' + s.addr + '</b><br>' + s.city);
     });
-    map.fitBounds(L.latLngBounds(STOPS.map(s => s.ll)).pad(0.35));
-    // Real driving route via OSRM public routing (falls back to straight legs if unreachable)
-    fetch('https://router.project-osrm.org/route/v1/driving/' + STOPS.map(s => s.ll[1] + ',' + s.ll[0]).join(';') + '?overview=full&geometries=geojson')
-      .then(r => r.json())
-      .then(d => {
-        if (d.routes && d.routes[0]) {
-          routeLayer = L.geoJSON(d.routes[0].geometry, { style: { color: '#6B7F9E', weight: 6, opacity: 0.9 } }).addTo(map);
-          map.fitBounds(routeLayer.getBounds().pad(0.2));
-        } else drawFallback();
-      })
-      .catch(drawFallback);
-    // The container only got its size when tour-empty came off, so let Leaflet remeasure.
+    const token = ++routeToken;
+    if (tour.stops.length > 1) {
+      map.fitBounds(L.latLngBounds(tour.stops.map(s => s.ll)).pad(0.35));
+      // Real driving route via OSRM public routing (falls back to straight legs if unreachable).
+      fetch('https://router.project-osrm.org/route/v1/driving/' + tour.stops.map(s => s.ll[1] + ',' + s.ll[0]).join(';') + '?overview=full&geometries=geojson')
+        .then(r => r.json())
+        .then(d => {
+          if (token !== routeToken) return; // a newer tour took over while this was in flight
+          if (d.routes && d.routes[0]) {
+            L.geoJSON(d.routes[0].geometry, { style: { color: '#6B7F9E', weight: 6, opacity: 0.9 } }).addTo(tourLayer);
+            map.fitBounds(tourLayer.getBounds().pad(0.2));
+          } else drawFallback(tour.stops).addTo(tourLayer);
+        })
+        .catch(() => { if (token === routeToken) drawFallback(tour.stops).addTo(tourLayer); });
+    } else {
+      // One stop, so there is no route — centre on the pin rather than fit a zero-size box.
+      map.setView(tour.stops[0].ll, 15);
+    }
+    // The frame may have been off-screen until now, so let Leaflet remeasure its container.
     setTimeout(() => map.invalidateSize(), 60);
   }
 
@@ -301,11 +318,9 @@
     if (map) setTimeout(() => map.invalidateSize(), 240);
   }
 
-  // Framed by the shell, the tour stays behind #emptyState until `ra:tour-visible` arrives
-  // with `visible:true`; standalone (the action-bar tests) it renders straight away.
-  const framed = window.parent !== window;
-  if (framed) document.body.classList.add('tour-empty');
-  else renderTour();
+  // Priyanka's already-created tour shows by default; the shell swaps in Jordan & Mia's once
+  // the RealAssist+ flow books it (see the `ra:tour-visible` handler below).
+  renderTour(TOURS.priyanka);
 
   // Overflow menu. Click-outside and Escape close it, matching src/components/Menu.tsx.
   const moreWrap = document.getElementById('moreWrap');
@@ -326,18 +341,14 @@
     if (e.key === 'Escape') setMenu(false);
   });
 
-  // The shell tells this frame whether its (assistant-coordinated) tour has been booked —
-  // see TOUR_VISIBLE_MESSAGE in src/askBridge.ts. Posted on each frame load and on change,
-  // so this is also how a frame that loaded before booking catches up once it happens.
+  // The shell tells this frame whether the assistant-coordinated tour (Jordan & Mia's) has
+  // been booked — see TOUR_VISIBLE_MESSAGE in src/askBridge.ts. Booked, the map switches to
+  // it; until then it stays on Priyanka's already-created tour. Posted on each frame load and
+  // on change, so a frame that loaded before booking catches up once it happens.
   window.addEventListener('message', e => {
     if (e.origin !== location.origin) return;
     if (!e.data || e.data.type !== 'ra:tour-visible') return;
-    if (e.data.visible) {
-      document.body.classList.remove('tour-empty');
-      renderTour();
-    } else {
-      document.body.classList.add('tour-empty');
-    }
+    renderTour(e.data.visible ? TOURS.castellanos : TOURS.priyanka);
   });
 
   // ── Action bar, variant B of the FAB-placement test ─────────────────────────────
