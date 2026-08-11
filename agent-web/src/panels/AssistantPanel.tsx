@@ -32,9 +32,11 @@ import type { ComponentType } from 'react'
 import type {
   Card,
   ClientCard,
-  DatePickerCard,
+  ClientPickerCard,
+  DateTimeCard,
   OutreachCard,
   PlanProperty,
+  SelectMethodCard,
   SummaryCard,
   TimelineCard,
   ToolTraceCard,
@@ -450,7 +452,7 @@ function TourListingsCardView({ card }: { card: TourListingsCard }) {
  * "Tour plan for X" — the ordered property table and the "A few things to note" bullets.
  * Ends by asking for a start time, verbatim from the design.
  */
-function TourPlanCardView({ card }: { card: TourPlanCard }) {
+function TourPlanCardView({ card, onChooseDateTime }: { card: TourPlanCard; onChooseDateTime: () => void }) {
   return (
     <div style={{ ...CHAT_CARD, padding: '16px 16px 18px' }}>
       <div style={{ fontFamily: 'inherit', fontWeight: 700, fontSize: 18, marginBottom: 6 }}>
@@ -522,6 +524,13 @@ function TourPlanCardView({ card }: { card: TourPlanCard }) {
           </div>
         </>
       )}
+
+      <div style={{ ...CARD_FOOTER, paddingLeft: 0, paddingRight: 0, paddingBottom: 0, marginTop: 16 }}>
+        <DarkPill onClick={onChooseDateTime}>
+          <IconCalendarClock size={13} />
+          <span>Choose a date &amp; start time</span>
+        </DarkPill>
+      </div>
     </div>
   )
 }
@@ -684,7 +693,7 @@ function TourOutreachCardView({ card }: { card: OutreachCard }) {
 }
 
 /** "⚠️ Potential Conflicts" + "✅ Recommended Next Steps" + confidence + what-next. */
-function TourSummaryCardView({ card, onPickDate }: { card: SummaryCard; onPickDate: () => void }) {
+function TourSummaryCardView({ card, onConfirm }: { card: SummaryCard; onConfirm: () => void }) {
   return (
     <div style={{ ...CHAT_CARD, padding: '16px 16px 18px' }}>
       <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 10 }}>⚠️ Potential Conflicts</div>
@@ -722,9 +731,9 @@ function TourSummaryCardView({ card, onPickDate }: { card: SummaryCard; onPickDa
       </div>
 
       <div style={{ ...CARD_FOOTER, paddingLeft: 0, paddingRight: 0, paddingBottom: 0 }}>
-        <DarkPill onClick={onPickDate}>
+        <DarkPill onClick={onConfirm}>
           <IconCalendarClock size={13} />
-          <span>Pick a date</span>
+          <span>Confirm &amp; schedule</span>
         </DarkPill>
       </div>
     </div>
@@ -814,9 +823,134 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-function DatePickerCardView({ card, onPick }: { card: DatePickerCard; onPick: (day: number, label: string) => void }) {
-  // Local, so tapping a day marks it before the scheduling round-trips.
+/**
+ * Step 1 — "For whom do you wish to coordinate a tour?". A card of client chips; tapping one
+ * sends its prompt (which names the client) to advance to the listing-selection step.
+ */
+function ClientPickerCardView({ card, onPick }: { card: ClientPickerCard; onPick: (prompt: string) => void }) {
+  return (
+    <div style={{ ...CHAT_CARD, padding: '16px 16px 18px' }}>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{card.title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {card.clients.map((c) => (
+          <HoverButton
+            key={c.id}
+            onClick={() => onPick(c.prompt)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              width: '100%',
+              textAlign: 'left',
+              background: C.white,
+              border: `1px solid ${C.hair}`,
+              borderRadius: 12,
+              padding: '10px 12px',
+              cursor: 'pointer',
+              transition: 'border-color 120ms, box-shadow 120ms',
+            }}
+            hoverStyle={{ borderColor: C.border, boxShadow: '0 2px 10px rgba(26,24,22,0.08)' }}
+          >
+            <Initials initials={c.initials} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontWeight: 700, fontSize: 13.5, color: C.dark }}>{c.name}</span>
+              <span style={{ display: 'block', fontSize: 11.5, color: C.muted }}>{c.meta}</span>
+            </span>
+            <Tag dataColor={c.dataColor}>{c.stage}</Tag>
+          </HoverButton>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Step 2 — "How would you like to select listings?". Three methods; only the wired one is
+ * clickable, the others render as disabled "Coming soon" rows.
+ */
+function SelectMethodCardView({ card, onPick }: { card: SelectMethodCard; onPick: (prompt: string) => void }) {
+  return (
+    <div style={{ ...CHAT_CARD, padding: '16px 16px 18px' }}>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{card.title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {card.methods.map((m) => {
+          const row = (
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontWeight: 700,
+                  fontSize: 13.5,
+                  color: m.enabled ? C.dark : C.muted,
+                }}
+              >
+                {m.label}
+                {!m.enabled && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: '0.03em',
+                      textTransform: 'uppercase',
+                      color: C.muted,
+                      background: C.alt,
+                      borderRadius: 20,
+                      padding: '2px 8px',
+                    }}
+                  >
+                    Coming soon
+                  </span>
+                )}
+              </span>
+              <span style={{ display: 'block', fontSize: 11.5, color: C.muted, marginTop: 2 }}>{m.description}</span>
+            </span>
+          )
+          const baseStyle = {
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            width: '100%',
+            textAlign: 'left' as const,
+            background: C.white,
+            border: `1px solid ${C.hair}`,
+            borderRadius: 12,
+            padding: '12px 14px',
+          }
+          if (!m.enabled) {
+            return (
+              <div key={m.label} style={{ ...baseStyle, opacity: 0.7, cursor: 'not-allowed' }} aria-disabled>
+                {row}
+              </div>
+            )
+          }
+          return (
+            <HoverButton
+              key={m.label}
+              onClick={() => onPick(m.prompt)}
+              style={{ ...baseStyle, cursor: 'pointer', transition: 'border-color 120ms, box-shadow 120ms' }}
+              hoverStyle={{ borderColor: C.border, boxShadow: '0 2px 10px rgba(26,24,22,0.08)' }}
+            >
+              {row}
+              <IconSpark size={14} />
+            </HoverButton>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Step 4 — the calendar plus start-time chips. A day and a time are picked together; once
+ * both are in hand the card sends the prompt that builds the full coordination plan.
+ */
+function DateTimeCardView({ card, onPick }: { card: DateTimeCard; onPick: (dayLabel: string, time: string) => void }) {
+  // Local, so the day and time mark before the round-trip. A time defaults to the first chip
+  // so tapping the suggested day alone is enough to proceed.
   const [picked, setPicked] = useState<number | null>(null)
+  const [time, setTime] = useState<string>(card.times[1] ?? card.times[0])
   const daysInMonth = new Date(card.year, card.month + 1, 0).getDate()
   const firstWeekday = new Date(card.year, card.month, 1).getDay()
   // Leading blanks so the 1st lands under its weekday column.
@@ -831,7 +965,7 @@ function DatePickerCardView({ card, onPick }: { card: DatePickerCard; onPick: (d
   return (
     <div style={CHAT_CARD}>
       <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <div style={{ fontWeight: 700, fontSize: 14 }}>Pick a day for the tour</div>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>Choose a date and start time</div>
         <div style={{ fontSize: 11.5, color: C.muted }}>
           {card.address ? `Starting at ${card.address}` : card.client}
         </div>
@@ -855,10 +989,7 @@ function DatePickerCardView({ card, onPick }: { card: DatePickerCard; onPick: (d
             return (
               <HoverButton
                 key={day}
-                onClick={() => {
-                  setPicked(day)
-                  onPick(day, label(day))
-                }}
+                onClick={() => setPicked(day)}
                 aria-label={label(day)}
                 aria-pressed={isPicked}
                 style={{
@@ -884,14 +1015,43 @@ function DatePickerCardView({ card, onPick }: { card: DatePickerCard; onPick: (d
         </div>
       </div>
 
+      {/* Start-time chips — one stays selected, defaulting to the second slot. */}
+      <div style={{ borderTop: `1px solid ${C.alt}`, padding: '12px 16px' }}>
+        <div style={{ fontWeight: 700, fontSize: 12, color: C.sub, marginBottom: 8 }}>Start time</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {card.times.map((tOpt) => {
+            const on = tOpt === time
+            return (
+              <HoverButton
+                key={tOpt}
+                onClick={() => setTime(tOpt)}
+                aria-pressed={on}
+                style={{
+                  ...PILL_BASE,
+                  background: on ? C.action : C.white,
+                  color: on ? C.white : C.dark,
+                  border: `1px solid ${on ? C.action : C.border}`,
+                  padding: '6px 12px',
+                  fontSize: 12,
+                  transition: 'background 120ms, border-color 120ms',
+                }}
+                hoverStyle={on ? { background: C.dark } : { borderColor: C.dark }}
+              >
+                {tOpt}
+              </HoverButton>
+            )
+          })}
+        </div>
+      </div>
+
       <div style={{ ...CARD_FOOTER, alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 11.5, color: C.muted }}>
           Suggested: {MONTH_NAMES[card.month].slice(0, 3)} {card.suggestedDay}
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.sub }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', border: `1px solid ${C.brand}` }} />
-          Best fit
-        </span>
+        <DarkPill onClick={() => onPick(label(picked ?? card.suggestedDay), time)}>
+          <IconCalendarClock size={13} />
+          <span>Build the plan</span>
+        </DarkPill>
       </div>
     </div>
   )
@@ -949,7 +1109,7 @@ const CAPABILITIES: Capability[] = [
     icon: IconCalendarClock,
     title: 'Coordinate Tour',
     body: 'Coordinate showings with timeline, instructions, and outreach messages',
-    prompt: 'Plan a tour for Jordan and Mia',
+    prompt: 'Create a tour',
   },
 ]
 
@@ -1343,26 +1503,39 @@ export function AssistantPanel({
                         />
                       )}
                       {m.card?.kind === 'tour' && <TourCardView card={m.card} />}
+                      {m.card?.kind === 'clientPicker' && (
+                        <ClientPickerCardView card={m.card} onPick={(prompt) => onSend(prompt)} />
+                      )}
+                      {m.card?.kind === 'selectMethod' && (
+                        <SelectMethodCardView card={m.card} onPick={(prompt) => onSend(prompt)} />
+                      )}
                       {m.card?.kind === 'toolTrace' && <ToolTraceView card={m.card} />}
                       {m.card?.kind === 'tourListings' && <TourListingsCardView card={m.card} />}
-                      {m.card?.kind === 'tourPlan' && <TourPlanCardView card={m.card} />}
+                      {m.card?.kind === 'tourPlan' && (
+                        <TourPlanCardView
+                          card={m.card}
+                          onChooseDateTime={() =>
+                            onSend(`Choose a date and start time for ${(m.card as TourPlanCard).greetingName}`)
+                          }
+                        />
+                      )}
                       {m.card?.kind === 'tourTimeline' && <TourTimelineCardView card={m.card} />}
                       {m.card?.kind === 'tourOutreach' && <TourOutreachCardView card={m.card} />}
                       {m.card?.kind === 'tourSummary' && (
                         <TourSummaryCardView
                           card={m.card}
-                          onPickDate={() => onSend('Pick a date for the tour')}
+                          onConfirm={() => onSend(`Schedule the tour for ${(m.card as SummaryCard).greetingName}`)}
                         />
                       )}
                       {m.card?.kind === 'upcomingTour' && (
                         <UpcomingTourCardView card={m.card} onSuggest={(s) => onSend(s)} />
                       )}
-                      {m.card?.kind === 'datePicker' && (
-                        <DatePickerCardView
+                      {m.card?.kind === 'dateTime' && (
+                        <DateTimeCardView
                           card={m.card}
-                          onPick={(_day, label) =>
+                          onPick={(dayLabel, time) =>
                             onSend(
-                              `Schedule the tour for ${(m.card as DatePickerCard).greetingName} at ${(m.card as DatePickerCard).address} on ${label}`
+                              `Start the tour for ${(m.card as DateTimeCard).greetingName} on ${dayLabel} at ${time}`
                             )
                           }
                         />

@@ -247,7 +247,9 @@ export function Shell() {
       // The flow's acknowledgement ("Got it — 10:00 AM…") leads, before the cards it introduces.
       ...(result.preReply ? [{ role: 'ai', text: result.preReply } as Msg] : []),
       ...result.cards.map((card): Msg => ({ role: 'ai', text: '', card })),
-      { role: 'ai', text: result.reply },
+      // A question card carries its prompt in its own heading, so the reply can be empty —
+      // don't push an empty bubble in that case.
+      ...(result.reply ? [{ role: 'ai', text: result.reply } as Msg] : []),
     ])
     setBusy(false)
 

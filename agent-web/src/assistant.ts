@@ -154,28 +154,12 @@ export interface OutreachCard {
 /** "⚠️ Potential Conflicts" + "✅ Recommended Next Steps" + confidence + what-next. */
 export interface SummaryCard {
   kind: 'tourSummary'
+  /** The client, so the confirm action can name them when it schedules the tour. */
+  greetingName: string
   conflicts: LeadNote[]
   steps: LeadNote[]
   confidence: LeadNote
   nextOptions: string[]
-}
-
-/**
- * The calendar the plan hands off to when the agent chooses to lock a date. Renders the
- * tour month; picking a day sends a scheduling prompt the responder resolves.
- */
-export interface DatePickerCard {
-  kind: 'datePicker'
-  client: string
-  clientId: string
-  greetingName: string
-  /** The first stop — what the confirmation card names. */
-  address: string
-  /** Year and 0-indexed month the calendar opens on. */
-  year: number
-  month: number
-  /** Day-of-month of the client's tour date, pre-highlighted. */
-  suggestedDay: number
 }
 
 /** The final "Upcoming Tour" panel: the scheduled tour, its stops and follow-on chips. */
@@ -199,16 +183,69 @@ export interface UpcomingTourCard {
   suggestions: string[]
 }
 
+/**
+ * Step 1 of the stepwise flow — "For whom do you wish to coordinate a tour?". Chips for
+ * each client who has a tour to coordinate; picking one sends the step-2 prompt.
+ */
+export interface ClientPickerCard {
+  kind: 'clientPicker'
+  title: string
+  clients: Array<{
+    id: string
+    name: string
+    greetingName: string
+    initials: string
+    stage: string
+    dataColor: TagColor
+    meta: string
+    /** The prompt the chip sends — names the client so the responder can resolve them. */
+    prompt: string
+  }>
+}
+
+/**
+ * Step 2 — "How would you like to select listings?". Three methods; only "Choose the top 3"
+ * is wired for now, the others render as disabled "coming soon" chips.
+ */
+export interface SelectMethodCard {
+  kind: 'selectMethod'
+  greetingName: string
+  title: string
+  methods: Array<{ label: string; description: string; prompt: string; enabled: boolean }>
+}
+
+/**
+ * Step 4 — a calendar plus start-time chips. Picking a day and a time together sends the
+ * step-5 prompt that builds the full coordination plan.
+ */
+export interface DateTimeCard {
+  kind: 'dateTime'
+  client: string
+  clientId: string
+  greetingName: string
+  /** The first stop — what the card names. */
+  address: string
+  /** Year and 0-indexed month the calendar opens on. */
+  year: number
+  month: number
+  /** Day-of-month of the client's tour date, pre-highlighted. */
+  suggestedDay: number
+  /** The start-time options offered as chips. */
+  times: string[]
+}
+
 export type Card =
   | ClientCard
   | TourCard
+  | ClientPickerCard
+  | SelectMethodCard
   | ToolTraceCard
   | TourListingsCard
   | TourPlanCard
+  | DateTimeCard
   | TimelineCard
   | OutreachCard
   | SummaryCard
-  | DatePickerCard
   | UpcomingTourCard
 
 export interface ScheduledTour {
@@ -336,6 +373,17 @@ function fmtClock(mins: number): string {
   const ampm = h24 < 12 ? 'AM' : 'PM'
   const h12 = h24 % 12 === 0 ? 12 : h24 % 12
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
+}
+
+/**
+ * The acknowledgement label for the step-5 preReply, e.g. `"Sat, Aug 15 at 10:00 AM start
+ * time"`. The step-4 picker sends `"…on <day> at <time>"`, so the day is lifted from the
+ * message; failing that it falls back to the tour's own date.
+ */
+function whenLabelFrom(text: string, tour: SampleTour, startClock: string): string {
+  const onMatch = text.match(/\bon\s+(.+?)(?:\s+at\b|$)/i)
+  const day = onMatch ? onMatch[1].trim() : formatTourDate(tour.date)
+  return `${day} at ${startClock} start time`
 }
 
 /** `"10:00 AM"` → minutes since midnight, or 600 (10:00) if unparseable. */
@@ -687,6 +735,7 @@ function outreachCard(props: PlanProperty[]): OutreachCard {
 function summaryCard(client: Client, tour: SampleTour, props: PlanProperty[]): SummaryCard {
   return {
     kind: 'tourSummary',
+    greetingName: client.greetingName,
     conflicts: conflictNotes(tour, props),
     steps: stepNotes(client, props),
     confidence: {
@@ -699,18 +748,72 @@ function summaryCard(client: Client, tour: SampleTour, props: PlanProperty[]): S
       "Send these draft messages (I'll let you review/edit each one first)",
       'Adjust the tour order or timing',
       'Confirm access for the two open stops',
-      'Pick a specific tour date so I can finalize the messages',
+      'Confirm and put the tour on the calendar',
     ],
   }
 }
 
-/** The date-picker card for a client's tour — opens on the tour month, that day marked. */
-function datePickerCard(client: Client, tour: SampleTour): DatePickerCard {
+/** Step 1 — the roster of clients who have saved listings to tour. */
+function clientPickerCard(clients: Client[]): ClientPickerCard {
+  const withTours = clients.filter((c) => upcomingTourFor(c.id))
+  return {
+    kind: 'clientPicker',
+    title: 'For whom do you wish to coordinate a tour?',
+    clients: withTours.map((c) => {
+      const tour = upcomingTourFor(c.id)!
+      return {
+        id: c.id,
+        name: c.name,
+        greetingName: c.greetingName,
+        initials: c.initials,
+        stage: c.stage,
+        dataColor: TAGC[c.stage] ?? 'graySubtle',
+        meta: `${c.saved} saved homes · ${tour.stopCount} ${tour.stopCount === 1 ? 'stop' : 'stops'} to plan`,
+        prompt: `Coordinate a tour for ${c.greetingName}`,
+      }
+    }),
+  }
+}
+
+/** Step 2 — the three listing-selection methods (only "top 3" is wired for now). */
+function selectMethodCard(client: Client): SelectMethodCard {
+  return {
+    kind: 'selectMethod',
+    greetingName: client.greetingName,
+    title: 'How would you like to select listings?',
+    methods: [
+      {
+        label: 'Choose from a list',
+        description: 'Hand-pick from all of their saved homes',
+        prompt: '',
+        enabled: false,
+      },
+      {
+        label: 'Search for listings to include',
+        description: 'Search the MLS and add matches to the tour',
+        prompt: '',
+        enabled: false,
+      },
+      {
+        label: 'Choose the top 3 listings for this client',
+        description: 'I’ll pull the three most relevant saved homes',
+        prompt: `Choose the top 3 listings for ${client.greetingName}`,
+        enabled: true,
+      },
+    ],
+  }
+}
+
+/** The start-time options the date/time picker offers. */
+const START_TIMES = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM']
+
+/** Step 4 — the calendar-plus-time-chips picker, opened on the client's tour month. */
+function dateTimeCard(client: Client, tour: SampleTour): DateTimeCard {
   const [y, m, d] = tour.date.split('-').map(Number)
   const first = tour.stops[0]
   const address = first ? getListing(first.listingId)?.address.line1 ?? first.address : ''
   return {
-    kind: 'datePicker',
+    kind: 'dateTime',
     client: client.name,
     clientId: client.id,
     greetingName: client.greetingName,
@@ -718,6 +821,7 @@ function datePickerCard(client: Client, tour: SampleTour): DatePickerCard {
     year: y,
     month: m - 1,
     suggestedDay: d,
+    times: START_TIMES,
   }
 }
 
@@ -898,68 +1002,89 @@ function respondLocally(text: string, clients: Client[]): AssistantResult {
   const t = text.toLowerCase()
   const cards: Card[] = []
 
-  // ── plan_tour ── "plan a tour for Jordan and Mia" / "coordinate a tour". Lays out the
-  // client's saved listings, the plan table and the pre-flight notes, then asks for a time.
+  // ── step 3 · choose the top 3 ── the wired listing-selection method. Pulls the client's
+  // saved listings and lays out the coordinated tour *without any times or dates* — the plan
+  // table and pre-flight notes only — then invites the agent to choose a date and start time.
+  if (/\btop (3|three)\b/.test(t)) {
+    const named = clients.find((c) => mentions(t, c)) ?? clients.find((c) => upcomingTourFor(c.id))
+    const tour = named ? upcomingTourFor(named.id) : undefined
+    if (named && tour) {
+      const props = planProperties(named, tour)
+      cards.push(toolTraceCard(named), tourListingsCard(named, props), tourPlanCard(named, props))
+      return {
+        cards,
+        reply:
+          `Here's the coordinated tour for ${named.greetingName} — three stops, no times locked in yet. ` +
+          `When you're ready, choose a date and start time and I'll build out the full timeline, showing ` +
+          `instructions, and draft outreach for each listing agent.`,
+      }
+    }
+  }
+
+  // ── step 1 & 2 · create / coordinate a tour ── with no client named, ask whom the tour is
+  // for (step 1); with a client named, acknowledge and ask how to select listings (step 2).
   if (
-    /\b(plan|coordinate|put together|build|map out|organi[sz]e)\b/.test(t) &&
+    /\b(plan|coordinate|create|put together|build|map out|organi[sz]e|set up|start)\b/.test(t) &&
     /\btour\b/.test(t) &&
-    !/\bstart\b/.test(t)
+    !/\bstart the tour\b/.test(t)
   ) {
     const named = clients.find((c) => mentions(t, c))
-    if (!named) return { cards, reply: 'Which client should I plan a tour for?' }
+    if (!named) {
+      // Step 1 — "Create a tour". The picker card carries the question in its heading.
+      cards.push(clientPickerCard(clients))
+      return { cards, preReply: 'I can do that.', reply: '' }
+    }
     const tour = upcomingTourFor(named.id)
     if (!tour) {
       return {
         cards,
-        reply: `${named.greetingName} has no upcoming tour on the books yet. Tell me a property and a day and I’ll set the first stop up.`,
+        reply: `${named.greetingName} has no saved listings to tour yet. Add a few homes to their feed and I’ll coordinate a tour from there.`,
       }
     }
-    const props = planProperties(named, tour)
-    cards.push(toolTraceCard(named), tourListingsCard(named, props), tourPlanCard(named, props))
-    return {
-      cards,
-      reply:
-        `What time would you like to start the tour? Once I have that, I’ll build out the full timeline with ` +
-        `arrival/departure times, showing instructions, and draft outreach messages for each listing agent.`,
-    }
+    // Step 2 — a client was chosen. The method card carries the question in its heading.
+    cards.push(selectMethodCard(named))
+    return { cards, preReply: `Okay, I'll coordinate a tour for ${named.greetingName}.`, reply: '' }
   }
 
-  // ── build_coordination ── the plan's "Start the tour" / time reply. Builds the timeline,
-  // per-agent outreach, conflicts and ranked next steps.
-  const bareTime = /^\s*\d{1,2}(:\d{2})?\s*(am|pm)\s*$/i.test(text.trim())
-  if (bareTime || (/\bstart\b/.test(t) && /\btour\b/.test(t))) {
-    const named = clients.find((c) => mentions(t, c)) ?? clients.find((c) => upcomingTourFor(c.id))
-    const tour = named ? upcomingTourFor(named.id) : undefined
-    if (named && tour) {
-      const startClock = fmtClock(parseClock(text))
-      const props = planProperties(named, { ...tour, startTime: startClock })
-      cards.push(timelineCard(named, props), outreachCard(props), summaryCard(named, tour, props))
-      return {
-        cards,
-        preReply: `Got it — ${startClock} start time. Let me build out the full coordination plan.`,
-        reply: 'What would you like to do next?',
-      }
-    }
-  }
-
-  // ── pick a date ── surfaces the calendar for the planned client's tour.
+  // ── step 4 · choose a date and start time ── surfaces the calendar-plus-time-chips picker.
   if (
+    /\bchoose a date\b/.test(t) ||
+    /\bdate and (a )?(start )?time\b/.test(t) ||
     /\bpick (a )?(date|day)\b/.test(t) ||
-    (/\b(choose|set|lock in|confirm)\b/.test(t) && /\b(date|day)\b/.test(t)) ||
+    (/\b(set|lock in|confirm)\b/.test(t) && /\b(date|day)\b/.test(t)) ||
     (/\bcalendar\b/.test(t) && /\btour\b/.test(t))
   ) {
     const named = clients.find((c) => mentions(t, c)) ?? clients.find((c) => upcomingTourFor(c.id))
     const tour = named ? upcomingTourFor(named.id) : undefined
     if (named && tour) {
-      cards.push(datePickerCard(named, tour))
+      cards.push(dateTimeCard(named, tour))
       return {
         cards,
-        reply: `Pick the day for ${named.greetingName}’s tour and I’ll finalize the outreach and lock it in.`,
+        reply: `Pick a day and a start time for ${named.greetingName}’s tour and I’ll build out the full coordination plan.`,
       }
     }
   }
 
-  // ── schedule the tour ── the calendar's day pick. Shows the final upcoming-tour panel and
+  // ── step 5 · build the coordination plan ── the picker's day+time selection ("Start the
+  // tour for X on <day> at <time>"). Builds the timeline, per-agent outreach, conflicts and
+  // ranked next steps, then invites the agent to confirm and book.
+  if (/\bstart the tour\b/.test(t)) {
+    const named = clients.find((c) => mentions(t, c)) ?? clients.find((c) => upcomingTourFor(c.id))
+    const tour = named ? upcomingTourFor(named.id) : undefined
+    if (named && tour) {
+      const startClock = fmtClock(parseClock(text))
+      const props = planProperties(named, { ...tour, startTime: startClock })
+      const when = whenLabelFrom(text, tour, startClock)
+      cards.push(timelineCard(named, props), outreachCard(props), summaryCard(named, tour, props))
+      return {
+        cards,
+        preReply: `Got it — ${when}. Let me build out the full coordination plan.`,
+        reply: 'What would you like to do next?',
+      }
+    }
+  }
+
+  // ── step 6 · schedule the tour ── "Confirm & book". Shows the final upcoming-tour panel and
   // updates client + tour state.
   if (/\bschedule\b/.test(t) && /\btour\b/.test(t)) {
     const named = clients.find((c) => mentions(t, c)) ?? clients.find((c) => upcomingTourFor(c.id))
