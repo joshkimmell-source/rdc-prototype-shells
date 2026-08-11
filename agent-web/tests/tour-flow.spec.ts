@@ -181,3 +181,52 @@ test.describe('RealAssist+ stepwise tour-coordination flow', () => {
     await expect(card.getByText(/Jordan & Mia Castellanos.*Buyer tour.*3 stops/)).toBeVisible()
   })
 })
+
+/**
+ * The Tours subnav is dynamic in the same way the Home list is: the one assistant-coordinated
+ * tour (Jordan & Mia's `tour_01`) is held out of the Upcoming list until the flow books it,
+ * while every already-created tour — Priyanka's upcoming one, and cli_02's own past tours — is
+ * there from the start. Only the *upcoming* coordinated tour is withheld; past tours never are.
+ */
+test.describe('Dynamic Tours subnav', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/?view=tours')
+    await expect(page.getByRole('heading', { name: 'Tours' })).toBeVisible()
+  })
+
+  /** A tour row inside the Tours subnav, scoped so the transcript's own client chips can't match. */
+  const subnavRow = (page: Page, name: string) =>
+    page.locator('[data-subnav="tours"]').locator('button').filter({ hasText: name })
+
+  test('withholds the coordinated tour from the upcoming list until it is booked', async ({ page }) => {
+    // Upcoming opens with only the already-created tour (Priyanka); Jordan & Mia's is withheld.
+    await expect(page.getByRole('button', { name: 'Upcoming (1)' })).toBeVisible()
+    await expect(subnavRow(page, 'Priyanka Raman')).toBeVisible()
+    await expect(subnavRow(page, 'Jordan & Mia Castellanos')).toHaveCount(0)
+
+    // Its past tours are never withheld, so cli_02 still shows under Past (it has two).
+    await page.getByRole('button', { name: /^Past \(/ }).click()
+    await expect(subnavRow(page, 'Jordan & Mia Castellanos').first()).toBeVisible()
+  })
+
+  test('booking the coordinated tour reveals it in the upcoming list', async ({ page }) => {
+    await fab(page).click()
+    await expect(page.getByRole('button', { name: 'Close panel' })).toBeVisible()
+
+    // Run the flow to completion: top 3 → date & time → build → confirm & schedule.
+    await ask(page, 'Choose the top 3 listings for Jordan and Mia')
+    const cta = transcript(page).getByRole('button', { name: /Choose a date & start time/ })
+    await expect(cta).toBeVisible()
+    await cta.click()
+    await transcript(page).getByRole('button', { name: /Build the plan/ }).click()
+    const confirm = page.getByRole('button', { name: /Confirm & schedule/ })
+    await expect(confirm).toBeVisible()
+    await confirm.click()
+    await expect(transcript(page).getByText(/Upcoming Tour –/)).toBeVisible()
+
+    // The subnav now carries Jordan & Mia's tour in the upcoming list, and the count ticks up.
+    await expect(page.getByRole('button', { name: 'Upcoming (2)' })).toBeVisible()
+    await expect(subnavRow(page, 'Jordan & Mia Castellanos')).toBeVisible()
+  })
+})

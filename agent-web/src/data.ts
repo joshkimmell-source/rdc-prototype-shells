@@ -96,6 +96,9 @@ export const BUYERS: Buyer[] = sample.buyers
 
 export const TOURS: TourListItem[] = sample.tours
 
+/** Upcoming tours held back from the Tours subnav until the assistant flow schedules them. */
+export const WITHHELD_TOUR_IDS: string[] = sample.withheldTourIds
+
 export const INITIAL_UPCOMING_TOURS: UpcomingTour[] = sample.initialUpcomingTours
 
 export const STAGES: Array<[string, string]> = sample.stages

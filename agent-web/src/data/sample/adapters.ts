@@ -76,6 +76,16 @@ const ROSTER: SampleClient[] = SAMPLE_CLIENTS.filter(c => ROSTER_IDS.includes(c.
  */
 const ROSTER_TOURS: SampleTour[] = SAMPLE_TOURS.filter(t => ROSTER_IDS.includes(t.clientId))
 
+/**
+ * Clients whose upcoming tour is *coordinated through the assistant*, not pre-baked into the
+ * displayed lists. Their tour data still exists (the RealAssist+ flow reads it to build the
+ * plan), but the tour stays out of the Home "Upcoming tours" card and the Tours subnav until
+ * the flow schedules it — the shell reveals it on "Confirm & schedule". Jordan & Mia
+ * (`cli_02`) is the flow's subject; Priyanka (`cli_03`) and the rest read as already-created
+ * and show from the start. Past tours are unaffected — they happened, so they always show.
+ */
+const ASSISTANT_COORDINATED_CLIENT_IDS = new Set(['cli_02'])
+
 /** The dataset's `upcomingTours()`, narrowed to the roster. Soonest first. */
 const upcomingRosterTours = (): SampleTour[] =>
   ROSTER_TOURS.filter(t => t.state === 'Upcoming').sort((a, b) => a.date.localeCompare(b.date))
@@ -318,6 +328,15 @@ export const tours: TourListItem[] = TOURS_ORDERED.map(t => ({
 }))
 
 /**
+ * Upcoming tours coordinated through the assistant rather than pre-created — held back from
+ * the Tours subnav (and the Home card) until the flow schedules them. The shell seeds its
+ * "created" set as every tour minus these, then adds one back when the flow books it.
+ */
+export const withheldTourIds: string[] = upcomingRosterTours()
+  .filter(t => ASSISTANT_COORDINATED_CLIENT_IDS.has(t.clientId))
+  .map(t => t.id)
+
+/**
  * The tour the Tours subnav starts on. Deliberately the richest upcoming tour rather
  * than the soonest: `public/tours-map.html` is a static file that hardcodes one tour's
  * stops, and it mirrors this one. Picking the soonest instead would open the subnav on
@@ -360,15 +379,6 @@ function toUpcomingTour(t: SampleTour): UpcomingTour {
     at: new Date(y, m - 1, d).getTime(),
   }
 }
-
-/**
- * Clients whose upcoming tour is *coordinated through the assistant*, not pre-baked into the
- * Home list. Their tour data still exists (the RealAssist+ flow reads it to build the plan),
- * but it stays out of the displayed "Upcoming tours" until the flow schedules it — the shell
- * appends it to the live list on "Confirm & schedule". Jordan & Mia (`cli_02`) is the flow's
- * subject; Priyanka (`cli_03`) and the rest read as already-created and show from the start.
- */
-const ASSISTANT_COORDINATED_CLIENT_IDS = new Set(['cli_02'])
 
 export const initialUpcomingTours: UpcomingTour[] = upcomingRosterTours()
   .filter(t => !ASSISTANT_COORDINATED_CLIENT_IDS.has(t.clientId))

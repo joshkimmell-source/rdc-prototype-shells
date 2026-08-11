@@ -254,6 +254,12 @@ export interface ScheduledTour {
   when: string
   /** `"Buyer tour · 3 stops"` — the display line for the created upcoming-tour row. */
   type: string
+  /**
+   * The dataset tour id this booked, when it maps to one. Set by the coordination flow so
+   * the shell can reveal the withheld tour in the Tours subnav; absent for ad-hoc,
+   * single-property tours that don't correspond to a dataset record.
+   */
+  tourId?: string
   /** Epoch ms of the tour date, so the shell can sort it into the upcoming list. */
   at: number
 }
@@ -1103,6 +1109,7 @@ function respondLocally(text: string, clients: Client[]): AssistantResult {
           address: first.line1,
           when: `${formatTourDate(tour.date)} · ${tour.startTime ?? first.timeRange.split(' – ')[0]}`,
           type: `Buyer tour · ${tour.stopCount} ${tour.stopCount === 1 ? 'stop' : 'stops'}`,
+          tourId: tour.id,
           at: isoToEpoch(tour.date),
         },
       }

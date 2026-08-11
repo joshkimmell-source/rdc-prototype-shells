@@ -41,6 +41,7 @@ import {
   STAGES,
   THREADS,
   TOURS,
+  WITHHELD_TOUR_IDS,
   activeClientCount,
   clientNeeds,
   feedFor,
@@ -146,7 +147,16 @@ export function Shell() {
   // Subnav — tours
   const [tourQ, setTourQ] = useState('')
   const [toursTab, setToursTab] = useState<'upcoming' | 'past' | 'all'>('upcoming')
-  const [selectedTour, setSelectedTour] = useState(DEFAULT_TOUR_ID)
+  // The subnav shows only "created" tours: everything but the assistant-coordinated ones,
+  // which the flow reveals on booking. Past tours are always in. The default selection is
+  // the first visible upcoming tour, since the coordinated tour it would otherwise open on
+  // isn't there yet.
+  const [createdTourIds, setCreatedTourIds] = useState<Set<string>>(
+    () => new Set(TOURS.filter((t) => !WITHHELD_TOUR_IDS.includes(t.id)).map((t) => t.id))
+  )
+  const [selectedTour, setSelectedTour] = useState(
+    () => TOURS.find((t) => t.upcoming && !WITHHELD_TOUR_IDS.includes(t.id))?.id ?? DEFAULT_TOUR_ID
+  )
 
   // Clients screen
   const [clientFilter, setClientFilter] = useState('active')
@@ -254,7 +264,7 @@ export function Shell() {
     setBusy(false)
 
     if (result.scheduled) {
-      const { client, address, when, type, at } = result.scheduled
+      const { client, address, when, type, tourId, at } = result.scheduled
       setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, nextTour: when } : c)))
       // Replace any existing row for this client so re-running the flow re-creates rather than
       // duplicates, then sort by date — appending would put a nearer tour below a later one.
@@ -263,6 +273,12 @@ export function Shell() {
           (a, b) => a.at - b.at
         )
       )
+      // Reveal the booked tour in the Tours subnav (and the map) and select it, so a jump to
+      // the Tours tab lands on the tour that was just created.
+      if (tourId) {
+        setCreatedTourIds((prev) => (prev.has(tourId) ? prev : new Set(prev).add(tourId)))
+        setSelectedTour(tourId)
+      }
     }
   }
 
@@ -312,11 +328,16 @@ export function Shell() {
   const buyers = BUYERS.filter((b) => b.name.toLowerCase().includes(buyerQuery))
 
   const tourQuery = tourQ.trim().toLowerCase()
-  const tourList = TOURS.filter(
+  // Only tours that have been created show in the subnav — the assistant-coordinated one
+  // stays hidden until the flow books it (see `createdTourIds`).
+  const visibleTours = TOURS.filter((t) => createdTourIds.has(t.id))
+  const tourList = visibleTours.filter(
     (t) =>
       (toursTab === 'all' || (toursTab === 'upcoming' ? t.upcoming : !t.upcoming)) &&
       t.name.toLowerCase().includes(tourQuery)
   )
+  const upcomingTourCount = visibleTours.filter((t) => t.upcoming).length
+  const pastTourCount = visibleTours.filter((t) => !t.upcoming).length
 
   const threadQuery = threadQ.trim().toLowerCase()
   const threadItems = THREADS.filter((t) => t.title.toLowerCase().includes(threadQuery))
@@ -438,8 +459,8 @@ export function Shell() {
           onSelectTour={setSelectedTour}
           toursTab={toursTab}
           onToursTab={setToursTab}
-          upcomingCount={TOURS.filter((t) => t.upcoming).length}
-          pastCount={TOURS.filter((t) => !t.upcoming).length}
+          upcomingCount={upcomingTourCount}
+          pastCount={pastTourCount}
         />
 
         {/*
@@ -594,6 +615,9 @@ export function Shell() {
               onOpenSubnav={() => setSubnavOpen(true)}
               variant={variant}
               askOpen={pushContent}
+              // The embedded map mirrors the assistant-coordinated tour, so it only draws once
+              // that tour has been booked; until then the frame shows its empty state.
+              tourVisible={createdTourIds.has(DEFAULT_TOUR_ID)}
             />
           )}
 

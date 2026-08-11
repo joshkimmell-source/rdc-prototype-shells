@@ -16,6 +16,13 @@ export const ASK_MESSAGE = 'ra:ask'
 export const ASK_VISIBLE_MESSAGE = 'ra:ask-visible'
 
 /**
+ * Sent down to the Tours map to say whether its (assistant-coordinated) tour has been booked
+ * yet. The map draws its route only once this is true; until then it shows an empty state, so
+ * a tour the agent hasn't created isn't on screen. Posted on each frame load and on change.
+ */
+export const TOUR_VISIBLE_MESSAGE = 'ra:tour-visible'
+
+/**
  * Pushes the panel's state into a framed map. Returns the poster as well, for the frame's
  * `onLoad`: an effect that runs before the document has parsed its listener would post
  * into nothing, and the frame reloads whenever its `src` changes.
@@ -24,6 +31,24 @@ export function useAskVisibility(ref: RefObject<HTMLIFrameElement | null>, visib
   const post = useCallback(() => {
     ref.current?.contentWindow?.postMessage(
       { type: ASK_VISIBLE_MESSAGE, visible },
+      window.location.origin
+    )
+  }, [ref, visible])
+
+  useEffect(post, [post])
+
+  return post
+}
+
+/**
+ * Pushes the coordinated tour's booked/withheld state into the Tours map. Same shape as
+ * `useAskVisibility`: posts on change, and returns the poster for the frame's `onLoad` so a
+ * freshly (re)loaded frame is told before it decides whether to draw.
+ */
+export function useTourVisibility(ref: RefObject<HTMLIFrameElement | null>, visible: boolean) {
+  const post = useCallback(() => {
+    ref.current?.contentWindow?.postMessage(
+      { type: TOUR_VISIBLE_MESSAGE, visible },
       window.location.origin
     )
   }, [ref, visible])

@@ -7,7 +7,7 @@ import { C } from '../theme'
 import { HoverButton } from '../components/primitives'
 import { IconHamburger } from '../icons'
 import { withAbParam, type AbVariant } from '../abParam'
-import { useAskVisibility } from '../askBridge'
+import { useAskVisibility, useTourVisibility } from '../askBridge'
 
 interface ToursScreenProps {
   showSubnavButton: boolean
@@ -16,11 +16,14 @@ interface ToursScreenProps {
   variant: AbVariant
   /** Posted into the frame so its Ask button can hide while the panel is open. */
   askOpen: boolean
+  /** Whether the coordinated tour has been booked — the map draws only when it has. */
+  tourVisible: boolean
 }
 
-export function ToursScreen({ showSubnavButton, onOpenSubnav, variant, askOpen }: ToursScreenProps) {
+export function ToursScreen({ showSubnavButton, onOpenSubnav, variant, askOpen, tourVisible }: ToursScreenProps) {
   const frameRef = useRef<HTMLIFrameElement>(null)
   const postAskVisible = useAskVisibility(frameRef, !askOpen)
+  const postTourVisible = useTourVisibility(frameRef, tourVisible)
 
   return (
     <div
@@ -63,7 +66,10 @@ export function ToursScreen({ showSubnavButton, onOpenSubnav, variant, askOpen }
         ref={frameRef}
         src={withAbParam('tours-map.html', variant)}
         title="Tour route"
-        onLoad={postAskVisible}
+        onLoad={() => {
+          postAskVisible()
+          postTourVisible()
+        }}
         style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
       />
     </div>
