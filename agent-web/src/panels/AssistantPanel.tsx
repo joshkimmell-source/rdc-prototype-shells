@@ -3,7 +3,7 @@
  * and the sliding threads overlay. Slides in from the right of `main` and can expand to
  * fill everything but the nav rail.
  */
-import { Tag } from '@rdc-npm/rdc-ui-v4'
+import { ActionCard, Tag } from '@rdc-npm/rdc-ui-v4'
 import { useState } from 'react'
 import type { RefObject } from 'react'
 import { C, EASE } from '../theme'
@@ -792,25 +792,21 @@ function UpcomingTourCardView({ card, onSuggest }: { card: UpcomingTourCard; onS
       </div>
       <div style={{ borderTop: `1px solid ${C.alt}`, paddingTop: 12 }}>
         <div style={{ fontSize: 12.5, color: C.sub, marginBottom: 8 }}>Suggestions:</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {card.suggestions.map((s) => (
-            <HoverButton
+            <ActionCard
               key={s}
-              onClick={() => onSuggest(s)}
-              style={{
-                ...PILL_BASE,
-                background: C.white,
-                color: C.brand,
-                border: `1px solid ${C.brand}`,
-                padding: '7px 14px',
-                fontSize: 12.5,
-                transition: 'background 120ms',
-              }}
-              hoverStyle={{ background: '#FDECEC' }}
-            >
-              <IconSpark size={12} />
-              <span>{s}</span>
-            </HoverButton>
+              bordered
+              title={s}
+              media={
+                <span style={{ display: 'flex', color: C.brand }}>
+                  <IconSpark size={16} />
+                </span>
+              }
+              mediaPosition="center"
+              iconIndicator="arrow"
+              linkProps={{ onClick: () => onSuggest(s), 'aria-label': s }}
+            />
           ))}
         </div>
       </div>
@@ -875,70 +871,35 @@ function SelectMethodCardView({ card, onPick }: { card: SelectMethodCard; onPick
     <div style={{ ...CHAT_CARD, padding: '16px 16px 18px' }}>
       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{card.title}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {card.methods.map((m) => {
-          const row = (
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontWeight: 700,
-                  fontSize: 13.5,
-                  color: m.enabled ? C.dark : C.muted,
-                }}
-              >
-                {m.label}
-                {!m.enabled && (
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: '0.03em',
-                      textTransform: 'uppercase',
-                      color: C.muted,
-                      background: C.alt,
-                      borderRadius: 20,
-                      padding: '2px 8px',
-                    }}
-                  >
-                    Coming soon
-                  </span>
-                )}
-              </span>
-              <span style={{ display: 'block', fontSize: 11.5, color: C.muted, marginTop: 2 }}>{m.description}</span>
-            </span>
-          )
-          const baseStyle = {
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            width: '100%',
-            textAlign: 'left' as const,
-            background: C.white,
-            border: `1px solid ${C.hair}`,
-            borderRadius: 12,
-            padding: '12px 14px',
-          }
-          if (!m.enabled) {
-            return (
-              <div key={m.label} style={{ ...baseStyle, opacity: 0.7, cursor: 'not-allowed' }} aria-disabled>
-                {row}
-              </div>
-            )
-          }
-          return (
-            <HoverButton
+        {card.methods.map((m) =>
+          m.enabled ? (
+            <ActionCard
               key={m.label}
-              onClick={() => onPick(m.prompt)}
-              style={{ ...baseStyle, cursor: 'pointer', transition: 'border-color 120ms, box-shadow 120ms' }}
-              hoverStyle={{ borderColor: C.border, boxShadow: '0 2px 10px rgba(26,24,22,0.08)' }}
+              bordered
+              title={m.label}
+              media={
+                <span style={{ display: 'flex', color: C.brand }}>
+                  <IconSpark size={16} />
+                </span>
+              }
+              mediaPosition="center"
+              iconIndicator="arrow"
+              linkProps={{ onClick: () => onPick(m.prompt), 'aria-label': m.label }}
             >
-              {row}
-              <IconSpark size={14} />
-            </HoverButton>
+              {m.description}
+            </ActionCard>
+          ) : (
+            // Disabled: no CardLink, so it renders as a non-interactive card, not a button.
+            <ActionCard key={m.label} bordered title={m.label} style={{ opacity: 0.7 }}>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span>
+                  <Tag>Coming soon</Tag>
+                </span>
+                {m.description}
+              </span>
+            </ActionCard>
           )
-        })}
+        )}
       </div>
     </div>
   )
@@ -1118,30 +1079,19 @@ const CAPABILITIES: Capability[] = [
 function CapabilityCard({ cap, onClick }: { cap: Capability; onClick: () => void }) {
   const Icon = cap.icon
   return (
-    <HoverButton
-      onClick={onClick}
-      style={{
-        display: 'block',
-        width: '100%',
-        textAlign: 'left',
-        background: C.white,
-        border: `1px solid ${C.hair}`,
-        borderRadius: 16,
-        padding: '18px 20px',
-        cursor: 'pointer',
-        boxShadow: '0 1px 2px rgba(26,24,22,0.05)',
-        transition: 'border-color 120ms, box-shadow 120ms',
-      }}
-      hoverStyle={{ borderColor: C.border, boxShadow: '0 2px 10px rgba(26,24,22,0.08)' }}
+    <ActionCard
+      title={cap.title}
+      media={
+        <span style={{ display: 'flex', color: C.dark }}>
+          <Icon size={22} />
+        </span>
+      }
+      mediaPosition="center"
+      iconIndicator="arrow"
+      linkProps={{ onClick, 'aria-label': cap.title }}
     >
-      <span style={{ display: 'flex', color: C.dark, marginBottom: 12 }}>
-        <Icon size={22} />
-      </span>
-      <span style={{ display: 'block', fontWeight: 700, fontSize: 15, color: C.dark, marginBottom: 6 }}>
-        {cap.title}
-      </span>
-      <span style={{ display: 'block', fontSize: 13, color: C.sub, lineHeight: 1.5 }}>{cap.body}</span>
-    </HoverButton>
+      {cap.body}
+    </ActionCard>
   )
 }
 
