@@ -103,6 +103,12 @@ input {
   justify-content: flex-start;
 }
 
+/* Shrink the description text (the body span, below the title) to fit more in each card. */
+.ra-cap-card > div[id] > :last-child > span {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* Thin scrollbars inside the shell's scrolling regions. */
 .ra-scroll {
   scrollbar-width: thin;

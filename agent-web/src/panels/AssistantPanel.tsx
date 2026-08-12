@@ -2061,6 +2061,12 @@ interface Capability {
   title: string
   body: string
   prompt: string
+  /**
+   * Hidden from the home menu until its flow is built — the prompt would otherwise dead-end
+   * on the generic fallback reply. Kept here (not deleted) so the flow can be wired and the
+   * card un-hidden in one place. See `runAssistant`/the flow triggers in `assistant.ts`.
+   */
+  hidden?: boolean
 }
 
 const CAPABILITIES: Capability[] = [
@@ -2087,12 +2093,14 @@ const CAPABILITIES: Capability[] = [
     title: 'Check Listing Status',
     body: 'Check if a client received a listing and analyze their interactions',
     prompt: 'Check listing status for a client',
+    hidden: true,
   },
   {
     icon: IconComment,
     title: 'Manage Client Notes',
     body: 'Add, view, or modify persistent client notes (memory) for any client group',
     prompt: 'Manage client notes',
+    hidden: true,
   },
   {
     icon: IconAiSearch,
@@ -2442,7 +2450,7 @@ export function AssistantPanel({
                         marginTop: 8,
                       }}
                     >
-                      {CAPABILITIES.map((cap) => (
+                      {CAPABILITIES.filter((cap) => !cap.hidden).map((cap) => (
                         <CapabilityCard key={cap.title} cap={cap} onClick={() => onSend(cap.prompt)} />
                       ))}
                     </div>
