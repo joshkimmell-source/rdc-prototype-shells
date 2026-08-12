@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { C, EASE } from './theme'
-import { isMobileViewport, useIsMobile } from './useMobile'
+import { isMobileViewport, useIsMobile, useIsMedium } from './useMobile'
 import { readNavParam, writeNavParam } from './navParam'
 import { readAbParam } from './abParam'
 import { ASK_MESSAGE } from './askBridge'
@@ -25,6 +25,7 @@ import { NAV_BAR_HEIGHT, NavBar } from './components/NavBar'
 import { Subnav } from './components/Subnav'
 import { MainHeader, type ToggleId, type Toggles } from './components/MainHeader'
 import { FAB } from './components/FAB'
+import { PrototypeNotice } from './components/PrototypeNotice'
 import { HomeScreen, type NeedItem, type StageItem } from './screens/HomeScreen'
 import { SearchScreen } from './screens/SearchScreen'
 import { ToursScreen } from './screens/ToursScreen'
@@ -144,6 +145,10 @@ function readStoredPushWidth() {
 
 export function Shell() {
   const isMobile = useIsMobile()
+  // The medium band sits between mobile and the wide desktop layout. In it the docked
+  // subnav and assistant panel are mutually exclusive, so the content column between them
+  // is never squished (see `MEDIUM_QUERY`).
+  const isMedium = useIsMedium()
   // Fixed for the life of the session: switching arms mid-test would defeat the point, and
   // a reload with a different `?ab=` gives a clean one.
   const [variant] = useState(readAbParam)
@@ -240,6 +245,13 @@ export function Shell() {
     }
   }, [isMobile])
 
+  // Shrinking into the medium band with both side panels docked would squish the content
+  // column between them. The deliberate opens already retract the other panel, so this only
+  // catches the resize case — keep the assistant panel and retract the subnav.
+  useEffect(() => {
+    if (isMedium && subnavOpen && pushContent) setSubnavOpen(false)
+  }, [isMedium, subnavOpen, pushContent])
+
   // Keep the panel inside a shrinking viewport. Only ever narrows it: a window that
   // grows again must not override a width the user chose deliberately.
   useEffect(() => {
@@ -283,6 +295,9 @@ export function Shell() {
     setInput('')
     setBusy(true)
     setPushContent(true)
+    // Sending from the composer reveals the panel; in the medium band retract the subnav so
+    // the two never dock side by side over a squished content column.
+    if (isMedium) setSubnavOpen(false)
 
     // The add-client flow takes precedence while it's underway, or when a message triggers a
     // fresh onboarding ("Add a new client" / "Add another client"). Everything else — the tour
@@ -502,6 +517,14 @@ export function Shell() {
     setPushContent(true)
     setPushExpanded(false)
     setPushOver(false)
+    // In the medium band the two side panels can't share the row without squishing the
+    // content between them, so opening one retracts the other.
+    if (isMedium) setSubnavOpen(false)
+  }
+
+  const openSubnav = () => {
+    setSubnavOpen(true)
+    if (isMedium) closePush()
   }
 
   const navigate = (id: NavId) => {
@@ -557,6 +580,9 @@ export function Shell() {
         overflow: 'hidden',
       }}
     >
+      {/* Sample-data disclaimer, shown on load and dismissed with its "Okay" button. */}
+      <PrototypeNotice />
+
       <div style={{ flex: 1, display: 'flex', minHeight: 0, position: 'relative' }}>
         {!isMobile && <NavRail activeNav={activeNav} onNavigate={navigate} />}
 
@@ -625,7 +651,7 @@ export function Shell() {
             onAsk={openPush}
             askOpen={pushContent}
             showSubnavButton={isClients && !subnavOpen}
-            onOpenSubnav={() => setSubnavOpen(true)}
+            onOpenSubnav={openSubnav}
             title={pageTitle}
             countLabel={countLabel}
             showToggles={isClients}
@@ -736,7 +762,7 @@ export function Shell() {
           {isTours && (
             <ToursScreen
               showSubnavButton={!isMobile && !subnavOpen}
-              onOpenSubnav={() => setSubnavOpen(true)}
+              onOpenSubnav={openSubnav}
               variant={variant}
               askOpen={pushContent}
               // The embedded map follows the Tours subnav: it draws whichever tour is selected.

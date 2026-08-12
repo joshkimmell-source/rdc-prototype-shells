@@ -26,6 +26,20 @@ export default defineConfig({
     baseURL: BASE_URL,
     // On first retry only, so a green run stays cheap but a flake leaves evidence.
     trace: 'on-first-retry',
+    // Seed the flag that suppresses the on-load "This is a prototype" notice. The modal is
+    // open on mount for real visitors and would overlay every test's first interaction; the
+    // app reads this key (and never writes it), so seeding it here keeps the suite clean while
+    // real loads still show the disclaimer. Kept in sync with `SUPPRESS_KEY` in
+    // src/components/PrototypeNotice.tsx.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: BASE_URL,
+          localStorage: [{ name: 'ra-suppress-prototype-notice', value: '1' }],
+        },
+      ],
+    },
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

@@ -101,7 +101,13 @@ function Action({
   return (
     <button
       type="button"
-      onClick={item.onClick}
+      onClick={() => {
+        // Clicking an icon-only action opens the panel but leaves the pointer over the
+        // button, so no `mouseleave` fires to retract its tooltip — dismiss it here, or it
+        // lingers over whatever the click revealed.
+        tip?.(item.label, null)
+        item.onClick()
+      }}
       aria-label={item.label}
       aria-pressed={item.pressed}
       tabIndex={tabbable ? undefined : -1}

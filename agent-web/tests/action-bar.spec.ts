@@ -98,6 +98,26 @@ test.describe('React ActionBar tooltip on minimized actions', () => {
     await expect(tooltip(page)).toHaveText('Agent notifications')
   })
 
+  test('dismisses the tooltip when the collapsed action is clicked', async ({ page }) => {
+    // 1100px collapses the primary Ask action to an icon-only circle that is still in the bar
+    // (not folded into the menu), so its tooltip is the only thing naming it.
+    await page.setViewportSize({ width: 1100, height: 800 })
+    await page.goto(url)
+
+    const ask = page.getByRole('main').getByRole('button', { name: /Ask RealAssist/ })
+    await expect(ask).toBeVisible()
+    await expect(ask.getByText(/Ask RealAssist/)).toHaveCount(0) // icon-only: no label span
+
+    // Hover names it; clicking opens the panel and must retract the tooltip — a click leaves
+    // the pointer over the button with no mouseleave, so it would otherwise linger over the
+    // panel the click revealed.
+    await ask.hover()
+    await expect(tooltip(page)).toHaveText(/Ask RealAssist/)
+    await ask.click()
+    await expect(page.getByRole('button', { name: 'Close panel' })).toBeVisible()
+    await expect(tooltip(page)).toHaveText('')
+  })
+
   test.describe('touch interface', () => {
     test.use({ hasTouch: true, isMobile: true })
 
