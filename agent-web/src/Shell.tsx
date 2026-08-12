@@ -30,7 +30,21 @@ import { SearchScreen } from './screens/SearchScreen'
 import { ToursScreen } from './screens/ToursScreen'
 import { ClientsScreen, type ClientsView } from './screens/ClientsScreen'
 import { AssistantPanel, type Msg } from './panels/AssistantPanel'
-import { runAddClient, runAssistant, triggersAddClient, type AddClientFlow } from './assistant'
+import {
+  runAddClient,
+  runAssistant,
+  runCatchUp,
+  runClientPulse,
+  runSearchOpt,
+  triggersAddClient,
+  triggersCatchUp,
+  triggersClientPulse,
+  triggersSearchOpt,
+  type AddClientFlow,
+  type CatchUpFlow,
+  type ClientPulseFlow,
+  type SearchOptFlow,
+} from './assistant'
 import {
   AGENT_FEED_ID,
   BUYERS,
@@ -62,12 +76,13 @@ const SUBNAV_WIDTH = 320
 const PUSH_WIDTH = 420
 
 /**
- * Drag bounds for the push panel. The minimum is the narrowest the composer and the
- * 340px-wide chat cards still read at; the maximum leaves room for `main` rather than
- * letting the drag reach the expanded state, which the expand control owns.
+ * Drag bounds for the push panel (push mode is large-screen only — mobile renders the
+ * panel full-width and non-resizable). The minimum matches the default width, so the
+ * docked panel never drags below its 420px resting size; the maximum is 30% of the
+ * viewport but never below `PUSH_MIN`, so the min always wins on narrower desktops.
  */
-const PUSH_MIN = 320
-const PUSH_MAX_GAP = 360
+const PUSH_MIN = 420
+const PUSH_MAX_FRACTION = 0.3
 const PUSH_WIDTH_KEY = 'ra-push-width'
 
 /**
@@ -77,9 +92,9 @@ const PUSH_WIDTH_KEY = 'ra-push-width'
  */
 const SUBNAV_DRAWER_MAX = 288
 
-/** The widest the panel may be at this viewport, never below `PUSH_MIN`. */
+/** The widest the panel may be at this viewport — 30% of it, never below `PUSH_MIN`. */
 function pushCeiling() {
-  return Math.max(PUSH_MIN, window.innerWidth - PUSH_MAX_GAP)
+  return Math.max(PUSH_MIN, Math.round(window.innerWidth * PUSH_MAX_FRACTION))
 }
 
 function clampPush(w: number) {
@@ -119,11 +134,10 @@ function FloatingIconButton({ label, onClick }: { label: string; onClick: () => 
 function readStoredPushWidth() {
   try {
     const raw = window.localStorage.getItem(PUSH_WIDTH_KEY)
-    if (!raw) return PUSH_WIDTH
-    const parsed = Number(raw)
-    return Number.isFinite(parsed) ? clampPush(parsed) : PUSH_WIDTH
+    const parsed = raw == null ? PUSH_WIDTH : Number(raw)
+    return clampPush(Number.isFinite(parsed) ? parsed : PUSH_WIDTH)
   } catch {
-    return PUSH_WIDTH
+    return clampPush(PUSH_WIDTH)
   }
 }
 
@@ -192,8 +206,16 @@ export function Shell() {
   // The add-client onboarding flow carries state across turns (collected members, parsed
   // criteria, location) since the responder is otherwise stateless. Null when not onboarding.
   const [addFlow, setAddFlow] = useState<AddClientFlow | null>(null)
+  // The Catch Up briefing flow: null except while its action picker is live and awaiting the
+  // agent's choice (send a drafted message, skip, or a free-text instruction).
+  const [catchUpFlow, setCatchUpFlow] = useState<CatchUpFlow | null>(null)
+  const [searchOptFlow, setSearchOptFlow] = useState<SearchOptFlow | null>(null)
+  // The Client Pulse deep-dive flow: null except while it's selecting a client or its action
+  // picker is live (draft a message, view notes, update the search, analyze another, or done).
+  const [clientPulseFlow, setClientPulseFlow] = useState<ClientPulseFlow | null>(null)
   // The active conversation's thread title — set by the add-client flow ("Add Client" →
-  // "Onboarding {Full Name} as New Client"). Null when there's no titled conversation.
+  // "Onboarding {Full Name} as New Client") and the Catch Up flow ("Catch Up"). Null when
+  // there's no titled conversation.
   const [threadTitle, setThreadTitle] = useState<string | null>(null)
 
   const chatRef = useRef<HTMLDivElement>(null)
@@ -270,6 +292,54 @@ export function Shell() {
       ])
       setBusy(false)
       setAddFlow(flow)
+      if (result.threadTitle !== undefined) setThreadTitle(result.threadTitle)
+      return
+    }
+
+    // The Catch Up briefing flow — agent-initiated ("Catch me up"); while its action picker
+    // is live, follow-up selections ("Send tour confirmation to …", "Skip") route back here.
+    if (catchUpFlow || triggersCatchUp(t)) {
+      const { result, flow } = await runCatchUp(catchUpFlow, t, clients)
+      setMsgs((prev) => [
+        ...prev,
+        ...(result.preReply ? [{ role: 'ai', text: result.preReply } as Msg] : []),
+        ...result.cards.map((card): Msg => ({ role: 'ai', text: '', card })),
+        ...(result.reply ? [{ role: 'ai', text: result.reply } as Msg] : []),
+      ])
+      setBusy(false)
+      setCatchUpFlow(flow)
+      if (result.threadTitle !== undefined) setThreadTitle(result.threadTitle)
+      return
+    }
+
+    // The Search Optimization flow — agent-initiated ("Optimize a client search"); while its
+    // client picker or final action picker is live, the follow-up selections route back here.
+    if (searchOptFlow || triggersSearchOpt(t)) {
+      const { result, flow } = await runSearchOpt(searchOptFlow, t, clients)
+      setMsgs((prev) => [
+        ...prev,
+        ...(result.preReply ? [{ role: 'ai', text: result.preReply } as Msg] : []),
+        ...result.cards.map((card): Msg => ({ role: 'ai', text: '', card })),
+        ...(result.reply ? [{ role: 'ai', text: result.reply } as Msg] : []),
+      ])
+      setBusy(false)
+      setSearchOptFlow(flow)
+      if (result.threadTitle !== undefined) setThreadTitle(result.threadTitle)
+      return
+    }
+
+    // The Client Pulse flow — agent-initiated ("Show me a client pulse"); while its client
+    // picker or final action picker is live, the follow-up selections route back here.
+    if (clientPulseFlow || triggersClientPulse(t)) {
+      const { result, flow } = await runClientPulse(clientPulseFlow, t, clients)
+      setMsgs((prev) => [
+        ...prev,
+        ...(result.preReply ? [{ role: 'ai', text: result.preReply } as Msg] : []),
+        ...result.cards.map((card): Msg => ({ role: 'ai', text: '', card })),
+        ...(result.reply ? [{ role: 'ai', text: result.reply } as Msg] : []),
+      ])
+      setBusy(false)
+      setClientPulseFlow(flow)
       if (result.threadTitle !== undefined) setThreadTitle(result.threadTitle)
       return
     }
@@ -702,6 +772,9 @@ export function Shell() {
             setMsgs([])
             setPushOver(false)
             setAddFlow(null)
+            setCatchUpFlow(null)
+            setSearchOptFlow(null)
+            setClientPulseFlow(null)
             setThreadTitle(null)
           }}
         />

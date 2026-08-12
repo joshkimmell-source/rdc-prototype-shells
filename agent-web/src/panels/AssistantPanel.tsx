@@ -14,7 +14,7 @@ import {
   IconAiSearch,
   IconCalendarTime,
 } from '@rdc-npm/rdc-ui-v4'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import type { RefObject } from 'react'
 import { C, EASE } from '../theme'
 import { CircleButton, HoverButton, Initials } from '../components/primitives'
@@ -35,13 +35,22 @@ import {
 import type { Thread } from '../data'
 import type { ComponentType } from 'react'
 import type {
+  ActionPickerCard,
   AddClientMessageCard,
   Card,
+  CatchUpBriefingCard,
+  CatchUpItem,
+  CatchUpToolsCard,
+  CatchUpTourRef,
   ClientCard,
   ClientPickerCard,
+  ClientPulseReportCard,
   DateTimeCard,
   OutreachCard,
   PlanProperty,
+  SearchAnalysisCard,
+  SearchOptClientCard,
+  SearchOptPickerCard,
   SelectMethodCard,
   SummaryCard,
   TimelineCard,
@@ -59,6 +68,13 @@ export interface Msg {
   text: string
   card?: Card
 }
+
+/**
+ * Cards that pose a choice the user answers to advance the flow. Once answered, the
+ * prompt is consumed — it stops rendering as soon as it is no longer the last message,
+ * so a stale picker can't be re-used to branch the flow a second time from history.
+ */
+const PICKER_KINDS = new Set<Card['kind']>(['clientPicker', 'selectMethod', 'searchOptPicker', 'actionPicker'])
 
 interface AssistantPanelProps {
   /** 0 when closed; pushWidth when docked; calc(100% - 64px) when expanded. */
@@ -558,6 +574,818 @@ function AddClientMessageView({
           <CompletedMarker />
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Catch Up daily-briefing flow ──────────────────────────────────────────────
+
+/** How long each of the three processing states shows before the next takes over. */
+const CATCH_UP_STREAM_MS = 600
+/** When the briefing and picker reveal — after the processing stream has run. */
+const CATCH_UP_REVEAL_MS = CATCH_UP_STREAM_MS * 3 + 150
+
+/** Reveals its children after `ms`, so the briefing lands once the stream has finished. */
+function Delayed({ ms, children }: { ms: number; children: React.ReactNode }) {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    const id = setTimeout(() => setShow(true), ms)
+    return () => clearTimeout(id)
+  }, [ms])
+  return show ? <>{children}</> : null
+}
+
+/**
+ * The Catch Up processing stream: the three sequential states, each showing with pulsing dots
+ * before the next replaces it, then the collapsed "Used N tools" summary expanding to each
+ * friendly-labelled step.
+ */
+function CatchUpToolsView({ card }: { card: CatchUpToolsCard }) {
+  const [step, setStep] = useState(0)
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (step >= card.stream.length) return
+    const id = setTimeout(() => setStep((s) => s + 1), CATCH_UP_STREAM_MS)
+    return () => clearTimeout(id)
+  }, [step, card.stream.length])
+  const streaming = step < card.stream.length
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+      {card.stream.slice(0, streaming ? step : card.stream.length).map((s, i) => (
+        <TraceLine key={i}>
+          <span style={{ color: C.dark }}>{s}</span>
+        </TraceLine>
+      ))}
+      {streaming ? (
+        <TraceLine>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {card.stream[step]} <ProcessingDots />
+          </span>
+        </TraceLine>
+      ) : (
+        <>
+          <TraceLine>
+            <button
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                border: 'none',
+                background: 'transparent',
+                padding: 0,
+                margin: 0,
+                cursor: 'pointer',
+                color: C.dark,
+                fontSize: 13,
+                fontFamily: 'inherit',
+              }}
+            >
+              Used {card.tools.length} tools
+              <span style={{ fontSize: 11, transform: open ? 'rotate(180deg)' : 'none' }}>⌄</span>
+            </button>
+          </TraceLine>
+          {open &&
+            card.tools.map((line, i) => (
+              <TraceLine key={i}>
+                <span style={{ color: C.dark }}>{line}</span>
+              </TraceLine>
+            ))}
+        </>
+      )}
+    </div>
+  )
+}
+
+/** A deep-link styled like a link but inert — the prototype has no /plus/app routes to reach. */
+function DeepLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      onClick={(e) => e.preventDefault()}
+      style={{ color: C.brand, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}
+    >
+      {children}
+    </a>
+  )
+}
+
+/** The framed compact tour map — public/mini-tour-map.html, its stops passed on the URL. */
+function MiniTourMap({ tour }: { tour: CatchUpTourRef }) {
+  const stops = tour.stops.map((s) => ({
+    o: s.order,
+    lat: s.ll[0],
+    lng: s.ll[1],
+    addr: s.addr,
+    city: s.city,
+  }))
+  const src = `mini-tour-map.html?stops=${encodeURIComponent(JSON.stringify(stops))}`
+  return (
+    <iframe
+      src={src}
+      title={`${tour.title} map`}
+      loading="lazy"
+      style={{ width: '100%', height: 180, border: 'none', display: 'block' }}
+    />
+  )
+}
+
+/** The embedded tour card inside a briefing item: header deep link + framed mini-map. */
+function CatchUpTourCard({ tour }: { tour: CatchUpTourRef }) {
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        border: `1px solid ${C.hair}`,
+        borderRadius: 12,
+        overflow: 'hidden',
+        background: C.white,
+      }}
+    >
+      <a
+        href={tour.href}
+        onClick={(e) => e.preventDefault()}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '12px 14px',
+          textDecoration: 'none',
+          color: C.dark,
+        }}
+      >
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            flex: 'none',
+            borderRadius: 10,
+            background: C.tourTile,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: C.muted,
+          }}
+        >
+          <IconHomeFilled size={18} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5 }}>{tour.title}</div>
+          <div style={{ fontSize: 12, color: C.muted }}>{tour.subtitle}</div>
+        </div>
+        <span style={{ fontSize: 12, color: C.muted, flex: 'none' }}>
+          {tour.stopCount} {tour.stopCount === 1 ? 'stop' : 'stops'}
+        </span>
+      </a>
+      <MiniTourMap tour={tour} />
+    </div>
+  )
+}
+
+/** One briefing item — the client deep link, its context, an optional draft and tour card. */
+function BriefingItem({ item }: { item: CatchUpItem }) {
+  const muted = { fontSize: 12.5, color: C.muted, lineHeight: 1.55 } as const
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ fontSize: 13.5, lineHeight: 1.55 }}>
+        <DeepLink href={item.href}>{item.name}</DeepLink> — {item.headline}
+      </div>
+      {item.detail && <div style={muted}>{item.detail}</div>}
+      {item.background && (
+        <div style={muted}>
+          <span style={{ fontWeight: 600, color: C.dark }}>Background:</span> {item.background}
+        </div>
+      )}
+      {item.draft && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: C.dark }}>Suggested message:</span>
+          <div
+            style={{
+              fontSize: 12.5,
+              color: C.dark,
+              lineHeight: 1.55,
+              background: C.alt,
+              borderRadius: 10,
+              padding: '10px 12px',
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            “{item.draft}”
+          </div>
+        </div>
+      )}
+      {item.confidence && (
+        <div style={{ fontSize: 12.5, color: C.dark }}>
+          <span style={{ fontWeight: 600 }}>Confidence:</span> {item.confidence.level} (
+          {item.confidence.percent}%)
+        </div>
+      )}
+      {item.tour && <CatchUpTourCard tour={item.tour} />}
+      {item.fyiNote && <div style={muted}>{item.fyiNote}</div>}
+    </div>
+  )
+}
+
+/** A priority tier — its emoji-prefixed heading and the items within. */
+function BriefingTier({
+  heading,
+  items,
+}: {
+  heading: string
+  items: CatchUpItem[]
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ fontWeight: 700, fontSize: 13 }}>{heading}</div>
+      {items.map((item) => (
+        <BriefingItem key={item.clientId} item={item} />
+      ))}
+    </div>
+  )
+}
+
+/** The structured daily briefing: collapsible reasoning, summary header, tiers, and marker. */
+function CatchUpBriefingView({ card }: { card: CatchUpBriefingCard }) {
+  const [showReasoning, setShowReasoning] = useState(false)
+  return (
+    <div
+      style={{
+        ...CHAT_CARD,
+        padding: '16px 16px 18px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <button
+          type="button"
+          onClick={() => setShowReasoning((o) => !o)}
+          aria-expanded={showReasoning}
+          style={{
+            alignSelf: 'flex-start',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            border: 'none',
+            background: 'transparent',
+            padding: 0,
+            cursor: 'pointer',
+            color: C.muted,
+            fontSize: 12.5,
+            fontFamily: 'inherit',
+          }}
+        >
+          {showReasoning ? 'Hide reasoning' : 'Show reasoning'}
+          <span style={{ fontSize: 11, transform: showReasoning ? 'rotate(180deg)' : 'none' }}>
+            ⌄
+          </span>
+        </button>
+        {showReasoning &&
+          card.preamble.map((line, i) => <TraceLine key={i}>{line}</TraceLine>)}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>Catch Up Summary</div>
+        <div style={{ fontSize: 13, color: C.dark }}>
+          📊 Analyzed {card.analyzed} clients — 🔥 {card.criticalCount} critical | ⚠️{' '}
+          {card.importantCount} important | ℹ️ {card.fyiCount} FYI
+        </div>
+        <div style={{ fontSize: 13, color: C.dark, marginTop: 4 }}>Here's your action plan:</div>
+      </div>
+
+      {card.critical.length > 0 && (
+        <BriefingTier heading="🔥 CRITICAL (Handle Now)" items={card.critical} />
+      )}
+      {card.important.length > 0 && <BriefingTier heading="⚠️ IMPORTANT" items={card.important} />}
+      {card.fyi.length > 0 && (
+        <BriefingTier heading="ℹ️ FYI (No action needed)" items={card.fyi} />
+      )}
+      {card.moreNote && (
+        <div style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.55 }}>{card.moreNote}</div>
+      )}
+
+      <CompletedMarker />
+    </div>
+  )
+}
+
+/**
+ * The interactive action picker that ends the turn: a collapse chevron, one radio option per
+ * suggested action, a free-text hint the composer answers, and a Skip button.
+ */
+function ActionPickerView({
+  card,
+  onSend,
+}: {
+  card: ActionPickerCard
+  onSend: (text: string) => void
+}) {
+  const [open, setOpen] = useState(true)
+  const skip = card.options.find((o) => /^skip/i.test(o.label))
+  const picks = card.options.filter((o) => o !== skip)
+  return (
+    <div style={{ ...CHAT_CARD, padding: '14px 16px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1, fontWeight: 700, fontSize: 13.5 }}>{card.title}</div>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={open ? 'Minimize' : 'Expand'}
+          style={{
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            color: C.muted,
+            fontSize: 14,
+            padding: 4,
+            transform: open ? 'none' : 'rotate(180deg)',
+          }}
+        >
+          ⌄
+        </button>
+      </div>
+
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+          {picks.map((opt) => (
+            <button
+              key={opt.prompt}
+              type="button"
+              onClick={() => onSend(opt.prompt)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                width: '100%',
+                textAlign: 'left',
+                background: C.white,
+                border: `1px solid ${C.hair}`,
+                borderRadius: 10,
+                padding: '10px 12px',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 13,
+                color: C.dark,
+              }}
+            >
+              <span
+                style={{
+                  width: 16,
+                  height: 16,
+                  flex: 'none',
+                  borderRadius: '50%',
+                  border: `2px solid ${C.border}`,
+                }}
+              />
+              {opt.label}
+            </button>
+          ))}
+
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+            Or type your own instruction below.
+          </div>
+
+          {skip && (
+            <div style={{ display: 'flex', marginTop: 4 }}>
+              <LightPill padding="6px 14px" fontSize={12} onClick={() => onSend(skip.prompt)}>
+                Skip
+              </LightPill>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Search-optimization flow ───────────────────────────────────────────────────
+
+/**
+ * State 1 — the client-selection picker. One row per client (initials avatar, name, and a
+ * "Last seen …" line), a "Search for a client" free-text field, and a Skip button. Picking a
+ * row, submitting the field, or skipping all funnel through the same `onPick`.
+ */
+function SearchOptPickerView({
+  card,
+  onPick,
+}: {
+  card: SearchOptPickerCard
+  onPick: (prompt: string) => void
+}) {
+  return (
+    <div style={{ ...CHAT_CARD, padding: '16px 16px 18px' }}>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{card.title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {card.clients.map((c) => (
+          <HoverButton
+            key={c.id}
+            onClick={() => onPick(c.prompt)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              width: '100%',
+              textAlign: 'left',
+              background: C.white,
+              border: `1px solid ${C.hair}`,
+              borderRadius: 12,
+              padding: '10px 12px',
+              cursor: 'pointer',
+              transition: 'border-color 120ms, box-shadow 120ms',
+            }}
+            hoverStyle={{ borderColor: C.border, boxShadow: '0 2px 10px rgba(26,24,22,0.08)' }}
+          >
+            <Initials initials={c.initials} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontWeight: 700, fontSize: 13.5, color: C.dark }}>{c.name}</span>
+              <span style={{ display: 'block', fontSize: 11.5, color: C.muted }}>{c.lastSeen}</span>
+            </span>
+          </HoverButton>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', marginTop: 12 }}>
+        <LightPill padding="6px 14px" fontSize={12} onClick={() => onPick('Skip')}>
+          Skip
+        </LightPill>
+      </div>
+    </div>
+  )
+}
+
+/** State 2 — the chosen client, shown as a compact chip before the analysis streams. */
+function SearchOptClientView({ card }: { card: SearchOptClientCard }) {
+  return (
+    <div
+      style={{
+        ...CHAT_CARD,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '12px 14px',
+      }}
+    >
+      <Initials initials={card.initials} />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontWeight: 700, fontSize: 13.5, color: C.dark }}>{card.name}</span>
+        <span style={{ display: 'block', fontSize: 11.5, color: C.muted }}>{card.lastSeen}</span>
+      </span>
+      <Tag dataColor="blueSubtle">Analyzing</Tag>
+    </div>
+  )
+}
+
+/** A section heading inside the analysis report — the emoji-prefixed label. */
+function ReportHeading({ children }: { children: React.ReactNode }) {
+  return <div style={{ fontWeight: 700, fontSize: 13.5, color: C.dark }}>{children}</div>
+}
+
+/** One label-over-value metric in the analysis stat strip. */
+function Stat({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+          color: C.muted,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, lineHeight: 1.2 }}>{value}</div>
+    </div>
+  )
+}
+
+/** Subtle-tag colour for each confidence level. */
+const CONFIDENCE_COLOR = { High: 'greenSubtle', Medium: 'yellowSubtle', Low: 'redSubtle' } as const
+
+/** The "📊 RECOMMENDED CHANGES" table — a six-column grid, one row per recommendation. */
+function RecommendationsTable({ rows }: { rows: SearchAnalysisCard['recommendations'] }) {
+  const cols = '20px minmax(84px, 1fr) auto minmax(72px, 1fr) 16px minmax(72px, 1fr)'
+  const head = { fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.04em' }
+  const cell = { fontSize: 12, color: C.dark, lineHeight: 1.4 }
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: cols, columnGap: 10, rowGap: 8, minWidth: 320, alignItems: 'center' }}>
+        <div style={head}>#</div>
+        <div style={head}>Filter</div>
+        <div style={head}>Confidence</div>
+        <div style={head}>Current</div>
+        <div style={head} />
+        <div style={head}>Suggested</div>
+        {rows.map((r) => (
+          <Fragment key={r.index}>
+            <div style={{ ...cell, color: C.muted }}>{r.index}</div>
+            <div style={{ ...cell, fontWeight: 700 }}>{r.filter}</div>
+            <div style={{ ...cell, whiteSpace: 'nowrap' }}>{r.confidenceLabel}</div>
+            <div style={{ ...cell, color: C.sub }}>{r.current}</div>
+            <div style={{ ...cell, color: C.muted, textAlign: 'center' }}>→</div>
+            <div style={{ ...cell, fontWeight: 600 }}>{r.suggested}</div>
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * State 5 — the structured "✅ Search Optimization Analysis" report: a collapsible reasoning
+ * preamble, the activity header, the current search, the recommended-changes table and its
+ * star legend, the evidence-cited rationale, additional observations, and the caveat.
+ */
+function SearchAnalysisView({ card }: { card: SearchAnalysisCard }) {
+  const [showReasoning, setShowReasoning] = useState(false)
+  return (
+    <div style={{ ...CHAT_CARD, padding: '16px 16px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <button
+          type="button"
+          onClick={() => setShowReasoning((o) => !o)}
+          aria-expanded={showReasoning}
+          style={{
+            alignSelf: 'flex-start',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            border: 'none',
+            background: 'transparent',
+            padding: 0,
+            cursor: 'pointer',
+            color: C.muted,
+            fontSize: 12.5,
+            fontFamily: 'inherit',
+          }}
+        >
+          {showReasoning ? 'Hide reasoning' : 'Show reasoning'}
+          <span style={{ fontSize: 11, transform: showReasoning ? 'rotate(180deg)' : 'none' }}>⌄</span>
+        </button>
+        {showReasoning && card.reasoning.map((line, i) => <TraceLine key={i}>{line}</TraceLine>)}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 15 }}>✅ Search Optimization Analysis</div>
+          <Tag dataColor={CONFIDENCE_COLOR[card.confidenceLevel]}>
+            Confidence: {card.confidenceLevel} ({card.confidencePercent}%)
+          </Tag>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '12px 24px',
+            padding: '12px 14px',
+            background: C.alt,
+            borderRadius: 10,
+          }}
+        >
+          <Stat label="Analysis period" value={`${card.analysisPeriodDays} days`} />
+          <Stat label="Views" value={card.views} />
+          <Stat label="Saves" value={card.saves} />
+          <Stat label="Past stops" value={card.pastStops} />
+          <Stat label="Upcoming stops" value={card.upcomingStops} />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              color: C.muted,
+            }}
+          >
+            Current search
+          </div>
+          <div style={{ fontSize: 13, color: C.dark, lineHeight: 1.55 }}>
+            <strong>“{card.currentSearchName}”</strong> — {card.currentSearchCriteria}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <ReportHeading>📊 RECOMMENDED CHANGES</ReportHeading>
+        <RecommendationsTable rows={card.recommendations} />
+        <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}>
+          ⭐⭐⭐ = Very High (90%+) | ⭐⭐ = High (75-89%) | ⭐ = Medium (60-74%)
+        </div>
+      </div>
+
+      {card.rationale.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <ReportHeading>📋 RATIONALE</ReportHeading>
+          {card.rationale.map((n, i) => (
+            <NoteLine key={i} lead={n.lead} text={n.text} marker={<Bullet />} />
+          ))}
+        </div>
+      )}
+
+      {card.observations.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <ReportHeading>📌 ADDITIONAL OBSERVATIONS</ReportHeading>
+          {card.observations.map((n, i) => (
+            <NoteLine key={i} lead={n.lead} text={n.text} marker={<Bullet />} />
+          ))}
+        </div>
+      )}
+
+      <div
+        style={{
+          fontSize: 12.5,
+          color: C.dark,
+          lineHeight: 1.55,
+          background: C.alt,
+          borderRadius: 10,
+          padding: '10px 12px',
+        }}
+      >
+        {card.caveat}
+      </div>
+
+      <CompletedMarker />
+    </div>
+  )
+}
+
+/** The intent badge's subtle-tag colour — hot / warm / cold. */
+const INTENT_COLOR = { High: 'greenSubtle', Medium: 'yellowSubtle', Low: 'blueSubtle' } as const
+
+/** A priority chip on a suggested action — URGENT/High read hot, Medium warm, Low neutral. */
+const PRIORITY_COLOR: Record<string, 'redSubtle' | 'yellowSubtle' | 'graySubtle'> = {
+  URGENT: 'redSubtle',
+  High: 'redSubtle',
+  Medium: 'yellowSubtle',
+  Low: 'graySubtle',
+}
+
+/** The "📊 ACTIVITY SUMMARY" table — metric × last-7 × last-30, one row per metric. */
+function ActivityTable({ rows }: { rows: ClientPulseReportCard['activity'] }) {
+  const head = { fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.04em' }
+  const cell = { fontSize: 12.5, color: C.dark, lineHeight: 1.4 }
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) auto auto', columnGap: 18, rowGap: 8, minWidth: 260, alignItems: 'center' }}>
+        <div style={head}>Metric</div>
+        <div style={{ ...head, textAlign: 'right' }}>Last 7 Days</div>
+        <div style={{ ...head, textAlign: 'right' }}>Last 30 Days</div>
+        {rows.map((r) => (
+          <Fragment key={r.metric}>
+            <div style={{ ...cell, fontWeight: 600 }}>{r.metric}</div>
+            <div style={{ ...cell, textAlign: 'right' }}>{r.last7}</div>
+            <div style={{ ...cell, textAlign: 'right' }}>{r.last30}</div>
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** One property in "🔍 TOP INTERESTS" — a deep-linked heading, its facts, and a relevance note. */
+function InterestRow({ item }: { item: ClientPulseReportCard['interests'][number] }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div style={{ fontSize: 13.5, lineHeight: 1.5 }}>
+        <DeepLink href={item.href}>{item.address}</DeepLink>
+        <span style={{ color: C.muted }}> · {item.views === 1 ? '1 view' : `${item.views} views`}</span>
+      </div>
+      <div style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.5 }}>
+        {item.priceLabel} · {item.beds} bd / {item.bathsLabel} · {item.sqftLabel} · {item.features}
+      </div>
+      <div style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}>{item.relevance}</div>
+    </div>
+  )
+}
+
+/** One prioritized row of "💡 SUGGESTED ACTIONS" — a priority chip, the ask, and any draft. */
+function SuggestedActionRow({ action }: { action: ClientPulseReportCard['suggestedActions'][number] }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <Tag dataColor={PRIORITY_COLOR[action.priority] ?? 'graySubtle'}>{action.priority}</Tag>
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: C.dark }}>{action.title}</span>
+      </div>
+      <div style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.55 }}>{action.rationale}</div>
+      {action.draft && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: C.dark }}>Ready to send:</span>
+          <div
+            style={{
+              fontSize: 12.5,
+              color: C.dark,
+              lineHeight: 1.55,
+              background: C.alt,
+              borderRadius: 10,
+              padding: '10px 12px',
+            }}
+          >
+            {action.draft}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The structured Client Pulse report: the group header + confidence tag, the client profile,
+ * the engagement/intent read and its headline insight, the activity table, members and saved
+ * searches, top property interests with deep links, prioritized suggested actions (the top one
+ * carrying a ready-to-send draft), the overall confidence, and — when present — the upcoming
+ * tour card. Ends on the "Completed" marker.
+ */
+function ClientPulseReportView({ card }: { card: ClientPulseReportCard }) {
+  return (
+    <div style={{ ...CHAT_CARD, padding: '16px 16px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>👥 {card.clientName}</div>
+          <Tag dataColor={CONFIDENCE_COLOR[card.confidenceLevel]}>
+            Confidence: {card.confidenceLevel} ({card.confidencePercent}%)
+          </Tag>
+        </div>
+        <div style={{ fontSize: 12.5, color: C.muted }}>
+          Client since: {card.clientSince} ({card.clientSinceDays} days)
+        </div>
+      </div>
+
+      {card.profile.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <ReportHeading>👤 CLIENT PROFILE</ReportHeading>
+          {card.profile.map((b, i) => (
+            <NoteLine key={i} text={b} marker={<Bullet />} />
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ fontSize: 12.5, color: C.dark, lineHeight: 1.55, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span>📊 Last active: {card.lastActive} ({card.lastActiveAgo})</span>
+          <Tag dataColor={INTENT_COLOR[card.intentLevel]}>
+            {card.intentEmoji} {card.intentLevel} intent
+          </Tag>
+        </div>
+        <div style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.55 }}>{card.intentNote}</div>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.dark, lineHeight: 1.5 }}>{card.headline}</div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <ReportHeading>📊 ACTIVITY SUMMARY</ReportHeading>
+        <ActivityTable rows={card.activity} />
+        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.55 }}>{card.activityNote}</div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <ReportHeading>👤 MEMBERS &amp; SAVED SEARCHES</ReportHeading>
+        <div style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.55 }}>
+          <strong style={{ color: C.dark }}>Members:</strong> {card.members.join(', ')} — {card.membersNote}
+        </div>
+        {card.savedSearches.map((s, i) => (
+          <NoteLine key={i} lead={`“${s.name}” — `} text={s.criteria} marker={<Bullet />} />
+        ))}
+        <div style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.55 }}>{card.searchNote}</div>
+      </div>
+
+      {card.interests.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <ReportHeading>🔍 TOP INTERESTS</ReportHeading>
+          <div style={{ fontSize: 12.5, color: C.muted }}>{card.interestsIntro}</div>
+          {card.interests.map((it, i) => (
+            <InterestRow key={i} item={it} />
+          ))}
+          <div style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.55 }}>
+            <strong style={{ color: C.dark }}>Pattern:</strong> {card.pattern}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <ReportHeading>💡 SUGGESTED ACTIONS</ReportHeading>
+        {card.suggestedActions.map((a, i) => (
+          <SuggestedActionRow key={i} action={a} />
+        ))}
+      </div>
+
+      {card.tour && <CatchUpTourCard tour={card.tour} />}
+
+      <CompletedMarker />
     </div>
   )
 }
@@ -1623,6 +2451,12 @@ export function AssistantPanel({
 
                 {msgs.map((m, i) => {
                   const user = m.role === 'user'
+                  // A selection prompt is spent once it's no longer the last message: the
+                  // user has answered it, so it drops out of history rather than inviting a
+                  // second, flow-breaking choice.
+                  const spentPicker =
+                    m.card != null && PICKER_KINDS.has(m.card.kind) && i !== msgs.length - 1
+                  if (spentPicker && !m.text) return null
                   return (
                     <div
                       key={i}
@@ -1676,10 +2510,10 @@ export function AssistantPanel({
                         />
                       )}
                       {m.card?.kind === 'tour' && <TourCardView card={m.card} />}
-                      {m.card?.kind === 'clientPicker' && (
+                      {m.card?.kind === 'clientPicker' && !spentPicker && (
                         <ClientPickerCardView card={m.card} onPick={(prompt) => onSend(prompt)} />
                       )}
-                      {m.card?.kind === 'selectMethod' && (
+                      {m.card?.kind === 'selectMethod' && !spentPicker && (
                         <SelectMethodCardView card={m.card} onPick={(prompt) => onSend(prompt)} />
                       )}
                       {m.card?.kind === 'toolTrace' && <ToolTraceView card={m.card} />}
@@ -1714,9 +2548,53 @@ export function AssistantPanel({
                         />
                       )}
                       {m.card?.kind === 'toolRun' && <ToolRunView card={m.card} />}
-                      {m.card?.kind === 'toolGroup' && <ToolGroupView card={m.card} />}
-                      {m.card?.kind === 'addClientMessage' && (
-                        <AddClientMessageView card={m.card} onSend={onSend} />
+                      {m.card?.kind === 'toolGroup' &&
+                        (m.card.revealMs != null ? (
+                          <Delayed ms={m.card.revealMs}>
+                            <ToolGroupView card={m.card} />
+                          </Delayed>
+                        ) : (
+                          <ToolGroupView card={m.card} />
+                        ))}
+                      {m.card?.kind === 'addClientMessage' &&
+                        (m.card.revealMs != null ? (
+                          <Delayed ms={m.card.revealMs}>
+                            <AddClientMessageView card={m.card} onSend={onSend} />
+                          </Delayed>
+                        ) : (
+                          <AddClientMessageView card={m.card} onSend={onSend} />
+                        ))}
+                      {m.card?.kind === 'catchUpTools' &&
+                        (m.card.revealMs != null ? (
+                          <Delayed ms={m.card.revealMs}>
+                            <CatchUpToolsView card={m.card} />
+                          </Delayed>
+                        ) : (
+                          <CatchUpToolsView card={m.card} />
+                        ))}
+                      {m.card?.kind === 'catchUpBriefing' && (
+                        <Delayed ms={CATCH_UP_REVEAL_MS}>
+                          <CatchUpBriefingView card={m.card} />
+                        </Delayed>
+                      )}
+                      {m.card?.kind === 'searchOptPicker' && !spentPicker && (
+                        <SearchOptPickerView card={m.card} onPick={(prompt) => onSend(prompt)} />
+                      )}
+                      {m.card?.kind === 'searchOptClient' && <SearchOptClientView card={m.card} />}
+                      {m.card?.kind === 'searchAnalysis' && (
+                        <Delayed ms={m.card.revealMs ?? 0}>
+                          <SearchAnalysisView card={m.card} />
+                        </Delayed>
+                      )}
+                      {m.card?.kind === 'clientPulseReport' && (
+                        <Delayed ms={m.card.revealMs ?? 0}>
+                          <ClientPulseReportView card={m.card} />
+                        </Delayed>
+                      )}
+                      {m.card?.kind === 'actionPicker' && !spentPicker && (
+                        <Delayed ms={m.card.revealMs ?? CATCH_UP_REVEAL_MS + 200}>
+                          <ActionPickerView card={m.card} onSend={onSend} />
+                        </Delayed>
                       )}
                     </div>
                   )
