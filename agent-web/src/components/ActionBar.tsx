@@ -26,6 +26,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties, ReactNode } from 'react'
 import { Menu, type MenuItem } from './Menu'
 import { BRAND_GRADIENT_PILL, C, EASE } from '../theme'
+import { useIsTouch } from '../useMobile'
 
 /** `brand` is the primary action; `dark` reads as an engaged toggle, `light` as an idle one. */
 export type ActionTone = 'brand' | 'dark' | 'light'
@@ -163,6 +164,9 @@ export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionB
   const [collapsedCount, setCollapsedCount] = useState(0)
   const [foldedCount, setFoldedCount] = useState(0)
   const [tip, setTip] = useState<{ label: string; left: number; top: number } | null>(null)
+  // A touch device can't hover, and a tap would leave the tooltip stuck on screen with no
+  // pointer-leave to dismiss it — so the collapsed action's tooltip is disabled there.
+  const touch = useIsTouch()
 
   /**
    * Measured off the mirror, which always carries every action fully labelled — so the widths
@@ -313,7 +317,7 @@ export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionB
             key={item.id}
             item={item}
             collapsed={i + foldedCount < collapsedCount}
-            onTip={onTip}
+            onTip={touch ? undefined : onTip}
           />
         ))}
       </div>
@@ -345,6 +349,7 @@ export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionB
 
       <div
         aria-hidden
+        data-testid="actionbar-tooltip"
         style={{
           position: 'fixed',
           left: tip?.left ?? 0,

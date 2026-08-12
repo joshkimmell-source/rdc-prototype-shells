@@ -72,6 +72,51 @@ test.describe('React ActionBar (Clients, ?ab=b)', () => {
 })
 
 /**
+ * A minimized (icon-only) action has no visible label, so its tooltip is the only thing that
+ * names it — on a pointer device. A touch interface can't hover, and a tap would leave the
+ * tooltip stuck on screen with no pointer-leave to dismiss it, so it is suppressed there.
+ * `1300px` is a width where the leftmost Clients actions have collapsed to circles but not
+ * folded into the menu.
+ */
+test.describe('React ActionBar tooltip on minimized actions', () => {
+  const url = '/?ab=b&view=clients'
+  const COLLAPSE_WIDTH = 1300
+  const tooltip = (page: Page) => page.getByTestId('actionbar-tooltip')
+
+  test('shows the tooltip when a collapsed icon-only action is hovered (pointer)', async ({ page }) => {
+    await page.setViewportSize({ width: COLLAPSE_WIDTH, height: 800 })
+    await page.goto(url)
+
+    const circle = page.getByRole('button', { name: 'Agent notifications' })
+    await expect(circle).toBeVisible()
+    // It is a minimized circle: its label span has been dropped from the DOM.
+    await expect(circle.getByText('Agent notifications')).toHaveCount(0)
+
+    // Idle, the tooltip is empty; hovering the circle names it.
+    await expect(tooltip(page)).toHaveText('')
+    await circle.hover()
+    await expect(tooltip(page)).toHaveText('Agent notifications')
+  })
+
+  test.describe('touch interface', () => {
+    test.use({ hasTouch: true, isMobile: true })
+
+    test('suppresses the tooltip on a touch interface', async ({ page }) => {
+      await page.setViewportSize({ width: COLLAPSE_WIDTH, height: 800 })
+      await page.goto(url)
+
+      const circle = page.getByRole('button', { name: 'Agent notifications' })
+      await expect(circle).toBeVisible()
+
+      // Neither a synthesized hover nor a tap (which focuses the button) summons it.
+      await circle.hover()
+      await circle.tap()
+      await expect(tooltip(page)).toHaveText('')
+    })
+  })
+})
+
+/**
  * `folds` is the leftmost action, which degrades first: its label drops as the row runs short,
  * and it is the first to fold into the menu. The map bar sits after a greedy `flex:1` spacer
  * and carries only two or three actions, so — like the React bar with five — it keeps fitting a

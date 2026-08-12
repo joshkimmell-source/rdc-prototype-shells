@@ -15,6 +15,22 @@ type HoverProps<T> = T & {
   children?: ReactNode
 }
 
+/**
+ * React applies inline styles by diffing individual properties. When a base style sets the
+ * `border` *shorthand* (e.g. `1px solid <hair>`) and a hover/focus overlay sets the
+ * `borderColor` *longhand*, React clears `borderColor` on the way out but leaves the
+ * unchanged shorthand in place — so `border-color` reverts to its CSS initial value,
+ * `currentColor` (black), instead of the base colour. Expanding the base shorthand into
+ * longhands up front means the overlay's `borderColor` reverts cleanly to the base colour.
+ */
+function expandBorderShorthand(style?: CSSProperties): CSSProperties | undefined {
+  if (!style || typeof style.border !== 'string') return style
+  const m = /^(\S+)\s+(\S+)\s+(.+)$/.exec(style.border.trim())
+  if (!m) return style
+  const { border: _border, ...rest } = style
+  return { borderWidth: m[1], borderStyle: m[2], borderColor: m[3], ...rest }
+}
+
 export function HoverButton({
   style,
   hoverStyle,
@@ -49,9 +65,9 @@ export function HoverButton({
         onBlur?.(e)
       }}
       style={{
-        ...style,
-        ...(hover ? hoverStyle : null),
-        ...(focus ? focusStyle : null),
+        ...expandBorderShorthand(style),
+        ...(hover ? expandBorderShorthand(hoverStyle) : null),
+        ...(focus ? expandBorderShorthand(focusStyle) : null),
       }}
     >
       {children}
@@ -79,7 +95,7 @@ export function HoverDiv({
         setHover(false)
         onMouseLeave?.(e)
       }}
-      style={{ ...style, ...(hover ? hoverStyle : null) }}
+      style={{ ...expandBorderShorthand(style), ...(hover ? expandBorderShorthand(hoverStyle) : null) }}
     >
       {children}
     </div>

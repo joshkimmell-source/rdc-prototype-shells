@@ -33,3 +33,28 @@ export function useIsMobile() {
 
   return isMobile
 }
+
+/**
+ * A touch interface — one whose primary pointer can't hover. Hover-triggered affordances
+ * (like the icon-only tooltip) can't be dismissed by "moving away" here, and a tap fires the
+ * enter/focus handlers that would otherwise leave them stuck on screen.
+ */
+export const TOUCH_QUERY = '(hover: none)'
+
+export function isTouchInterface() {
+  return typeof window !== 'undefined' && window.matchMedia(TOUCH_QUERY).matches
+}
+
+export function useIsTouch() {
+  const [isTouch, setIsTouch] = useState(isTouchInterface)
+
+  useEffect(() => {
+    const mq = window.matchMedia(TOUCH_QUERY)
+    const onChange = () => setIsTouch(mq.matches)
+    onChange()
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  return isTouch
+}
