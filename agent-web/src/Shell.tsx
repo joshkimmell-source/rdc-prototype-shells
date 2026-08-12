@@ -30,7 +30,7 @@ import { SearchScreen } from './screens/SearchScreen'
 import { ToursScreen } from './screens/ToursScreen'
 import { ClientsScreen, type ClientsView } from './screens/ClientsScreen'
 import { AssistantPanel, type Msg } from './panels/AssistantPanel'
-import { runAssistant } from './assistant'
+import { runAddClient, runAssistant, triggersAddClient, type AddClientFlow } from './assistant'
 import {
   AGENT_FEED_ID,
   BUYERS,
@@ -189,6 +189,12 @@ export function Shell() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [threadQ, setThreadQ] = useState('')
+  // The add-client onboarding flow carries state across turns (collected members, parsed
+  // criteria, location) since the responder is otherwise stateless. Null when not onboarding.
+  const [addFlow, setAddFlow] = useState<AddClientFlow | null>(null)
+  // The active conversation's thread title — set by the add-client flow ("Add Client" →
+  // "Onboarding {Full Name} as New Client"). Null when there's no titled conversation.
+  const [threadTitle, setThreadTitle] = useState<string | null>(null)
 
   const chatRef = useRef<HTMLDivElement>(null)
   const lastCount = useRef(-1)
@@ -250,6 +256,23 @@ export function Shell() {
     setInput('')
     setBusy(true)
     setPushContent(true)
+
+    // The add-client flow takes precedence while it's underway, or when a message triggers a
+    // fresh onboarding ("Add a new client" / "Add another client"). Everything else — the tour
+    // flow, client cards, market context — falls to the general responder.
+    if (addFlow || triggersAddClient(t)) {
+      const { result, flow } = await runAddClient(addFlow, t)
+      setMsgs((prev) => [
+        ...prev,
+        ...(result.preReply ? [{ role: 'ai', text: result.preReply } as Msg] : []),
+        ...result.cards.map((card): Msg => ({ role: 'ai', text: '', card })),
+        ...(result.reply ? [{ role: 'ai', text: result.reply } as Msg] : []),
+      ])
+      setBusy(false)
+      setAddFlow(flow)
+      if (result.threadTitle !== undefined) setThreadTitle(result.threadTitle)
+      return
+    }
 
     const result = await runAssistant(t, clients)
 
@@ -341,7 +364,13 @@ export function Shell() {
   const pastTourCount = visibleTours.filter((t) => !t.upcoming).length
 
   const threadQuery = threadQ.trim().toLowerCase()
-  const threadItems = THREADS.filter((t) => t.title.toLowerCase().includes(threadQuery))
+  const baseThreads = THREADS.filter((t) => t.title.toLowerCase().includes(threadQuery))
+  // The active conversation leads the list once it's titled (the add-client flow sets this),
+  // so its running title — "Add Client" → "Onboarding {Full Name} as New Client" — is visible.
+  const threadItems =
+    threadTitle && threadTitle.toLowerCase().includes(threadQuery)
+      ? [{ title: threadTitle, when: 'Just now' }, ...baseThreads]
+      : baseThreads
 
   const subnavVariant = isClients ? 'clients' : isTours ? 'tours' : null
   // On mobile the panel is a full-screen overlay, so the width bookkeeping collapses to
@@ -672,6 +701,8 @@ export function Shell() {
           onNewChat={() => {
             setMsgs([])
             setPushOver(false)
+            setAddFlow(null)
+            setThreadTitle(null)
           }}
         />
       </div>
