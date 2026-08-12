@@ -234,6 +234,45 @@ export interface DateTimeCard {
   times: string[]
 }
 
+// ─── Add-client onboarding flow ────────────────────────────────────────────────
+
+/**
+ * A single async tool call. The view opens on `processing` (with a loading indicator),
+ * then resolves to the checkmarked `resolved` line — the spec's "process → resolve".
+ */
+export interface ToolRunCard {
+  kind: 'toolRun'
+  processing: string
+  /** The resolved status line, already prefixed with its ✓. */
+  resolved: string
+}
+
+/**
+ * A sequence of tool calls, shown while running as a single processing label, then
+ * resolving to a collapsible "Used N tools" summary that expands to each ✓ line.
+ */
+export interface ToolGroupCard {
+  kind: 'toolGroup'
+  processing: string
+  /** Each line already prefixed with its ✓. */
+  tools: string[]
+}
+
+/**
+ * One assistant turn's substantive message in the add-client flow: the prose (rendered
+ * verbatim from the spec, newlines preserved), an optional "Completed" turn marker, and
+ * optional interactive footer — a confirm button (State 4) or next-step chips (State 5).
+ */
+export interface AddClientMessageCard {
+  kind: 'addClientMessage'
+  body: string
+  completed: boolean
+  /** State 4 — the "Create this search" confirmation button and the prompt it sends. */
+  confirm?: { label: string; prompt: string }
+  /** State 5 — the "What next?" suggestion chips. */
+  options?: string[]
+}
+
 export type Card =
   | ClientCard
   | TourCard
@@ -247,6 +286,9 @@ export type Card =
   | OutreachCard
   | SummaryCard
   | UpcomingTourCard
+  | ToolRunCard
+  | ToolGroupCard
+  | AddClientMessageCard
 
 export interface ScheduledTour {
   client: Client
@@ -271,6 +313,11 @@ export interface AssistantResult {
   preReply?: string
   /** Set when the responder scheduled a tour, so the shell can update client + tour state. */
   scheduled?: ScheduledTour
+  /**
+   * Set by the add-client flow to update the conversation's thread title — "Add Client" on
+   * entry, then "Onboarding {Full Name} as New Client" once the group is created.
+   */
+  threadTitle?: string
 }
 
 export const SYSTEM_PROMPT_INTRO =
@@ -1187,8 +1234,399 @@ function respondLocally(text: string, clients: Client[]): AssistantResult {
   }
 }
 
+// ─── Add-client onboarding flow ────────────────────────────────────────────────
+
+export type AddClientState = 'people' | 'prefs' | 'location' | 'confirm'
+
+export interface AddClientMember {
+  first: string
+  last: string
+  email: string
+  phone: string
+}
+
+/** Free-text preferences parsed into the structured filters the search is built from. */
+export interface AddClientCriteria {
+  beds?: number
+  baths?: number
+  /** Canonical property types, e.g. `['Duplex', 'Condo']`. */
+  propertyTypes: string[]
+  priceCeiling?: number
+  /** e.g. `['Pool']`. */
+  amenities: string[]
+  /** Timeline and soft wants stored as context, not hard filters. */
+  contextNotes: string[]
+}
+
+export interface AddClientData {
+  members: AddClientMember[]
+  groupId?: string
+  criteria?: AddClientCriteria
+  locations?: string[]
+  transaction?: 'sale' | 'rental'
+}
+
+export interface AddClientFlow {
+  state: AddClientState
+  data: AddClientData
+}
+
+/** Matches the flow trigger — the "Add Client" capability, or "add another client". */
+export function triggersAddClient(text: string): boolean {
+  return /\badd\s+(a\s+|an\s+)?(new\s+|another\s+)?client\b/i.test(text)
+}
+
+const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+
+/** Parse one "First Last, email, phone" entry into a member. Returns null with no name. */
+function parseMember(entry: string): AddClientMember | null {
+  const email = entry.match(/[^\s,;]+@[^\s,;]+\.[^\s,;]+/)?.[0] ?? ''
+  const phone = entry.match(/\+?\d[\d\-().\s]{6,}\d/)?.[0]?.trim() ?? ''
+  const name = entry
+    .replace(email, '')
+    .replace(phone, '')
+    .replace(/[,;]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!name) return null
+  const parts = name.split(' ')
+  return {
+    first: titleCase(parts[0]),
+    last: parts.slice(1).map(titleCase).join(' '),
+    email,
+    phone,
+  }
+}
+
+/** Split the people message into per-person entries, then parse each. */
+function parseMembers(text: string): AddClientMember[] {
+  return text
+    .split(/\n|;/)
+    .map((line) => parseMember(line))
+    .filter((m): m is AddClientMember => m !== null)
+}
+
+const fullName = (m: AddClientMember) => [m.first, m.last].filter(Boolean).join(' ')
+
+/** Free-text preferences → structured criteria. Timeline / soft wants become notes. */
+function parseCriteria(text: string): AddClientCriteria {
+  const t = text.toLowerCase()
+  const beds = t.match(/(\d+)\s*(?:br\b|beds?\b|bedrooms?\b)/)?.[1]
+  const baths = t.match(/(\d+(?:\.\d+)?)\s*(?:ba\b|baths?\b|b\b)/)?.[1]
+
+  const propertyTypes: string[] = []
+  const typeMap: Array<[RegExp, string]> = [
+    [/\bcondo(minium)?s?\b/, 'Condo'],
+    [/\bduplex(es)?\b/, 'Duplex'],
+    [/\btown\s?(house|home)s?\b/, 'Townhouse'],
+    [/\bsingle[- ]family\b|\bhouses?\b/, 'House'],
+    [/\bapartments?\b/, 'Apartment'],
+  ]
+  for (const [re, label] of typeMap) if (re.test(t) && !propertyTypes.includes(label)) propertyTypes.push(label)
+
+  const kMatch = t.match(/(\d[\d,.]*)\s*k\b/)
+  const dollarMatch = t.match(/\$\s*([\d,]+)/)
+  const priceCeiling = kMatch
+    ? Math.round(parseFloat(kMatch[1].replace(/,/g, '')) * 1000)
+    : dollarMatch
+      ? parseInt(dollarMatch[1].replace(/,/g, ''), 10)
+      : undefined
+
+  const amenities: string[] = []
+  if (/\bpool\b/.test(t)) amenities.push('Pool')
+  if (/\bgarage\b/.test(t)) amenities.push('Garage')
+
+  const contextNotes: string[] = []
+  const timeline = text.match(/(?:move[- ]?in|close|ready)[^.,;]*?(?:within|in)\s+\d+\s+(?:months?|weeks?|days?)/i)
+  if (timeline) contextNotes.push(`Move-in ${timeline[0].replace(/^move[- ]?in\s*/i, '').trim()}`)
+  else {
+    const within = text.match(/within\s+\d+\s+(?:months?|weeks?|days?)/i)
+    if (within) contextNotes.push(`Move-in ${within[0]}`)
+  }
+  if (/\bwalk(ing)?\s+distance\b/.test(t) && /\bschool\b/.test(t))
+    contextNotes.push('walking distance from school')
+
+  return {
+    beds: beds ? Number(beds) : undefined,
+    baths: baths ? Number(baths) : undefined,
+    propertyTypes,
+    priceCeiling,
+    amenities,
+    contextNotes,
+  }
+}
+
+/** Parse the location + sale/rental message. */
+function parseLocation(text: string): { locations: string[]; transaction: 'sale' | 'rental' } {
+  const transaction: 'sale' | 'rental' = /\brent(al|ing)?\b|\blease\b|\bfor rent\b/i.test(text)
+    ? 'rental'
+    : 'sale'
+  const locations = text
+    .replace(/\b(for\s+)?(sale|rent(al|ing)?|lease|buy|purchase)\b/gi, '')
+    .split(/,|;|\band\b|\n|\//)
+    .map((s) => s.replace(/[.]/g, '').trim())
+    .filter((s) => s.length > 0)
+  return { locations, transaction }
+}
+
+/** `600000` → `"$600,000"`; `600000` → `"$600K"` in the compact form. */
+const priceFull = (n: number) => `$${n.toLocaleString('en-US')}`
+const priceCompact = (n: number) => (n % 1000 === 0 ? `$${n / 1000}K` : priceFull(n))
+
+const bedsBaths = (c: AddClientCriteria) => {
+  const parts: string[] = []
+  if (c.beds != null) parts.push(`${c.beds} bedroom${c.beds === 1 ? '' : 's'}`)
+  if (c.baths != null) parts.push(`${c.baths} bathroom${c.baths === 1 ? '' : 's'}`)
+  return parts.join(', ')
+}
+
+/** Property types joined for prose — `"Duplex or condo"`. */
+const typesProse = (types: string[]) =>
+  types.map((t, i) => (i === 0 ? t : t.toLowerCase())).join(' or ')
+
+/** Property types formatted for the finalized search — `"Condominium, Duplex"`. */
+const typesFormal = (types: string[]) =>
+  types
+    .map((t) => (t === 'Condo' ? 'Condominium' : t))
+    .sort((a, b) => a.localeCompare(b))
+    .join(', ')
+
+const listLocations = (locs: string[]) => locs.join(' & ')
+
+/**
+ * The add-client state machine. Given the current flow (or null to start) and the user's
+ * message, returns the assistant result and the next flow — `null` once the flow completes,
+ * so a subsequent trigger starts a fresh onboarding.
+ */
+export function stepAddClient(
+  flow: AddClientFlow | null,
+  text: string,
+): { result: AssistantResult; flow: AddClientFlow | null } {
+  // Start (no active flow) — State 1, collect the people.
+  if (!flow) {
+    return {
+      result: {
+        cards: [],
+        threadTitle: 'Add Client',
+        reply:
+          `Let's get your new client set up!\n` +
+          `Single buyer or co-buyers (couple, family)?\n\n` +
+          `Please provide for each person:\n` +
+          `- First name, last name, email\n` +
+          `- Phone (recommended)\n\n` +
+          `List each person if co-buyers.`,
+      },
+      flow: { state: 'people', data: { members: [] } },
+    }
+  }
+
+  const data = flow.data
+
+  // State 2 — the people were provided: create the group, ask about the search.
+  if (flow.state === 'people') {
+    const members = parseMembers(text)
+    if (members.length === 0) {
+      return {
+        result: {
+          cards: [],
+          reply:
+            `I didn't catch a name in there. Give me at least a name and email — for example: ` +
+            `"Dave Firenze, dave@email.com, 405-555-6594".`,
+        },
+        flow,
+      }
+    }
+    const first = members[0].first
+    const titleName = members.map(fullName).join(' & ')
+    const roster = members
+      .map((m) => `- ${fullName(m)} (${[m.email, m.phone].filter(Boolean).join(', ')})`)
+      .join('\n')
+    return {
+      result: {
+        preReply: `Got it! Let me create the group for ${first}.`,
+        threadTitle: `Onboarding ${titleName} as New Client`,
+        cards: [
+          { kind: 'toolRun', processing: 'Churning the data…', resolved: '✓ Created a new group' },
+          {
+            kind: 'addClientMessage',
+            completed: true,
+            body:
+              `Client group ready:\n${roster}\n\n` +
+              `Tell me about them so I can help set up their search:\n` +
+              `- What are they looking for?\n` +
+              `- Timeline, budget, must-haves?\n` +
+              `- Any context that would help?\n\n` +
+              `(This is private to you — helps me suggest the right search criteria. You can also skip this.)`,
+          },
+        ],
+        reply: '',
+      },
+      flow: {
+        state: 'prefs',
+        data: { ...data, members, groupId: `grp_${first.toLowerCase()}` },
+      },
+    }
+  }
+
+  // State 3 — the preferences were provided: save context, echo parsed criteria, ask location.
+  if (flow.state === 'prefs') {
+    const first = data.members[0]?.first ?? 'them'
+    const criteria = parseCriteria(text)
+    const bullets: string[] = []
+    const bb = bedsBaths(criteria)
+    if (bb) bullets.push(bb)
+    if (criteria.propertyTypes.length) bullets.push(typesProse(criteria.propertyTypes))
+    if (criteria.priceCeiling != null) bullets.push(`Up to ${priceFull(criteria.priceCeiling)}`)
+    for (const a of criteria.amenities) bullets.push(a === 'Pool' ? 'Pool access' : a)
+    bullets.push('Status: Active + Active Under Contract + Coming Soon (default)')
+    if (criteria.propertyTypes.length)
+      bullets.push(
+        `Property type: ${criteria.propertyTypes.join(', ')} (default is all — I'll narrow to match)`,
+      )
+    return {
+      result: {
+        preReply: `Thanks! Let me save that context for ${first}.`,
+        cards: [
+          {
+            kind: 'toolRun',
+            processing: 'Saving group information…',
+            resolved: '✓ Saved group information',
+          },
+          {
+            kind: 'addClientMessage',
+            completed: true,
+            body:
+              `Context saved. Based on what you told me, I can set up a search for:\n` +
+              bullets.map((b) => `- ${b}`).join('\n') +
+              `\n\nI'll need a location to create the search — what city, zip, or neighborhood is ${first} looking in?\n\n` +
+              `Also, is this a sale or rental?`,
+          },
+        ],
+        reply: '',
+      },
+      flow: { state: 'location', data: { ...data, criteria } },
+    }
+  }
+
+  // State 4 — location + sale/rental: run the five tools, present the finalized search.
+  if (flow.state === 'location') {
+    const { locations, transaction } = parseLocation(text)
+    const criteria = data.criteria ?? { propertyTypes: [], amenities: [], contextNotes: [] }
+    const locLabel = listLocations(locations)
+    const bullets: string[] = []
+    const bb = bedsBaths(criteria)
+    if (bb) bullets.push(bb)
+    if (locations.length) bullets.push(`${locLabel}, CA`)
+    if (criteria.priceCeiling != null) bullets.push(`Up to ${priceFull(criteria.priceCeiling)}`)
+    if (criteria.propertyTypes.length) bullets.push(`Property type: ${typesFormal(criteria.propertyTypes)}`)
+    for (const a of criteria.amenities) bullets.push(`Association amenity: ${a}`)
+    bullets.push('Status: Active + Active Under Contract + Coming Soon (default)')
+    return {
+      result: {
+        preReply: `Got it — ${transaction} in ${locLabel}. Let me set up that search now.`,
+        cards: [
+          {
+            kind: 'toolGroup',
+            processing: 'Crunching numbers…',
+            tools: [
+              '✓ Ran get_filter_details',
+              '✓ Ran search_locations',
+              '✓ Ran get_available_filters',
+              '✓ Ran search_locations',
+              '✓ Ran get_searchable_markets',
+            ],
+          },
+          {
+            kind: 'addClientMessage',
+            completed: true,
+            confirm: { label: 'Create this search', prompt: 'create the search' },
+            body:
+              `I have everything I need. Here's what I'll create:\n` +
+              bullets.map((b) => `- ${b}`).join('\n') +
+              `\n\nWant me to create this search, or any changes?`,
+          },
+        ],
+        reply: '',
+      },
+      flow: { state: 'confirm', data: { ...data, locations, transaction } },
+    }
+  }
+
+  // State 5 — confirm: create the saved search and summarise. Anything not clearly a
+  // confirmation is treated as a change request, holding at the review step.
+  if (flow.state === 'confirm') {
+    if (/\b(no|don'?t|change|adjust|edit|wait|hold)\b/i.test(text) && !/\bcreate\b/i.test(text)) {
+      return {
+        result: { cards: [], reply: 'Sure — tell me what to change and I’ll update the search.' },
+        flow,
+      }
+    }
+    const members = data.members
+    const criteria = data.criteria ?? { propertyTypes: [], amenities: [], contextNotes: [] }
+    const locLabel = listLocations(data.locations ?? [])
+    const titleName = members.map(fullName).join(' & ')
+    const emails = members.map((m) => m.email).filter(Boolean).join(', ')
+
+    const contextBits: string[] = [...criteria.contextNotes]
+    if (criteria.priceCeiling != null) contextBits.splice(1, 0, `budget up to ${priceCompact(criteria.priceCeiling)}`)
+    for (const a of criteria.amenities) contextBits.push(a === 'Pool' ? 'pool access' : a.toLowerCase())
+    const contextLine = contextBits.join(', ')
+
+    const searchBits: string[] = []
+    if (criteria.beds != null || criteria.baths != null)
+      searchBits.push(`${criteria.beds ?? '—'}BR/${criteria.baths ?? '—'}BA`)
+    if (criteria.propertyTypes.length) searchBits.push(typesProse(criteria.propertyTypes))
+    const searchDesc =
+      `${searchBits.join(' ')} in ${locLabel}` +
+      (criteria.priceCeiling != null ? `, under ${priceCompact(criteria.priceCeiling)}` : '') +
+      (criteria.amenities.includes('Pool') ? ', pool amenity' : '')
+
+    return {
+      result: {
+        cards: [
+          {
+            kind: 'toolRun',
+            processing: 'Putting it together…',
+            resolved: '✓ Ran create_saved_search',
+          },
+          {
+            kind: 'addClientMessage',
+            completed: true,
+            options: ['Adjust the search criteria', 'Add another client', 'Something else'],
+            body:
+              `All set! Here's the summary:\n\n` +
+              `✓ Client group created: ${titleName} (view group)\n` +
+              `✓ Invitation sent: ${members.length} client${members.length === 1 ? '' : 's'} invited (${emails})\n` +
+              `✓ Context saved: ${contextLine}\n` +
+              `✓ Search created: ${searchDesc}\n\n` +
+              `They're ready to receive property updates!\n\n` +
+              `What would you like to do next?`,
+          },
+        ],
+        reply: '',
+      },
+      flow: null,
+    }
+  }
+
+  // Unreachable, but keeps the return type total.
+  return { result: { cards: [], reply: '' }, flow }
+}
+
 /** Simulated latency so the three-dot busy bubble is visible, as in the DC prototype. */
 const THINKING_MS = 650
+
+/**
+ * Run one add-client turn behind the same simulated latency the tour flow uses, so the
+ * busy bubble shows before the assistant's cards land.
+ */
+export async function runAddClient(
+  flow: AddClientFlow | null,
+  text: string,
+): Promise<{ result: AssistantResult; flow: AddClientFlow | null }> {
+  await new Promise((r) => setTimeout(r, THINKING_MS))
+  return stepAddClient(flow, text)
+}
 
 export async function runAssistant(text: string, clients: Client[]): Promise<AssistantResult> {
   if (typeof window !== 'undefined' && window.claude?.complete) {

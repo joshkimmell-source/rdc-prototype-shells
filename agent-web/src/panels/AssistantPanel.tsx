@@ -3,8 +3,18 @@
  * and the sliding threads overlay. Slides in from the right of `main` and can expand to
  * fill everything but the nav rail.
  */
-import { ActionCard, Tag } from '@rdc-npm/rdc-ui-v4'
-import { useState } from 'react'
+import {
+  ActionCard,
+  Tag,
+  IconUserAddToProfile,
+  IconAgent,
+  IconPerformance,
+  IconCircleCheck as HavenCircleCheck,
+  IconComment,
+  IconAiSearch,
+  IconCalendarTime,
+} from '@rdc-npm/rdc-ui-v4'
+import { useEffect, useState } from 'react'
 import type { RefObject } from 'react'
 import { C, EASE } from '../theme'
 import { CircleButton, HoverButton, Initials } from '../components/primitives'
@@ -12,8 +22,6 @@ import { ResizeHandle, type ResizeHandleProps } from '../components/ResizeHandle
 import { ThreadsList } from './ThreadsList'
 import {
   IconCalendarClock,
-  IconCatchUp,
-  IconChart,
   IconCircleCheck,
   IconClose,
   IconCollapsePanel,
@@ -21,15 +29,13 @@ import {
   IconExpandPanel,
   IconHamburger,
   IconHomeFilled,
-  IconNote,
-  IconSearchSpark,
   IconSend,
   IconSpark,
-  IconUserPlus,
 } from '../icons'
 import type { Thread } from '../data'
 import type { ComponentType } from 'react'
 import type {
+  AddClientMessageCard,
   Card,
   ClientCard,
   ClientPickerCard,
@@ -39,6 +45,8 @@ import type {
   SelectMethodCard,
   SummaryCard,
   TimelineCard,
+  ToolGroupCard,
+  ToolRunCard,
   ToolTraceCard,
   TourCard,
   TourListingsCard,
@@ -354,6 +362,202 @@ function ToolTraceView({ card }: { card: ToolTraceCard }) {
       )}
       {line(card.lines[1], 'l1')}
       {line(card.found, 'found')}
+    </div>
+  )
+}
+
+/** How long a tool "runs" before it resolves to its checkmarked line. */
+const TOOL_RUN_MS = 750
+
+/** The "Completed" turn marker — the brand-coloured ✓ line the design ends each turn with. */
+function CompletedMarker() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        color: C.brand,
+        fontWeight: 700,
+        fontSize: 13,
+      }}
+    >
+      <IconCircleCheck size={16} />
+      Completed
+    </div>
+  )
+}
+
+/** A trio of pulsing dots, inline — the "still working" indicator for a running tool. */
+function ProcessingDots() {
+  return (
+    <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+      {[0, 0.2, 0.4].map((delay) => (
+        <span
+          key={delay}
+          style={{
+            width: 5,
+            height: 5,
+            borderRadius: '50%',
+            background: C.muted,
+            animation: `raPulse 1s ease-in-out ${delay}s infinite`,
+          }}
+        />
+      ))}
+    </span>
+  )
+}
+
+/** A tool-trace line — gray text with the design's thin left rule. */
+function TraceLine({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        borderLeft: `2px solid ${C.border}`,
+        paddingLeft: 14,
+        color: C.muted,
+        fontSize: 13,
+        lineHeight: 1.55,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+/**
+ * A single tool call: opens on its processing label with pulsing dots, then resolves to the
+ * checkmarked status line after a beat — the spec's "process → resolve".
+ */
+function ToolRunView({ card }: { card: ToolRunCard }) {
+  const [done, setDone] = useState(false)
+  useEffect(() => {
+    const id = setTimeout(() => setDone(true), TOOL_RUN_MS)
+    return () => clearTimeout(id)
+  }, [])
+  return (
+    <div style={{ width: '100%' }}>
+      <TraceLine>
+        {done ? (
+          <span style={{ color: C.dark }}>{card.resolved}</span>
+        ) : (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {card.processing} <ProcessingDots />
+          </span>
+        )}
+      </TraceLine>
+    </div>
+  )
+}
+
+/**
+ * A sequence of tool calls: shows the processing label while running, then resolves to a
+ * collapsible "Used N tools" summary that expands to reveal each checkmarked line.
+ */
+function ToolGroupView({ card }: { card: ToolGroupCard }) {
+  const [done, setDone] = useState(false)
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    const id = setTimeout(() => setDone(true), TOOL_RUN_MS)
+    return () => clearTimeout(id)
+  }, [])
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+      {!done ? (
+        <TraceLine>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {card.processing} <ProcessingDots />
+          </span>
+        </TraceLine>
+      ) : (
+        <>
+          <TraceLine>
+            <button
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                border: 'none',
+                background: 'transparent',
+                padding: 0,
+                margin: 0,
+                cursor: 'pointer',
+                color: C.dark,
+                fontSize: 13,
+                fontFamily: 'inherit',
+              }}
+            >
+              Used {card.tools.length} tools
+              <span style={{ fontSize: 11, transform: open ? 'rotate(180deg)' : 'none' }}>⌄</span>
+            </button>
+          </TraceLine>
+          {open &&
+            card.tools.map((line, i) => (
+              <TraceLine key={i}>
+                <span style={{ color: C.dark }}>{line}</span>
+              </TraceLine>
+            ))}
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * One assistant turn's message in the add-client flow: the prose (verbatim, newlines
+ * preserved), a "Completed" marker, and an optional footer — a confirm button (State 4) or
+ * next-step suggestion chips (State 5).
+ */
+function AddClientMessageView({
+  card,
+  onSend,
+}: {
+  card: AddClientMessageCard
+  onSend: (text: string) => void
+}) {
+  return (
+    <div style={{ ...CHAT_CARD, padding: '16px 16px 18px' }}>
+      <div style={{ fontSize: 13.5, color: C.dark, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+        {card.body}
+      </div>
+
+      {card.confirm && (
+        <div style={{ ...CARD_FOOTER, paddingLeft: 0, paddingRight: 0, paddingBottom: 0, marginTop: 14 }}>
+          <DarkPill onClick={() => onSend(card.confirm!.prompt)}>
+            <IconCircleCheck size={14} />
+            <span>{card.confirm.label}</span>
+          </DarkPill>
+        </div>
+      )}
+
+      {card.options && card.options.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+          {card.options.map((opt) => (
+            <ActionCard
+              key={opt}
+              bordered
+              title={opt}
+              media={
+                <span style={{ display: 'flex', color: C.brand }}>
+                  <IconSpark size={16} />
+                </span>
+              }
+              mediaPosition="center"
+              iconIndicator="arrow"
+              linkProps={{ onClick: () => onSend(opt), 'aria-label': opt }}
+            />
+          ))}
+        </div>
+      )}
+
+      {card.completed && (
+        <div style={{ marginTop: 16 }}>
+          <CompletedMarker />
+        </div>
+      )}
     </div>
   )
 }
@@ -1033,43 +1237,43 @@ interface Capability {
 
 const CAPABILITIES: Capability[] = [
   {
-    icon: IconUserPlus,
+    icon: IconUserAddToProfile,
     title: 'Add Client',
     body: 'Guide agent through client onboarding with members, search, and notes',
     prompt: 'Add a new client',
   },
   {
-    icon: IconCatchUp,
+    icon: IconAgent,
     title: 'Catch Up',
     body: 'Daily briefing that analyzes unread messages, notifications, and recent activity to suggest prioritized actions',
     prompt: 'Catch me up',
   },
   {
-    icon: IconChart,
+    icon: IconPerformance,
     title: 'Client Pulse',
     body: 'Analyze a client to get deeper insights, engagement patterns, member activity, and actionable suggestions',
     prompt: 'Show me a client pulse',
   },
   {
-    icon: IconCircleCheck,
+    icon: HavenCircleCheck,
     title: 'Check Listing Status',
     body: 'Check if a client received a listing and analyze their interactions',
     prompt: 'Check listing status for a client',
   },
   {
-    icon: IconNote,
+    icon: IconComment,
     title: 'Manage Client Notes',
     body: 'Add, view, or modify persistent client notes (memory) for any client group',
     prompt: 'Manage client notes',
   },
   {
-    icon: IconSearchSpark,
+    icon: IconAiSearch,
     title: 'Search Optimization',
     body: 'Analyze client behavior to detect preferences and recommend search refinements',
     prompt: 'Optimize a client search',
   },
   {
-    icon: IconCalendarClock,
+    icon: IconCalendarTime,
     title: 'Coordinate Tour',
     body: 'Coordinate showings with timeline, instructions, and outreach messages',
     prompt: 'Create a tour',
@@ -1080,14 +1284,17 @@ function CapabilityCard({ cap, onClick }: { cap: Capability; onClick: () => void
   const Icon = cap.icon
   return (
     <ActionCard
+      // `ra-cap-card` flips ActionCard's inner media/body row to a column (see shell.css),
+      // so the icon stacks above the title.
+      className="ra-cap-card"
       title={cap.title}
       media={
         <span style={{ display: 'flex', color: C.dark }}>
-          <Icon size={22} />
+          {/* Haven icons size in multiples of 8px; 3 → 24px. */}
+          <Icon size={3} />
         </span>
       }
-      mediaPosition="center"
-      iconIndicator="arrow"
+      mediaPosition="start"
       linkProps={{ onClick, 'aria-label': cap.title }}
     >
       {cap.body}
@@ -1392,7 +1599,21 @@ export function AssistantPanel({
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+                    {/*
+                      A responsive grid of capability cards: columns that each hold at least
+                      288px, so the docked panel shows one card per row and a wide (expanded or
+                      fullscreen) panel fans out to two or more across. `auto-fit` collapses empty
+                      tracks so a lone card stretches full width, and `min(100%, …)` keeps a single
+                      column from overflowing a very narrow panel.
+                    */}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 288px), 1fr))',
+                        gap: 12,
+                        marginTop: 8,
+                      }}
+                    >
                       {CAPABILITIES.map((cap) => (
                         <CapabilityCard key={cap.title} cap={cap} onClick={() => onSend(cap.prompt)} />
                       ))}
@@ -1491,6 +1712,11 @@ export function AssistantPanel({
                             )
                           }
                         />
+                      )}
+                      {m.card?.kind === 'toolRun' && <ToolRunView card={m.card} />}
+                      {m.card?.kind === 'toolGroup' && <ToolGroupView card={m.card} />}
+                      {m.card?.kind === 'addClientMessage' && (
+                        <AddClientMessageView card={m.card} onSend={onSend} />
                       )}
                     </div>
                   )
