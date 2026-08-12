@@ -13,13 +13,16 @@ import { C } from '../theme'
 import { HoverButton } from './primitives'
 import { AccountAvatar } from './AccountAvatar'
 import { AGENT_FULL_NAME } from '../data'
-import { IconBell, IconCalendar, IconChat, IconClients, IconHome, IconSearch, IconSupport } from '../icons'
+import { IconBell, IconCalendar, IconChat, IconClients, IconSearch, IconSupport } from '../icons'
 
 export type NavId = 'home' | 'clients' | 'search' | 'tours'
 
-/** Shared with `NavBar`, so the two layouts cannot drift apart. */
+/**
+ * Shared with `NavBar`, so the two layouts cannot drift apart. Home is intentionally omitted
+ * from the nav — Clients is the landing screen — though `?view=home` still resolves for links
+ * that target the dashboard directly.
+ */
 export const NAV_ITEMS: Array<{ id: NavId; label: string; icon: ReactNode }> = [
-  { id: 'home', label: 'Home', icon: <IconHome /> },
   { id: 'clients', label: 'Clients', icon: <IconClients /> },
   { id: 'search', label: 'Search', icon: <IconSearch /> },
   { id: 'tours', label: 'Tours', icon: <IconCalendar /> },

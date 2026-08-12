@@ -2,15 +2,17 @@
  * The active top-level destination, mirrored into the URL as `?view=clients`.
  *
  * Makes a screen linkable and lets it survive a reload, which the shell otherwise lost on
- * every refresh. Home is the default and writes no parameter, so the bare URL stays clean.
+ * every refresh. Clients is the default and writes no parameter, so the bare URL stays clean;
+ * `home` stays a valid value so `?view=home` still opens the dashboard even though the nav
+ * no longer lists it.
  */
 import type { NavId } from './components/NavRail'
 
 const PARAM = 'view'
-const DEFAULT_VIEW: NavId = 'home'
+const DEFAULT_VIEW: NavId = 'clients'
 const VIEWS: string[] = ['home', 'clients', 'search', 'tours']
 
-/** Unknown and missing values both fall back to Home rather than rendering nothing. */
+/** Unknown and missing values both fall back to Clients rather than rendering nothing. */
 export function readNavParam(): NavId {
   const value = new URLSearchParams(window.location.search).get(PARAM)
   return value && VIEWS.includes(value) ? (value as NavId) : DEFAULT_VIEW

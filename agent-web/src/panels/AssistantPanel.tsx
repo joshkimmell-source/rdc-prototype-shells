@@ -22,6 +22,7 @@ import { ResizeHandle, type ResizeHandleProps } from '../components/ResizeHandle
 import { ThreadsList } from './ThreadsList'
 import {
   IconCalendarClock,
+  IconChevronRight,
   IconCircleCheck,
   IconClose,
   IconCollapsePanel,
@@ -1944,21 +1945,30 @@ function SelectMethodCardView({ card, onPick }: { card: SelectMethodCard; onPick
 function DateTimeCardView({ card, onPick }: { card: DateTimeCard; onPick: (dayLabel: string, time: string) => void }) {
   // Local, so the day and time mark before the round-trip. A time defaults to the first chip
   // so tapping the suggested day alone is enough to proceed.
-  const [picked, setPicked] = useState<number | null>(null)
+  const [picked, setPicked] = useState<{ year: number; month: number; day: number } | null>(null)
   const [time, setTime] = useState<string>(card.times[1] ?? card.times[0])
-  const daysInMonth = new Date(card.year, card.month + 1, 0).getDate()
-  const firstWeekday = new Date(card.year, card.month, 1).getDay()
+  // The month on view. Opens on the suggested tour month; the chevrons walk it either way,
+  // so a date in another month can be chosen without leaving the card.
+  const [view, setView] = useState<{ year: number; month: number }>({ year: card.year, month: card.month })
+  const daysInMonth = new Date(view.year, view.month + 1, 0).getDate()
+  const firstWeekday = new Date(view.year, view.month, 1).getDay()
   // Leading blanks so the 1st lands under its weekday column.
   const cells: Array<number | null> = [
     ...Array.from({ length: firstWeekday }, () => null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ]
 
-  const label = (day: number) =>
-    `${new Date(card.year, card.month, day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`
+  // 0-indexed (year, month) shifted by ±1 month, wrapping across the year boundary.
+  const shiftMonth = (delta: number) => {
+    const m = view.month + delta
+    setView({ year: view.year + Math.floor(m / 12), month: ((m % 12) + 12) % 12 })
+  }
+
+  const fmt = (year: number, month: number, day: number) =>
+    new Date(year, month, day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
   return (
-    <div style={CHAT_CARD}>
+    <div style={{ ...CHAT_CARD, maxWidth: 420 }}>
       <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>Choose a date and start time</div>
         <div style={{ fontSize: 11.5, color: C.muted }}>
@@ -1967,8 +1977,27 @@ function DateTimeCardView({ card, onPick }: { card: DateTimeCard; onPick: (dayLa
       </div>
 
       <div style={{ borderTop: `1px solid ${C.alt}`, padding: '12px 16px' }}>
-        <div style={{ fontWeight: 600, fontSize: 13, textAlign: 'center', marginBottom: 10 }}>
-          {MONTH_NAMES[card.month]} {card.year}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            marginBottom: 10,
+          }}
+        >
+          <CircleButton onClick={() => shiftMonth(-1)} hoverBg={C.alt} aria-label="Previous month" title="Previous month">
+            {/* IconChevronRight flipped to point left. */}
+            <span style={{ display: 'flex', transform: 'scaleX(-1)' }}>
+              <IconChevronRight size={12} />
+            </span>
+          </CircleButton>
+          <div style={{ fontWeight: 600, fontSize: 13, textAlign: 'center' }}>
+            {MONTH_NAMES[view.month]} {view.year}
+          </div>
+          <CircleButton onClick={() => shiftMonth(1)} hoverBg={C.alt} aria-label="Next month" title="Next month">
+            <IconChevronRight size={12} />
+          </CircleButton>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
           {WEEKDAYS.map((d, i) => (
@@ -1978,14 +2007,20 @@ function DateTimeCardView({ card, onPick }: { card: DateTimeCard; onPick: (dayLa
           ))}
           {cells.map((day, i) => {
             if (day === null) return <div key={`b${i}`} />
-            const isPicked = picked === day
-            const isSuggested = picked === null && day === card.suggestedDay
+            const isPicked =
+              picked !== null && picked.year === view.year && picked.month === view.month && picked.day === day
+            // The suggestion only marks its own month, and only until the user picks a day.
+            const isSuggested =
+              picked === null &&
+              day === card.suggestedDay &&
+              view.year === card.year &&
+              view.month === card.month
             const marked = isPicked || isSuggested
             return (
               <HoverButton
                 key={day}
-                onClick={() => setPicked(day)}
-                aria-label={label(day)}
+                onClick={() => setPicked({ year: view.year, month: view.month, day })}
+                aria-label={fmt(view.year, view.month, day)}
                 aria-pressed={isPicked}
                 style={{
                   aspectRatio: '1 / 1',
@@ -2043,7 +2078,16 @@ function DateTimeCardView({ card, onPick }: { card: DateTimeCard; onPick: (dayLa
         <span style={{ fontSize: 11.5, color: C.muted }}>
           Suggested: {MONTH_NAMES[card.month].slice(0, 3)} {card.suggestedDay}
         </span>
-        <DarkPill onClick={() => onPick(label(picked ?? card.suggestedDay), time)}>
+        <DarkPill
+          onClick={() =>
+            onPick(
+              picked
+                ? fmt(picked.year, picked.month, picked.day)
+                : fmt(card.year, card.month, card.suggestedDay),
+              time,
+            )
+          }
+        >
           <IconCalendarClock size={13} />
           <span>Build the plan</span>
         </DarkPill>
@@ -2405,7 +2449,9 @@ export function AssistantPanel({
             <div ref={chatRef} className="ra-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
               <div
                 style={{
-                  maxWidth: 720,
+                  // Expanded, the panel is wide enough that a fixed 720px column looks lost
+                  // in it — let the content breathe to 70% of the panel instead.
+                  maxWidth: expanded ? '70%' : 720,
                   margin: '0 auto',
                   display: 'flex',
                   flexDirection: 'column',
@@ -2487,7 +2533,7 @@ export function AssistantPanel({
                             borderRadius: user ? '16px 16px 0px 16px' : '16px 16px 16px 4px',
                             boxShadow: user ? '0 1px 4px rgba(43,43,43,0.16)' : 'none',
                             padding: user ? '12px 24px' : '10px 14px',
-                            fontSize: user ? 16 : 13.5,
+                            fontSize: user ? 14 : 13.5,
                             fontWeight: user ? 500 : 400,
                             lineHeight: user ? '24px' : 1.55,
                             whiteSpace: 'pre-wrap',
@@ -2539,7 +2585,10 @@ export function AssistantPanel({
                       {m.card?.kind === 'tourSummary' && (
                         <TourSummaryCardView
                           card={m.card}
-                          onConfirm={() => onSend(`Schedule the tour for ${(m.card as SummaryCard).greetingName}`)}
+                          onConfirm={() => {
+                            const c = m.card as SummaryCard
+                            onSend(`Schedule the tour for ${c.greetingName} on ${c.dayLabel} at ${c.startTime}`)
+                          }}
                         />
                       )}
                       {m.card?.kind === 'upcomingTour' && (
@@ -2619,7 +2668,8 @@ export function AssistantPanel({
             {msgs.length > 0 && (
               <div
                 style={{
-                  maxWidth: 720,
+                  // Keep the composer aligned with the transcript column above it.
+                  maxWidth: expanded ? '70%' : 720,
                   margin: '0 auto',
                   width: '100%',
                   display: 'flex',

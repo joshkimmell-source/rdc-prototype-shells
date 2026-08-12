@@ -104,6 +104,13 @@ export const INITIAL_UPCOMING_TOURS: UpcomingTour[] = sample.initialUpcomingTour
 /** Every roster tour keyed by id, in the shape the framed Tours map renders. */
 export const TOUR_MAP_DATA = sample.tourMapData
 
+/**
+ * Re-derive a coordinated tour's subnav row label and framed-map view on the date/time the
+ * assistant flow booked it for, so those two surfaces track the user's selection rather than
+ * the dataset default.
+ */
+export const rescheduleTourViews = sample.rescheduleTourViews
+
 export const STAGES: Array<[string, string]> = sample.stages
 
 /**
