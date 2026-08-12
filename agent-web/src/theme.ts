@@ -54,6 +54,34 @@ export const C = {
 } as const
 
 /**
+ * Saturated chart hues, one per client-stage Tag colour. The Home dashboard's donut and
+ * bars share this palette so a colour reads as the same stage in both, and the legend
+ * applies to either. `*Tint` values are the ~12% washes used behind stat-card icons and
+ * legend swatches.
+ */
+export const CHART = {
+  green: '#2C8C44',
+  orange: '#E4820B',
+  blue: '#2F6BD6',
+  purple: '#7C5CD6',
+  gray: '#8A8079',
+  greenTint: '#E4F1E7',
+  orangeTint: '#FBEBD5',
+  blueTint: '#E4ECFA',
+  purpleTint: '#EDE7FA',
+  grayTint: '#EEECEA',
+} as const
+
+/** Haven Tag `dataColor` → the solid chart hue that matches it. */
+export const TAG_CHART_COLOR: Record<string, string> = {
+  greenSubtle: CHART.green,
+  orangeSubtle: CHART.orange,
+  blueSubtle: CHART.blue,
+  purpleSubtle: CHART.purple,
+  graySubtle: CHART.gray,
+}
+
+/**
  * The RealAssist+ brand gradient, shared by the floating FAB and the action bar's primary
  * action — the two placements the `?ab=` test compares. Defined once so the control reads
  * as the same thing in a different position rather than as two different buttons.

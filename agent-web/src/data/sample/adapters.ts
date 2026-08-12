@@ -476,6 +476,30 @@ export const tourMapData: Record<string, MapTour> = Object.fromEntries(
   TOURS_ORDERED.map(t => [t.id, toMapTour(t)])
 )
 
+/**
+ * Re-derive a tour's subnav row label and framed-map view on the date and start time the
+ * assistant flow booked it for. The Tours subnav and the Tour page read from the dataset by
+ * id, so a tour coordinated through the flow would otherwise still show its dataset default
+ * date/time on those surfaces even after the user picked another. Given the booked ISO date
+ * and start time, this rebuilds both from the same adapters the static data uses — the first
+ * stop takes the chosen start time, matching how the design leads the timeline off it.
+ */
+export function rescheduleTourViews(
+  tourId: string,
+  isoDate: string,
+  startTime: string
+): { meta?: string; mapTour?: MapTour } {
+  const base = ROSTER_TOURS.find(t => t.id === tourId)
+  if (!base) return {}
+  const rescheduled: SampleTour = {
+    ...base,
+    date: isoDate,
+    startTime,
+    stops: base.stops.map((s, i) => (i === 0 ? { ...s, time: startTime } : s)),
+  }
+  return { meta: formatTourSummary(rescheduled), mapTour: toMapTour(rescheduled) }
+}
+
 // ─── Home: client needs ───────────────────────────────────────────────────────
 
 export interface ClientNeed {

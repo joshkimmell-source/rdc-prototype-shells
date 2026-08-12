@@ -180,6 +180,34 @@ test.describe('RealAssist+ stepwise tour-coordination flow', () => {
     // Now it is on the calendar — the Home list carries it with all three stops.
     await expect(card.getByText(/Jordan & Mia Castellanos.*Buyer tour.*3 stops/)).toBeVisible()
   })
+
+  test('books the tour on the day and time the user picked, not the dataset default', async ({ page }) => {
+    await ask(page, 'Choose the top 3 listings for Jordan and Mia')
+    const cta = transcript(page).getByRole('button', { name: /Choose a date & start time/ })
+    await expect(cta).toBeVisible()
+    await cta.click()
+
+    // Pick a day other than the suggested Aug 15, and a start time other than the default 10:00.
+    await transcript(page).getByRole('button', { name: 'Sat, Aug 22', exact: true }).click()
+    await transcript(page).getByRole('button', { name: '1:00 PM', exact: true }).click()
+    await transcript(page).getByRole('button', { name: /Build the plan/ }).click()
+
+    // The acknowledgement reflects the picked day + time.
+    await expect(transcript(page).getByText(/Got it — Sat, Aug 22 at 1:00 PM start time/)).toBeVisible()
+
+    // Booking keeps them: the upcoming-tour panel is dated to the picked day.
+    const confirm = page.getByRole('button', { name: /Confirm & schedule/ })
+    await expect(confirm).toBeVisible()
+    await confirm.click()
+    await expect(transcript(page).getByText(/Upcoming Tour – Saturday, Aug 22, 2026/)).toBeVisible()
+
+    // And the Home upcoming-tours list shows the picked day and time, not Aug 15 / 10:00 AM.
+    // Both strings are unique to Jordan & Mia's row within the card (Priyanka's is Aug 9 / 2:30 PM).
+    const card = upcomingToursCard(page)
+    await expect(card.getByText(/Jordan & Mia Castellanos/)).toBeVisible()
+    await expect(card.getByText(/Sat, Aug 22/)).toBeVisible()
+    await expect(card.getByText(/1:00 PM/)).toBeVisible()
+  })
 })
 
 /**
@@ -204,6 +232,9 @@ test.describe('Dynamic Tours subnav', () => {
 
   /** The framed tour map. Its `#tourClient` header names whichever tour it is drawing. */
   const mapTourClient = (page: Page) => page.frameLocator('iframe[title="Tour route"]').locator('#tourClient')
+
+  /** The framed map's date line, in its own `"Sat, Aug 22 '26"` format. */
+  const mapTourDate = (page: Page) => page.frameLocator('iframe[title="Tour route"]').locator('#tourDate')
 
   test('withholds the coordinated tour from the upcoming list until it is booked', async ({ page }) => {
     // Upcoming opens with only the already-created tour (Priyanka); Jordan & Mia's is withheld.
@@ -242,6 +273,31 @@ test.describe('Dynamic Tours subnav', () => {
 
     // And the map switches from Priyanka's tour to the freshly-booked coordinated one.
     await expect(mapTourClient(page)).toHaveText('Jordan & Mia Castellanos')
+  })
+
+  test('carries the picked date onto the subnav row and the framed map', async ({ page }) => {
+    await fab(page).click()
+    await expect(page.getByRole('button', { name: 'Close panel' })).toBeVisible()
+
+    // Book on a day other than the suggested Aug 15 — pick Aug 22 with a 1:00 PM start.
+    await ask(page, 'Choose the top 3 listings for Jordan and Mia')
+    const cta = transcript(page).getByRole('button', { name: /Choose a date & start time/ })
+    await expect(cta).toBeVisible()
+    await cta.click()
+    await transcript(page).getByRole('button', { name: 'Sat, Aug 22', exact: true }).click()
+    await transcript(page).getByRole('button', { name: '1:00 PM', exact: true }).click()
+    await transcript(page).getByRole('button', { name: /Build the plan/ }).click()
+    const confirm = page.getByRole('button', { name: /Confirm & schedule/ })
+    await expect(confirm).toBeVisible()
+    await confirm.click()
+    await expect(transcript(page).getByText(/Upcoming Tour –/)).toBeVisible()
+
+    // The subnav row is dated to the pick (Aug 22), not the dataset default (Aug 15).
+    await expect(subnavRow(page, 'Jordan & Mia Castellanos').filter({ hasText: 'Sat, Aug 22' })).toBeVisible()
+
+    // And the framed Tour page follows: it draws the coordinated tour on the picked day.
+    await expect(mapTourClient(page)).toHaveText('Jordan & Mia Castellanos')
+    await expect(mapTourDate(page)).toHaveText("Sat, Aug 22 '26")
   })
 
   test('the map follows the tour selected in the subnav', async ({ page }) => {

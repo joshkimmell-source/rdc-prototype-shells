@@ -56,6 +56,7 @@ import {
   THREADS,
   TOURS,
   TOUR_MAP_DATA,
+  rescheduleTourViews,
   WITHHELD_TOUR_IDS,
   activeClientCount,
   clientNeeds,
@@ -172,6 +173,10 @@ export function Shell() {
   const [selectedTour, setSelectedTour] = useState(
     () => TOURS.find((t) => t.upcoming && !WITHHELD_TOUR_IDS.includes(t.id))?.id ?? DEFAULT_TOUR_ID
   )
+  // Date/time overrides for tours the assistant flow booked, keyed by tour id. The subnav row
+  // and framed map read from the dataset by id, so without this they'd keep showing the tour's
+  // dataset-default date/time even after the user picked another in the flow.
+  const [reschedules, setReschedules] = useState<Record<string, { date: string; startTime: string }>>({})
 
   // Clients screen
   const [clientFilter, setClientFilter] = useState('active')
@@ -358,7 +363,7 @@ export function Shell() {
     setBusy(false)
 
     if (result.scheduled) {
-      const { client, address, when, type, tourId, at } = result.scheduled
+      const { client, address, when, type, tourId, at, date, startTime } = result.scheduled
       setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, nextTour: when } : c)))
       // Replace any existing row for this client so re-running the flow re-creates rather than
       // duplicates, then sort by date — appending would put a nearer tour below a later one.
@@ -372,6 +377,10 @@ export function Shell() {
       if (tourId) {
         setCreatedTourIds((prev) => (prev.has(tourId) ? prev : new Set(prev).add(tourId)))
         setSelectedTour(tourId)
+        // Carry the picked date/time onto the subnav row and framed map for this tour.
+        if (date && startTime) {
+          setReschedules((prev) => ({ ...prev, [tourId]: { date, startTime } }))
+        }
       }
     }
   }
@@ -425,13 +434,27 @@ export function Shell() {
   // Only tours that have been created show in the subnav — the assistant-coordinated one
   // stays hidden until the flow books it (see `createdTourIds`).
   const visibleTours = TOURS.filter((t) => createdTourIds.has(t.id))
-  const tourList = visibleTours.filter(
-    (t) =>
-      (toursTab === 'all' || (toursTab === 'upcoming' ? t.upcoming : !t.upcoming)) &&
-      t.name.toLowerCase().includes(tourQuery)
-  )
+  const tourList = visibleTours
+    .filter(
+      (t) =>
+        (toursTab === 'all' || (toursTab === 'upcoming' ? t.upcoming : !t.upcoming)) &&
+        t.name.toLowerCase().includes(tourQuery)
+    )
+    // Re-label the row on the date/time the flow booked it for, if any.
+    .map((t) => {
+      const r = reschedules[t.id]
+      const meta = r ? rescheduleTourViews(t.id, r.date, r.startTime).meta : undefined
+      return meta ? { ...t, meta } : t
+    })
   const upcomingTourCount = visibleTours.filter((t) => t.upcoming).length
   const pastTourCount = visibleTours.filter((t) => !t.upcoming).length
+
+  // The framed map for the selected tour, re-dated to the flow's booking if it has one.
+  const selectedReschedule = reschedules[selectedTour]
+  const selectedMapTour = selectedReschedule
+    ? rescheduleTourViews(selectedTour, selectedReschedule.date, selectedReschedule.startTime).mapTour ??
+      TOUR_MAP_DATA[selectedTour]
+    : TOUR_MAP_DATA[selectedTour]
 
   const threadQuery = threadQ.trim().toLowerCase()
   const baseThreads = THREADS.filter((t) => t.title.toLowerCase().includes(threadQuery))
@@ -697,6 +720,7 @@ export function Shell() {
                 { value: tourRequestsTotal, label: 'Tour requests' },
                 { value: invitedClientCount, label: 'Invites pending' },
               ]}
+              allClients={clients}
               tours={upcomingTours}
               needs={needs}
               needsCount={needs.length}
@@ -716,7 +740,7 @@ export function Shell() {
               variant={variant}
               askOpen={pushContent}
               // The embedded map follows the Tours subnav: it draws whichever tour is selected.
-              selectedTour={TOUR_MAP_DATA[selectedTour]}
+              selectedTour={selectedMapTour}
             />
           )}
 

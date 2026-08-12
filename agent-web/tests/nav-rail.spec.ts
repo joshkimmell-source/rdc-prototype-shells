@@ -12,11 +12,13 @@ test.describe('static nav rail', () => {
   test.use({ viewport: DESKTOP })
 
   test('shows every destination as icon over label', async ({ page }) => {
-    await page.goto('/?view=home')
+    await page.goto('/')
     const rail = page.getByRole('navigation', { name: 'Main' })
     await expect(rail).toBeVisible()
 
-    for (const label of ['Home', 'Clients', 'Search', 'Tours', 'Support', 'Alerts', 'Chat']) {
+    // Home is intentionally absent — Clients is the landing screen.
+    await expect(rail.getByText('Home', { exact: true })).toHaveCount(0)
+    for (const label of ['Clients', 'Search', 'Tours', 'Support', 'Alerts', 'Chat']) {
       await expect(rail.getByText(label, { exact: true })).toBeVisible()
     }
     // Account is the footer identity cell, with the agent headshot beside its label.
@@ -25,20 +27,21 @@ test.describe('static nav rail', () => {
   })
 
   test('marks the active destination and follows navigation', async ({ page }) => {
-    await page.goto('/?view=home')
+    await page.goto('/')
     const rail = page.getByRole('navigation', { name: 'Main' })
 
-    await expect(rail.getByRole('button', { name: 'Home' })).toHaveAttribute(
-      'aria-current',
-      'page'
-    )
-
-    await rail.getByRole('button', { name: 'Clients' }).click()
+    // Clients is the default landing destination.
     await expect(rail.getByRole('button', { name: 'Clients' })).toHaveAttribute(
       'aria-current',
       'page'
     )
-    await expect(rail.getByRole('button', { name: 'Home' })).not.toHaveAttribute(
+
+    await rail.getByRole('button', { name: 'Tours' }).click()
+    await expect(rail.getByRole('button', { name: 'Tours' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    )
+    await expect(rail.getByRole('button', { name: 'Clients' })).not.toHaveAttribute(
       'aria-current',
       'page'
     )

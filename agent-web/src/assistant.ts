@@ -162,6 +162,13 @@ export interface SummaryCard {
   kind: 'tourSummary'
   /** The client, so the confirm action can name them when it schedules the tour. */
   greetingName: string
+  /**
+   * The day and start time the user picked in step 4, carried on the card so the "Confirm &
+   * schedule" action can echo them back — that's what lets booking keep the chosen date/time
+   * instead of reverting to the tour's dataset defaults.
+   */
+  dayLabel: string
+  startTime: string
   conflicts: LeadNote[]
   steps: LeadNote[]
   confidence: LeadNote
@@ -559,6 +566,14 @@ export interface ScheduledTour {
   tourId?: string
   /** Epoch ms of the tour date, so the shell can sort it into the upcoming list. */
   at: number
+  /**
+   * The booked date (ISO `YYYY-MM-DD`) and start time the user picked, present only for the
+   * multi-stop coordinated tour (which carries a `tourId`). Carried raw so the shell can
+   * re-label the Tours subnav row and the framed Tour page to match the selection, not just
+   * the Home card. Absent on the legacy single-property path, which has no tour to re-label.
+   */
+  date?: string
+  startTime?: string
 }
 
 export interface AssistantResult {
@@ -691,9 +706,34 @@ function fmtClock(mins: number): string {
  * message; failing that it falls back to the tour's own date.
  */
 function whenLabelFrom(text: string, tour: SampleTour, startClock: string): string {
+  return `${pickedDayFrom(text, tour)} at ${startClock} start time`
+}
+
+/**
+ * The `"on <day>"` segment of a picker prompt — e.g. `"Sat, Aug 15"` out of `"…on Sat, Aug 15
+ * at 10:00 AM"`. Falls back to the tour's own date when the message names no day.
+ */
+function pickedDayFrom(text: string, tour: SampleTour): string {
   const onMatch = text.match(/\bon\s+(.+?)(?:\s+at\b|$)/i)
-  const day = onMatch ? onMatch[1].trim() : formatTourDate(tour.date)
-  return `${day} at ${startClock} start time`
+  return onMatch ? onMatch[1].trim() : formatTourDate(tour.date)
+}
+
+/** Month abbreviations → 0-based index, for lifting the picked month out of the day label. */
+const MONTH_ABBR = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+
+/**
+ * Rebuild an ISO `YYYY-MM-DD` from the month + day in a picker prompt's day label (`"Sat, Aug
+ * 15"`). The picker opens on the tour's own year and only walks months, so the year is taken
+ * from the tour it belongs to. Returns null when no month/day can be read, so callers keep the
+ * tour's own date.
+ */
+function pickedIsoFrom(text: string, fallbackYear: number): string | null {
+  const m = text.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})\b/i)
+  if (!m) return null
+  const month = MONTH_ABBR.indexOf(m[1].slice(0, 3).toLowerCase())
+  if (month < 0) return null
+  const day = Number(m[2])
+  return `${fallbackYear}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
 /** `"10:00 AM"` → minutes since midnight, or 600 (10:00) if unparseable. */
@@ -1042,10 +1082,18 @@ function outreachCard(props: PlanProperty[]): OutreachCard {
   return { kind: 'tourOutreach', properties: props }
 }
 
-function summaryCard(client: Client, tour: SampleTour, props: PlanProperty[]): SummaryCard {
+function summaryCard(
+  client: Client,
+  tour: SampleTour,
+  props: PlanProperty[],
+  dayLabel: string,
+  startTime: string,
+): SummaryCard {
   return {
     kind: 'tourSummary',
     greetingName: client.greetingName,
+    dayLabel,
+    startTime,
     conflicts: conflictNotes(tour, props),
     steps: stepNotes(client, props),
     confidence: {
@@ -1383,9 +1431,14 @@ function respondLocally(text: string, clients: Client[]): AssistantResult {
     const tour = named ? upcomingTourFor(named.id) : undefined
     if (named && tour) {
       const startClock = fmtClock(parseClock(text))
+      const pickedDay = pickedDayFrom(text, tour)
       const props = planProperties(named, { ...tour, startTime: startClock })
       const when = whenLabelFrom(text, tour, startClock)
-      cards.push(timelineCard(named, props), outreachCard(props), summaryCard(named, tour, props))
+      cards.push(
+        timelineCard(named, props),
+        outreachCard(props),
+        summaryCard(named, tour, props, pickedDay, startClock),
+      )
       return {
         cards,
         preReply: `Got it — ${when}. Let me build out the full coordination plan.`,
@@ -1400,19 +1453,32 @@ function respondLocally(text: string, clients: Client[]): AssistantResult {
     const named = clients.find((c) => mentions(t, c)) ?? clients.find((c) => upcomingTourFor(c.id))
     const tour = named ? upcomingTourFor(named.id) : undefined
     if (named && tour) {
-      const props = planProperties(named, tour)
-      cards.push(upcomingTourCard(named, tour, props))
+      // The confirm action echoes the step-4 selection ("…on <day> at <time>"), so book the
+      // tour on the day and time the user picked, falling back to the tour's own values when a
+      // path reaches this step without them.
+      const [tourYear] = tour.date.split('-').map(Number)
+      const hasTime = /\b\d{1,2}(?::\d{2})?\s*(am|pm)\b/i.test(text)
+      const startClock = hasTime ? fmtClock(parseClock(text)) : tour.startTime ?? '10:00 AM'
+      const booked: SampleTour = {
+        ...tour,
+        date: pickedIsoFrom(text, tourYear) ?? tour.date,
+        startTime: startClock,
+      }
+      const props = planProperties(named, booked)
+      cards.push(upcomingTourCard(named, booked, props))
       const first = props[0]
       return {
         cards,
-        reply: `Done — ${named.greetingName}’s ${formatTourDate(tour.date)} tour is on the calendar with all ${tour.stopCount} stops. I’ll send the drafts to the listing agents once you give the word.`,
+        reply: `Done — ${named.greetingName}’s ${formatTourDate(booked.date)} tour is on the calendar with all ${booked.stopCount} stops. I’ll send the drafts to the listing agents once you give the word.`,
         scheduled: {
           client: named,
           address: first.line1,
-          when: `${formatTourDate(tour.date)} · ${tour.startTime ?? first.timeRange.split(' – ')[0]}`,
-          type: `Buyer tour · ${tour.stopCount} ${tour.stopCount === 1 ? 'stop' : 'stops'}`,
+          when: `${formatTourDate(booked.date)} · ${booked.startTime ?? first.timeRange.split(' – ')[0]}`,
+          type: `Buyer tour · ${booked.stopCount} ${booked.stopCount === 1 ? 'stop' : 'stops'}`,
           tourId: tour.id,
-          at: isoToEpoch(tour.date),
+          at: isoToEpoch(booked.date),
+          date: booked.date,
+          startTime: startClock,
         },
       }
     }
