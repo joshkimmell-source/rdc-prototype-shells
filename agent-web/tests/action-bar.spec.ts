@@ -1,14 +1,14 @@
 import { test, expect, type Page } from '@playwright/test'
 
 /**
- * The action bar (variant B of the FAB-placement test, `?ab=b`) degrades in three measured
- * stages as its row runs short: full pills → icon-only circles → fold into the overflow menu.
- * The behaviour is width-measured, not keyed to a breakpoint, so it can only be verified in a
- * real browser at real widths.
+ * The action bar (`src/components/ActionBar.tsx`) degrades in three measured stages as its row
+ * runs short: full pills → icon-only circles → fold into the overflow menu. The behaviour is
+ * width-measured, not keyed to a breakpoint, so it can only be verified in a real browser at
+ * real widths.
  *
- * It is implemented three times — the React component (`src/components/ActionBar.tsx`) and the
- * two standalone map pages (`public/{search,tours}-map.html`, which share
- * `public/map-actionbar.js`). All three must behave the same, so each is exercised here.
+ * It carries the header controls on every screen — the Clients toggles and Ask under `?ab=b`,
+ * and Tours' / Search's own actions in either arm — so the shared header is the single place
+ * the behaviour lives (the map pages no longer draw their own bar inside the iframe).
  */
 
 /**
@@ -54,19 +54,18 @@ test.describe('React ActionBar (Clients, ?ab=b)', () => {
     await expect(menu.getByRole('menuitem', { name: 'Manage stages' })).toBeVisible()
   })
 
-  test('keeps the primary action reachable at every width', async ({ page }) => {
-    for (const width of [1600, 1000, 720, 480]) {
+  test('keeps the primary action a visible control in the bar at every width, never folded', async ({ page }) => {
+    for (const width of [1600, 1000, 720, 480, 360]) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto(url)
-      // Either a pill/circle in the bar, or a row in the menu — but always present and
-      // clickable somewhere. Check the bar first, then the menu.
-      const inBar = page.getByRole('button', { name: /Ask RealAssist/ })
-      if (await inBar.count()) {
-        await expect(inBar.first()).toBeVisible()
-      } else {
-        const menu = await openOverflowMenu(page)
-        await expect(menu.getByRole('menuitem', { name: /Ask RealAssist/ })).toBeVisible()
-      }
+
+      // The primary Ask is pinned: it collapses to a circle but never folds, so it is always a
+      // control in the bar (a pill or a circle), regardless of how narrow the row gets.
+      await expect(page.getByRole('main').getByRole('button', { name: /Ask RealAssist/ })).toBeVisible()
+
+      // And it is never a row in the overflow menu.
+      const menu = await openOverflowMenu(page)
+      await expect(menu.getByRole('menuitem', { name: /Ask RealAssist/ })).toHaveCount(0)
     }
   })
 })
@@ -137,81 +136,24 @@ test.describe('React ActionBar tooltip on minimized actions', () => {
 })
 
 /**
- * `folds` is the leftmost action, which degrades first: its label drops as the row runs short,
- * and it is the first to fold into the menu. The map bar sits after a greedy `flex:1` spacer
- * and carries only two or three actions, so — like the React bar with five — it keeps fitting a
- * row of circles until the viewport is quite narrow; folding only engages in the low hundreds.
- * `collapseWidth` is a viewport where that leftmost action is an icon-only circle but has not
- * yet folded; `foldWidth` is one where it has folded into the menu. Both differ per page: the
- * two-action search bar keeps its labels down to a narrower width than the three-action tours
- * bar, since fewer pills need less room.
+ * Tours and Search now render the same shared header, and it always uses the `ActionBar` (their
+ * actions carry labels the icon cluster has no room for) regardless of the `?ab=` arm. So their
+ * per-screen actions read as labelled pills in the header bar, not controls inside the iframe.
  */
-const MAP_PAGES = [
-  { name: 'search-map', path: '/search-map.html?ab=b', folds: 'Save search', collapseWidth: 300, foldWidth: 170 },
-  { name: 'tours-map', path: '/tours-map.html?ab=b', folds: 'Export', collapseWidth: 380, foldWidth: 160 },
-]
+test.describe('shared header action bar (Tours, Search)', () => {
+  test('Tours shows its Export and Add to calendar actions as header pills', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 900 })
+    await page.goto('/?view=tours')
 
-for (const { name, path, folds, collapseWidth, foldWidth } of MAP_PAGES) {
-  test.describe(`map page action bar (${name})`, () => {
-    test('shows the labelled pills when wide', async ({ page }) => {
-      await page.setViewportSize({ width: 1400, height: 800 })
-      await page.goto(path)
-      // The shared script runs on load/resize via rAF; let it settle.
-      await page.waitForTimeout(300)
-
-      // Wide, the action keeps its visible label and nothing is folded into the menu.
-      await expect(page.locator('.actionbar .lbl', { hasText: folds })).toBeVisible()
-      await expect(page.locator('.menupanel .mi-folded')).toHaveCount(0)
-    })
-
-    test('drops the leftmost label to a circle before folding', async ({ page }) => {
-      // A middle width: the leftmost action has shed its label (stage 2) but is still a control
-      // in the bar, not yet in the menu (stage 3).
-      await page.setViewportSize({ width: collapseWidth, height: 800 })
-      await page.goto(path)
-      await page.waitForTimeout(300)
-
-      // The pill is still present in the bar…
-      const pill = page.locator('.actionbar > *', { hasText: folds }).first()
-      await expect(pill).toBeVisible()
-      // …but its label span is hidden — it has collapsed to an icon-only circle.
-      await expect(pill.locator('.lbl')).toBeHidden()
-      // Nothing has folded into the menu yet.
-      await expect(page.locator('.menupanel .mi-folded')).toHaveCount(0)
-    })
-
-    test('folds the leftmost action into the overflow menu when narrow', async ({ page }) => {
-      await page.setViewportSize({ width: foldWidth, height: 800 })
-      await page.goto(path)
-      await page.waitForTimeout(300)
-
-      // Open the page's own overflow menu (a ⋯ button, aria-label "More").
-      await page.getByRole('button', { name: 'More' }).click()
-      const panel = page.locator('.menupanel')
-      await expect(panel).toBeVisible()
-
-      // A folded action appears as an appended .mi-folded row carrying the pill's label.
-      await expect(panel.locator('.mi-folded', { hasText: folds })).toBeVisible()
-    })
-
-    test('opens the overflow menu on-screen at a narrow width', async ({ page }) => {
-      // The ⋯ toggle is the bar's leftmost item, so a panel aligned to its right edge (the CSS
-      // default) grows left off the viewport and truncates its labels. It is placed from script
-      // to open rightward and stay on screen. A width where the 180px panel comfortably fits but
-      // the old right-aligned panel would have spilled off the left.
-      const width = 460
-      await page.setViewportSize({ width, height: 800 })
-      await page.goto(path)
-      await page.waitForTimeout(300)
-
-      await page.getByRole('button', { name: 'More' }).click()
-      const panel = page.locator('.menupanel')
-      await expect(panel).toBeVisible()
-
-      const box = (await panel.boundingBox())!
-      // Fully within the viewport: left edge not clipped, right edge before the frame's width.
-      expect(box.x).toBeGreaterThanOrEqual(0)
-      expect(box.x + box.width).toBeLessThanOrEqual(width + 1)
-    })
+    const header = page.getByRole('main')
+    await expect(header.getByRole('button', { name: 'Export' })).toBeVisible()
+    await expect(header.getByRole('button', { name: 'Add to calendar' })).toBeVisible()
   })
-}
+
+  test('Search shows its Save search action as a header pill', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 900 })
+    await page.goto('/?view=search')
+
+    await expect(page.getByRole('main').getByRole('button', { name: 'Save search' })).toBeVisible()
+  })
+})

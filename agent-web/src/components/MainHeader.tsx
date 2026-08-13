@@ -1,13 +1,18 @@
 /**
- * Header above the active screen. Hidden on Search and Tours, which own their full viewport.
- * The four toggle circles only appear on Clients.
+ * Header above the active screen. Every screen uses this one component, so the title, action
+ * bar, and overflow menu read identically on Clients, Tours, and Search — the map pages hand
+ * their title, per-screen actions, and (for Search) a lead region in rather than drawing their
+ * own header inside the iframe.
  *
- * Under `?ab=b` the control cluster is replaced by `ActionBar`, which labels the same
- * toggles and carries the "Ask RealAssist+" action inline instead of leaving it to the FAB.
+ * The four toggle circles only appear on Clients. Under `?ab=b` the control cluster is the
+ * `ActionBar` — which labels the toggles and carries the inline "Ask RealAssist+" action — but
+ * Tours and Search use the `ActionBar` in either arm, so their Export / Add to calendar / Save
+ * search controls always read as labelled pills that collapse and fold rather than icon circles.
  */
+import type { ReactNode } from 'react'
 import { C, DISPLAY_FONT } from '../theme'
 import { HoverButton } from './primitives'
-import { Menu } from './Menu'
+import { Menu, type MenuItem } from './Menu'
 import { ActionBar, type ActionItem } from './ActionBar'
 import { IconBell, IconChart, IconFlame, IconHamburger, IconRealAssist, IconStar } from '../icons'
 import { MENU_ITEMS } from '../data'
@@ -38,23 +43,44 @@ interface MainHeaderProps {
   visible: boolean
   /** Below the mobile breakpoint: tighter gutters, and the controls may wrap below the title. */
   mobile: boolean
-  /** `b` swaps the control cluster for `ActionBar` and shows the inline Ask action. */
-  actionBar: boolean
+  /**
+   * Render the controls as the `ActionBar` (labelled pills that collapse then fold) rather than
+   * the icon cluster. True in the `?ab=b` arm for every screen, and true for Tours and Search
+   * in either arm — their actions carry labels the icon cluster has no room for.
+   */
+  useActionBar: boolean
+  /**
+   * Include the inline "Ask RealAssist+" action in the bar. Set in the `?ab=b` arm; in the FAB
+   * arm the trigger floats in the corner instead, so it is left out here.
+   */
+  showAsk: boolean
   /** Opens the assistant panel — the action under test, absent in the FAB arm. */
   onAsk: () => void
   /**
    * The assistant panel is on screen. The Ask action drops out while it is: the panel is
    * the thing the action produces, so offering it again says nothing, and the freed width
-   * goes to the toggles' labels.
+   * goes to the other actions' labels.
    */
   askOpen: boolean
   showSubnavButton: boolean
   onOpenSubnav: () => void
+  /**
+   * Left region in place of the title — the Search header's MLS selector and search field.
+   * When set, the `title`/`countLabel` block is not rendered.
+   */
+  lead?: ReactNode
   title: string
   countLabel: string
   showToggles: boolean
   toggles: Toggles
   onToggle: (id: ToggleId) => void
+  /**
+   * Per-screen actions shown before Ask — Tours' Export and Add to calendar, Search's Save
+   * search. Clients leaves this empty and shows its toggles instead.
+   */
+  actions?: ActionItem[]
+  /** Overflow-menu rows; defaults to the Clients set. Tours and Search pass their own. */
+  menuItems?: Array<string | MenuItem>
 }
 
 /** Opens the subnav, which is an overlay drawer below the mobile breakpoint. */
@@ -88,20 +114,25 @@ function DrawerButton({ label, onClick }: { label: string; onClick: () => void }
 export function MainHeader({
   visible,
   mobile,
-  actionBar,
+  useActionBar,
+  showAsk,
   onAsk,
   askOpen,
   showSubnavButton,
   onOpenSubnav,
+  lead,
   title,
   countLabel,
   showToggles,
   toggles,
   onToggle,
+  actions,
+  menuItems = MENU_ITEMS,
 }: MainHeaderProps) {
-  // Ask sits last, at the right end of the row, where the FAB arm puts it in the corner —
-  // the toggles keep the order they have in the icon-only arm.
-  const actions: ActionItem[] = [
+  // Ask sits last, at the right end of the row, where the FAB arm puts it in the corner. The
+  // toggles (Clients) or the per-screen actions (Tours, Search) keep the order they have in
+  // the icon-only arm, ahead of it.
+  const barItems: ActionItem[] = [
     ...(showToggles
       ? TOGGLES.map(
           ({ id, icon }): ActionItem => ({
@@ -114,9 +145,9 @@ export function MainHeader({
           })
         )
       : []),
-    ...(askOpen
-      ? []
-      : [
+    ...(actions ?? []),
+    ...(showAsk && !askOpen
+      ? [
           {
             id: 'ask',
             label: 'Ask RealAssist™+ AI',
@@ -125,7 +156,8 @@ export function MainHeader({
             tone: 'brand' as const,
             onClick: onAsk,
           },
-        ]),
+        ]
+      : []),
   ]
 
   return (
@@ -138,48 +170,70 @@ export function MainHeader({
         // At 320px the title and the five Clients controls cannot share a line, so the
         // control group drops below rather than squeezing any of them out of reach.
         // `ActionBar` collapses to circles instead, and stays on the title's line.
-        flexWrap: mobile && !actionBar ? 'wrap' : 'nowrap',
+        flexWrap: mobile && !useActionBar ? 'wrap' : 'nowrap',
       }}
     >
       {showSubnavButton && <DrawerButton label="Open subnav" onClick={onOpenSubnav} />}
 
-      <h1
-        style={{
-          margin: 0,
-          // Beside an `ActionBar` the title takes its content width and does not grow, so
-          // the bar gets all the rest. Two growing siblings would split the free space
-          // between them, and the split would move every time the bar's width changed —
-          // which is the input the bar measures to decide its width.
-          flex: actionBar ? '0 1 auto' : '1 1 auto',
-          // A floor rather than 0: it is what forces the wrap instead of letting the title
-          // ellipsize down to nothing beside the controls.
-          minWidth: mobile ? 130 : 0,
-          fontFamily: DISPLAY_FONT,
-          fontWeight: 600,
-          fontSize: mobile ? 20 : 24,
-          lineHeight: mobile ? '26px' : '28px',
-          letterSpacing: '-0.02em',
-        }}
-      >
-        {title}{' '}
-        <span
+      {lead ? (
+        // The Search header's MLS selector and field. Shrinks but never grows, so — like the
+        // title — it hands the free width to the `ActionBar` beside it rather than splitting it.
+        <div style={{ flex: '0 1 auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+          {lead}
+        </div>
+      ) : (
+        <h1
           style={{
-            fontSize: 14,
-            fontWeight: 500,
-            color: C.muted,
-            letterSpacing: 0,
-            marginLeft: 6,
+            margin: 0,
+            // The title grows to fill the row, pushing the controls to the right edge (the
+            // `ActionBar` measures the room it is left and folds into it). Beside an action bar
+            // the title still ellipsizes rather than shoving the controls off, since it can
+            // shrink past its content width.
+            flex: '1 1 auto',
+            // A floor rather than 0: it is what forces the wrap instead of letting the title
+            // ellipsize down to nothing beside the controls.
+            minWidth: mobile ? 130 : 0,
+            // The secondary label sits on its own line below the title, so the two stack.
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
           }}
         >
-          {countLabel}
-        </span>
-      </h1>
+          <span
+            style={{
+              fontFamily: DISPLAY_FONT,
+              fontWeight: 600,
+              fontSize: mobile ? 20 : 24,
+              lineHeight: mobile ? '26px' : '28px',
+              letterSpacing: '-0.02em',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {title}
+          </span>
+          {countLabel && (
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 500,
+                color: C.muted,
+                letterSpacing: 0,
+                lineHeight: '18px',
+              }}
+            >
+              {countLabel}
+            </span>
+          )}
+        </h1>
+      )}
 
-      {actionBar ? (
+      {useActionBar ? (
         // Collapses its own labels to fit and folds what still will not fit into its overflow
         // menu, so unlike the cluster below it never wraps. `menuItems` are the menu's static
         // rows; folded actions append below them.
-        <ActionBar items={actions} menuItems={MENU_ITEMS} menuLabel="More" />
+        <ActionBar items={barItems} menuItems={menuItems} menuLabel="More" />
       ) : (
         <div
           style={{
@@ -191,7 +245,7 @@ export function MainHeader({
             flex: mobile ? '1 1 auto' : '0 0 auto',
           }}
         >
-          <Menu aria-label="More" items={MENU_ITEMS} />
+          <Menu aria-label="More" items={menuItems} />
           {showToggles &&
             TOGGLES.map(({ id, label, icon }) => {
               const on = toggles[id]

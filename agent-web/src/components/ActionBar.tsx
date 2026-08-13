@@ -12,8 +12,10 @@
  *   1. drops labels one at a time from the left — each action becomes an icon-only circle —
  *      until the row fits. The primary action is last, so it keeps its label longest.
  *   2. if every action is already a circle and the row still overflows, it folds circles into
- *      the overflow menu one at a time from the left, again primary-last. Folded actions
- *      appear as labelled rows below the menu's static items, fenced off by a separator.
+ *      the overflow menu one at a time from the left. Folded actions appear as labelled rows
+ *      below the menu's static items, fenced off by a separator. The primary action (the
+ *      RealAssist+ Ask, in the brand gradient) is exempt: it collapses to a circle like the
+ *      rest but never folds, so it stays one click away at the right of the `•••`.
  *
  * Folding rather than scrolling keeps every action reachable at any width without a
  * horizontal scroller — which also means the row never clips its own vertical overflow, so
@@ -174,6 +176,13 @@ export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionB
   // pointer-leave to dismiss it — so the collapsed action's tooltip is disabled there.
   const touch = useIsTouch()
 
+  // The primary action — the RealAssist+ Ask in the brand gradient, always the rightmost item
+  // — is pinned: it collapses to a circle with the rest but never folds into the menu, so the
+  // assistant stays a click away at the right of the `•••`. Held in a ref so `measure` can read
+  // it without taking `items` (a fresh array each render) as a dependency.
+  const pinnedRef = useRef(0)
+  pinnedRef.current = items.length > 0 && items[items.length - 1]?.tone === 'brand' ? 1 : 0
+
   /**
    * Measured off the mirror, which always carries every action fully labelled — so the widths
    * read here describe the fully expanded row whatever the live row is currently showing.
@@ -212,15 +221,17 @@ export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionB
 
     // Try states in order of increasing degradation: drop labels left-to-right first (the
     // primary action is rightmost, so its label goes last), then — only once all are circles —
-    // fold circles into the menu left-to-right (primary folds last). The first state that fits
-    // wins; if none do, the most-folded state (menu alone) is the floor.
+    // fold circles into the menu left-to-right. The primary never folds, so folding stops one
+    // short of it (`maxFold`); its floor is the `•••` plus the primary circle. The first state
+    // that fits wins.
+    const maxFold = n - pinnedRef.current
     let chosen = { collapsed: 0, folded: 0 }
     outer: {
       for (let c = 0; c <= n; c += 1) {
         chosen = { collapsed: c, folded: 0 }
         if (widthFor(c, 0) <= avail) break outer
       }
-      for (let f = 1; f <= n; f += 1) {
+      for (let f = 1; f <= maxFold; f += 1) {
         chosen = { collapsed: n, folded: f }
         if (widthFor(n, f) <= avail) break outer
       }

@@ -461,6 +461,35 @@ export function IconComposerSend({ size = 18, ...p }: S) {
   )
 }
 
+/** Export / open-out glyph — ported from the tours-map header's "Export" pill. */
+export function IconExport({ size = 14, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    </svg>
+  )
+}
+
+/** Bookmark glyph — ported from the search-map header's "Save search" pill. */
+export function IconBookmark({ size = 14, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
+/** Plain chevron-down — the MLS selector's caret in the Search header. */
+export function IconChevronDown({ size = 12, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2.5} {...stroke} {...p}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
 /** Three-dot menu toggle glyph — ported from components/Menu.jsx. */
 export function IconMenuDots(p: SVGProps<SVGSVGElement>) {
   return (
