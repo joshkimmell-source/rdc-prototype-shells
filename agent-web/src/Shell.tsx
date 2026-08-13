@@ -17,13 +17,13 @@ import { C, EASE } from './theme'
 import { isMobileViewport, useIsMobile, useIsMedium } from './useMobile'
 import { readNavParam, writeNavParam } from './navParam'
 import { readAbParam } from './abParam'
-import { ASK_MESSAGE } from './askBridge'
-import { HoverButton } from './components/primitives'
-import { IconHamburger } from './icons'
+import { IconBookmark, IconCalendar, IconExport } from './icons'
 import { NavRail, RAIL_WIDTH, type NavId } from './components/NavRail'
 import { NAV_BAR_HEIGHT, NavBar } from './components/NavBar'
 import { Subnav } from './components/Subnav'
 import { MainHeader, type ToggleId, type Toggles } from './components/MainHeader'
+import { type ActionItem } from './components/ActionBar'
+import { SearchHeaderLead } from './components/SearchHeaderLead'
 import { FAB } from './components/FAB'
 import { PrototypeNotice } from './components/PrototypeNotice'
 import { HomeScreen, type NeedItem, type StageItem } from './screens/HomeScreen'
@@ -101,35 +101,6 @@ function pushCeiling() {
 
 function clampPush(w: number) {
   return Math.min(pushCeiling(), Math.max(PUSH_MIN, Math.round(w)))
-}
-
-/** Drawer trigger that has to read against an arbitrary map tile underneath it. */
-function FloatingIconButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <HoverButton
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      style={{
-        width: 36,
-        height: 36,
-        flex: 'none',
-        borderRadius: '50%',
-        border: `1px solid ${C.border}`,
-        background: C.white,
-        color: C.dark,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        boxShadow: '0 1px 6px rgba(26,24,22,0.2)',
-        transition: 'background 120ms',
-      }}
-      hoverStyle={{ background: C.alt }}
-    >
-      <IconHamburger size={18} />
-    </HoverButton>
-  )
 }
 
 /** The dragged panel width survives a reload; nothing else in the shell is persisted. */
@@ -428,19 +399,32 @@ export function Shell() {
   // Each client is shown a different number of listings, so the Clients screen follows
   // the selected subnav row rather than rendering one feed for everybody.
   const clientFeed = feedFor(selectedBuyerRecord.id)
+
+  // The framed map for the selected tour, re-dated to the flow's booking if it has one. Derived
+  // here (ahead of the title) because the Tours header names whichever tour the map is drawing.
+  const selectedReschedule = reschedules[selectedTour]
+  const selectedMapTour = selectedReschedule
+    ? rescheduleTourViews(selectedTour, selectedReschedule.date, selectedReschedule.startTime).mapTour ??
+      TOUR_MAP_DATA[selectedTour]
+    : TOUR_MAP_DATA[selectedTour]
+
   const pageTitle = isClients
     ? selectedBuyerRecord.id === AGENT_FEED_ID
       ? 'My feed'
       : selectedBuyerRecord.name
-    : isSearch
-      ? 'Search'
-      : 'Home'
+    : isTours
+      ? selectedMapTour?.client ?? 'Tour'
+      : isSearch
+        ? 'Search'
+        : 'Home'
 
-  const countLabel = isSearch
-    ? ''
-    : isClients
-      ? `${clientFeed.listingCount} ${clientFeed.listingCount === 1 ? 'listing' : 'listings'}`
-      : `${filtered.length}${filter === 'all' ? ' clients' : ` of ${clients.length} clients`}`
+  const countLabel = isClients
+    ? `${clientFeed.listingCount} ${clientFeed.listingCount === 1 ? 'listing' : 'listings'}`
+    : isTours
+      ? selectedMapTour?.date ?? ''
+      : isSearch
+        ? ''
+        : `${filtered.length}${filter === 'all' ? ' clients' : ` of ${clients.length} clients`}`
 
   const buyerQuery = clientQ.trim().toLowerCase()
   const buyers = BUYERS.filter((b) => b.name.toLowerCase().includes(buyerQuery))
@@ -464,13 +448,6 @@ export function Shell() {
   const upcomingTourCount = visibleTours.filter((t) => t.upcoming).length
   const pastTourCount = visibleTours.filter((t) => !t.upcoming).length
 
-  // The framed map for the selected tour, re-dated to the flow's booking if it has one.
-  const selectedReschedule = reschedules[selectedTour]
-  const selectedMapTour = selectedReschedule
-    ? rescheduleTourViews(selectedTour, selectedReschedule.date, selectedReschedule.startTime).mapTour ??
-      TOUR_MAP_DATA[selectedTour]
-    : TOUR_MAP_DATA[selectedTour]
-
   const threadQuery = threadQ.trim().toLowerCase()
   const baseThreads = THREADS.filter((t) => t.title.toLowerCase().includes(threadQuery))
   // The active conversation leads the list once it's titled (the add-client flow sets this),
@@ -481,6 +458,34 @@ export function Shell() {
       : baseThreads
 
   const subnavVariant = isClients ? 'clients' : isTours ? 'tours' : null
+
+  // Per-screen header controls. Clients uses its toggles (built inside MainHeader); Tours and
+  // Search hand their own action pills and overflow-menu rows in — the same set the map pages
+  // used to draw inside the iframe. These are prototype no-ops, matching the standalone pages.
+  const headerActions: ActionItem[] | undefined = isTours
+    ? [
+        { id: 'export', label: 'Export', icon: <IconExport size={14} />, tone: 'light', onClick: () => {} },
+        {
+          id: 'add-to-calendar',
+          label: 'Add to calendar',
+          icon: <IconCalendar size={14} />,
+          tone: 'dark',
+          onClick: () => {},
+        },
+      ]
+    : isSearch
+      ? [{ id: 'save-search', label: 'Save search', icon: <IconBookmark size={14} />, tone: 'dark', onClick: () => {} }]
+      : undefined
+
+  const headerMenuItems = isTours
+    ? ['Share with client', 'Print tour sheet', 'Duplicate tour', 'Cancel tour']
+    : isSearch
+      ? ['Save this search', 'Email results to client', 'Export results', 'Search settings']
+      : undefined
+
+  // Tours and Search always use the ActionBar (their labelled pills need it); Clients and Home
+  // only do so in the inline-Ask arm. The inline Ask itself shows only in that arm.
+  const headerUsesActionBar = actionBar || isTours || isSearch
   // On mobile the panel is a full-screen overlay, so the width bookkeeping collapses to
   // all-or-nothing and there is no gap beside it for `main` to give up.
   const pushWidth = !pushContent
@@ -539,23 +544,6 @@ export function Shell() {
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
-
-  /**
-   * The Search and Tours action bars live inside iframes, so their Ask button cannot reach
-   * the panel directly — it posts up instead. Only bound in variant B, which is the only
-   * arm where those buttons exist.
-   */
-  useEffect(() => {
-    if (!actionBar) return
-    const onMessage = (e: MessageEvent) => {
-      // Same-origin only: the maps are served from this app, and nothing else should be
-      // able to drive the panel.
-      if (e.origin !== window.location.origin) return
-      if (e.data?.type === ASK_MESSAGE) openPush()
-    }
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
-  }, [actionBar])
 
   // Escape backs out one overlay at a time, topmost first.
   useEffect(() => {
@@ -645,30 +633,23 @@ export function Shell() {
           }}
         >
           <MainHeader
-            visible={!isSearch && !isTours}
+            visible
             mobile={isMobile}
-            actionBar={actionBar}
+            useActionBar={headerUsesActionBar}
+            showAsk={actionBar}
             onAsk={openPush}
             askOpen={pushContent}
-            showSubnavButton={isClients && !subnavOpen}
+            showSubnavButton={!!subnavVariant && !subnavOpen}
             onOpenSubnav={openSubnav}
+            lead={isSearch ? <SearchHeaderLead mobile={isMobile} /> : undefined}
             title={pageTitle}
             countLabel={countLabel}
             showToggles={isClients}
             toggles={toggles}
             onToggle={(id: ToggleId) => setToggles((p) => ({ ...p, [id]: !p[id] }))}
+            actions={headerActions}
+            menuItems={headerMenuItems}
           />
-
-          {/*
-            Tours hides `MainHeader` and hands its whole viewport to an embedded map, so on
-            mobile the trigger for its subnav floats over that map rather than taking a
-            column out of a 320px screen.
-          */}
-          {isMobile && isTours && !subnavOpen && (
-            <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 15, display: 'flex' }}>
-              <FloatingIconButton label="Open tours list" onClick={() => setSubnavOpen(true)} />
-            </div>
-          )}
 
           <button
             type="button"
@@ -757,17 +738,11 @@ export function Shell() {
             />
           )}
 
-          {isSearch && <SearchScreen variant={variant} askOpen={pushContent} />}
+          {isSearch && <SearchScreen />}
 
           {isTours && (
-            <ToursScreen
-              showSubnavButton={!isMobile && !subnavOpen}
-              onOpenSubnav={openSubnav}
-              variant={variant}
-              askOpen={pushContent}
-              // The embedded map follows the Tours subnav: it draws whichever tour is selected.
-              selectedTour={selectedMapTour}
-            />
+            // The embedded map follows the Tours subnav: it draws whichever tour is selected.
+            <ToursScreen selectedTour={selectedMapTour} />
           )}
 
           {isClients && (

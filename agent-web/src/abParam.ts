@@ -23,13 +23,3 @@ export function readAbParam(): AbVariant {
   const value = new URLSearchParams(window.location.search).get(PARAM)?.toLowerCase()
   return value && VARIANTS.includes(value) ? (value as AbVariant) : DEFAULT_VARIANT
 }
-
-/**
- * Carries `?ab=` onto a URL that does not have it.
- *
- * The maps are iframes with their own URLs, so the variant has to be forwarded explicitly
- * or they would always render as A regardless of what the shell is showing.
- */
-export function withAbParam(url: string, variant: AbVariant) {
-  return variant === DEFAULT_VARIANT ? url : `${url}?${PARAM}=${variant}`
-}

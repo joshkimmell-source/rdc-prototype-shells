@@ -223,18 +223,22 @@ test.describe('Dynamic Tours subnav', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/?view=tours')
-    await expect(page.getByRole('heading', { name: 'Tours' })).toBeVisible()
+    // The Tours page title is the drawn tour's client — it opens on Priyanka's default tour.
+    await expect(mapTourClient(page)).toContainText('Priyanka Raman')
   })
 
   /** A tour row inside the Tours subnav, scoped so the transcript's own client chips can't match. */
   const subnavRow = (page: Page, name: string) =>
     page.locator('[data-subnav="tours"]').locator('button').filter({ hasText: name })
 
-  /** The framed tour map. Its `#tourClient` header names whichever tour it is drawing. */
-  const mapTourClient = (page: Page) => page.frameLocator('iframe[title="Tour route"]').locator('#tourClient')
-
-  /** The framed map's date line, in its own `"Sat, Aug 22 '26"` format. */
-  const mapTourDate = (page: Page) => page.frameLocator('iframe[title="Tour route"]').locator('#tourDate')
+  /**
+   * The tour's title now lives in the shell's shared header (the map no longer draws its own),
+   * so both the client name and the date read from the `main` heading. The client is on the
+   * heading's first line; the date sits on a second line below it, in its own `"Sat, Aug 22 '26"`
+   * format — the last of the heading's two stacked spans.
+   */
+  const mapTourClient = (page: Page) => page.getByRole('main').getByRole('heading')
+  const mapTourDate = (page: Page) => page.getByRole('main').locator('h1 > span').last()
 
   test('withholds the coordinated tour from the upcoming list until it is booked', async ({ page }) => {
     // Upcoming opens with only the already-created tour (Priyanka); Jordan & Mia's is withheld.
@@ -243,7 +247,7 @@ test.describe('Dynamic Tours subnav', () => {
     await expect(subnavRow(page, 'Jordan & Mia Castellanos')).toHaveCount(0)
 
     // The map shows Priyanka's tour by default, standing in for the un-booked coordinated one.
-    await expect(mapTourClient(page)).toHaveText('Priyanka Raman')
+    await expect(mapTourClient(page)).toContainText('Priyanka Raman')
 
     // Its past tours are never withheld, so cli_02 still shows under Past (it has two).
     await page.getByRole('button', { name: /^Past \(/ }).click()
@@ -251,7 +255,7 @@ test.describe('Dynamic Tours subnav', () => {
   })
 
   test('booking the coordinated tour reveals it in the subnav and the map', async ({ page }) => {
-    await expect(mapTourClient(page)).toHaveText('Priyanka Raman')
+    await expect(mapTourClient(page)).toContainText('Priyanka Raman')
 
     await fab(page).click()
     await expect(page.getByRole('button', { name: 'Close panel' })).toBeVisible()
@@ -272,7 +276,7 @@ test.describe('Dynamic Tours subnav', () => {
     await expect(subnavRow(page, 'Jordan & Mia Castellanos')).toBeVisible()
 
     // And the map switches from Priyanka's tour to the freshly-booked coordinated one.
-    await expect(mapTourClient(page)).toHaveText('Jordan & Mia Castellanos')
+    await expect(mapTourClient(page)).toContainText('Jordan & Mia Castellanos')
   })
 
   test('carries the picked date onto the subnav row and the framed map', async ({ page }) => {
@@ -296,18 +300,18 @@ test.describe('Dynamic Tours subnav', () => {
     await expect(subnavRow(page, 'Jordan & Mia Castellanos').filter({ hasText: 'Sat, Aug 22' })).toBeVisible()
 
     // And the framed Tour page follows: it draws the coordinated tour on the picked day.
-    await expect(mapTourClient(page)).toHaveText('Jordan & Mia Castellanos')
+    await expect(mapTourClient(page)).toContainText('Jordan & Mia Castellanos')
     await expect(mapTourDate(page)).toHaveText("Sat, Aug 22 '26")
   })
 
   test('the map follows the tour selected in the subnav', async ({ page }) => {
     // Opens on Priyanka's default-selected tour.
-    await expect(mapTourClient(page)).toHaveText('Priyanka Raman')
+    await expect(mapTourClient(page)).toContainText('Priyanka Raman')
 
     // Selecting one of cli_02's past tours drives the map to it — the map is not pinned to a
     // single featured tour, it draws whatever the subnav has selected.
     await page.getByRole('button', { name: /^Past \(/ }).click()
     await subnavRow(page, 'Jordan & Mia Castellanos').first().click()
-    await expect(mapTourClient(page)).toHaveText('Jordan & Mia Castellanos')
+    await expect(mapTourClient(page)).toContainText('Jordan & Mia Castellanos')
   })
 })

@@ -1,18 +1,12 @@
-/** Search: the Leaflet map-search page, embedded as-is from public/search-map.html. */
+/**
+ * Search: the Leaflet map-search page, embedded from public/search-map.html. The MLS selector,
+ * search field, and actions now live in the shared `MainHeader` (see SearchHeaderLead); the frame
+ * is just the map, chips, and view toggles.
+ */
 import { useRef } from 'react'
-import { withAbParam, type AbVariant } from '../abParam'
-import { useAskVisibility } from '../askBridge'
 
-interface SearchScreenProps {
-  /** Forwarded into the iframe, which renders its own action bar under `?ab=b`. */
-  variant: AbVariant
-  /** Posted into the frame so its Ask button can hide while the panel is open. */
-  askOpen: boolean
-}
-
-export function SearchScreen({ variant, askOpen }: SearchScreenProps) {
+export function SearchScreen() {
   const frameRef = useRef<HTMLIFrameElement>(null)
-  const postAskVisible = useAskVisibility(frameRef, !askOpen)
 
   return (
     <div
@@ -21,9 +15,8 @@ export function SearchScreen({ variant, askOpen }: SearchScreenProps) {
     >
       <iframe
         ref={frameRef}
-        src={withAbParam('search-map.html', variant)}
+        src="search-map.html"
         title="Map search"
-        onLoad={postAskVisible}
         style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
       />
     </div>
