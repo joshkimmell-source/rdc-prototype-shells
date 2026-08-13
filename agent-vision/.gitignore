@@ -1,0 +1,10 @@
+node_modules
+dist
+upload
+styled-system
+.import
+.env
+.env.local
+test-results
+playwright-report
+.playwright

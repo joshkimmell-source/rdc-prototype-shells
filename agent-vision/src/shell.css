@@ -1,0 +1,142 @@
+/* Ported verbatim from the <helmet> block of ContentOrchestrationShell.dc.html */
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family: 'Galano Grotesque Alt', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f8f7f7;
+  color: #1a1816;
+}
+
+a {
+  color: #1a1816;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #d92228;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+}
+
+input {
+  font-family: inherit;
+}
+
+::selection {
+  background: #fee2e3;
+}
+
+/*
+ * Shell root height. `100dvh` tracks mobile browser chrome as it collapses, so the
+ * composer at the bottom of the assistant panel is not left under the address bar;
+ * `100vh` stays as the fallback for engines without the dynamic units.
+ */
+.ra-shell {
+  height: 100vh;
+  height: 100dvh;
+}
+
+@keyframes raPulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ra-fab,
+.ra-fab * {
+  color: #ffffff;
+}
+
+/* Haven type utility the DC file leans on for stat values (numeric body 100). */
+.ty-numeric-body100 {
+  font-family: 'Galano Grotesque Alt', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.ty-numeric-caption100 {
+  font-family: 'Galano Grotesque Alt', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Capability ActionCards stack their media icon above the title. ActionCard lays its
+ * media / body / indicator out in a flex row with no prop to change direction, so we flip
+ * its inner content layout (the `id`-bearing div it renders inside the Card) to a column and
+ * clear the row-only side margins on the media and the trailing arrow indicator.
+ */
+.ra-cap-card > div[id] {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.ra-cap-card > div[id] > :first-child {
+  margin-right: 0;
+}
+
+/*
+ * The body (title + text) defaults to `flex-grow: 1; justify-content: center`, which
+ * floats the text to the vertical centre of an equal-height grid cell. Pin it to the top
+ * so the contents sit right under the icon.
+ */
+.ra-cap-card > div[id] > :last-child {
+  margin-left: 0;
+  flex-grow: 0;
+  justify-content: flex-start;
+}
+
+/* Shrink the description text (the body span, below the title) to fit more in each card. */
+.ra-cap-card > div[id] > :last-child > span {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Thin scrollbars inside the shell's scrolling regions. */
+.ra-scroll {
+  scrollbar-width: thin;
+}
+
+.ra-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ra-scroll::-webkit-scrollbar-thumb {
+  background: #d3cfca;
+  border-radius: 8px;
+}
+
+.ra-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/*
+ * Horizontal overflow with no visible scrollbar — for control rows like the action bar,
+ * where a bar would sit across the buttons in a header only ~36px tall. The row still
+ * scrolls by wheel, trackpad, and touch.
+ */
+.ra-scroll-x {
+  scrollbar-width: none;
+}
+
+.ra-scroll-x::-webkit-scrollbar {
+  display: none;
+}
