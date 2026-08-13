@@ -1,0 +1,693 @@
+/* ============================================================
+   Haven Design System — Foundations (realtor.com)
+   AUTHORITATIVE: tokens mirror Mode-1 + Value Figma exports.
+   Last sync: 2026-05-05 from `Mode 1.tokens.json` + `Value.tokens.json`.
+   ============================================================ */
+
+/* ---------------- Webfonts ---------------- */
+/* Galano Grotesque Alt — brand face across display, body, caption, numericData.
+   Three weights: Regular (400), Medium (500), SemiBold (600). No heavier weight ships.
+
+   Loaded from the public static.rdc.moveaws.com CDN, which is the same source
+   `dev.html` uses. The licensed .otf binaries are deliberately NOT committed — this
+   repo is public, and redistributing the font files would breach their license. The
+   CDN serves the same faces as .woff2/.woff to any origin, so the rendering is
+   identical without shipping the binaries. */
+@font-face {
+  font-family: "Galano Grotesque Alt";
+  src: url("https://static.rdc.moveaws.com/fonts/galano-grotesque-alt-regular.woff2") format("woff2"),
+       url("https://static.rdc.moveaws.com/fonts/galano-grotesque-alt-regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Galano Grotesque Alt";
+  src: url("https://static.rdc.moveaws.com/fonts/galano-grotesque-alt-medium.woff2") format("woff2"),
+       url("https://static.rdc.moveaws.com/fonts/galano-grotesque-alt-medium.woff") format("woff");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Galano Grotesque Alt";
+  src: url("https://static.rdc.moveaws.com/fonts/galano-grotesque-alt-semi-bold.woff2") format("woff2"),
+       url("https://static.rdc.moveaws.com/fonts/galano-grotesque-alt-semi-bold.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ============================================================
+     PRIMITIVE PALETTE — 9 hue families × 10–13 weights
+     Mode 1 / Value Figma variables — DO NOT EDIT individual hexes.
+     ============================================================ */
+
+  /* Gray (warm-neutral, the workhorse) */
+  --gray-50:   #F8F7F7;
+  --gray-100:  #F2F0EF;
+  --gray-200:  #E9E7E4;
+  --gray-300:  #D3CFCA;
+  --gray-400:  #BEB8B0;
+  --gray-500:  #AAA197;
+  --gray-600:  #958A7F;
+  --gray-700:  #726A60;
+  --gray-800:  #696159;
+  --gray-900:  #544D47;
+  --gray-1000: #3F3B36;
+  --gray-1100: #2C2925;
+  --gray-1200: #1A1816;
+  --gray-white: #FFFFFF;
+  --gray-black: #000000;
+
+  /* Red — signature brand */
+  --red-50:   #FEF2F2;
+  --red-100:  #FEE2E3;
+  --red-200:  #FECACC;
+  --red-300:  #FCA5A8;
+  --red-400:  #F97074;
+  --red-500:  #F04349;
+  --red-600:  #D92228;  /* Brand red */
+  --red-700:  #BA1B20;
+  --red-800:  #9A1A1E;
+  --red-900:  #7F1D20;
+  --red-1000: #450A0C;
+
+  /* Blue (info, links, focus ring) */
+  --blue-100:  #E9EFFB;
+  --blue-200:  #C9D9F6;
+  --blue-300:  #9EBBEF;
+  --blue-400:  #719BE7;
+  --blue-500:  #5184E1;
+  --blue-600:  #1E61D9;  /* status.info */
+  --blue-700:  #1A52B8;
+  --blue-800:  #15459A;
+  --blue-900:  #11377C;
+  --blue-1000: #0D2C62;
+
+  /* Green (success, "for sale") */
+  --green-100:  #E9F6E9;
+  --green-200:  #DAF1DB;
+  --green-300:  #C9E8CA;
+  --green-400:  #B2DDB5;
+  --green-500:  #94CE9A;
+  --green-600:  #65BA74;
+  --green-700:  #46A758;
+  --green-800:  #3E9B4F;
+  --green-900:  #2A7E3B;  /* status.success */
+  --green-1000: #203C25;
+
+  /* Orange (urgency, deal-spotlights) */
+  --orange-100:  #FFEFD6;
+  --orange-200:  #FFDFB5;
+  --orange-300:  #FFD19A;
+  --orange-400:  #FFC182;
+  --orange-500:  #F5AE73;
+  --orange-600:  #EC9455;
+  --orange-700:  #F76B15;
+  --orange-800:  #EF5F00;
+  --orange-900:  #CC4E00;
+  --orange-1000: #582D1D;
+
+  /* Yellow (warnings, ratings) */
+  --yellow-100:  #FFF9E9;
+  --yellow-200:  #FFF2D0;
+  --yellow-300:  #FFE593;
+  --yellow-400:  #FFDD68;
+  --yellow-500:  #FFD600;  /* status.warning */
+  --yellow-600:  #D0AF00;
+  --yellow-700:  #B49700;
+  --yellow-800:  #937C00;
+  --yellow-900:  #685700;
+  --yellow-1000: #514400;
+
+  /* Pink */
+  --pink-100:  #FEE9F5;
+  --pink-200:  #FBDCEF;
+  --pink-300:  #F6CEE7;
+  --pink-400:  #EFBFDD;
+  --pink-500:  #E7ACD0;
+  --pink-600:  #DD93C2;
+  --pink-700:  #D6409F;
+  --pink-800:  #CF3897;
+  --pink-900:  #C2298A;
+  --pink-1000: #651249;
+
+  /* Purple */
+  --purple-100:  #FBEBFB;
+  --purple-200:  #F7DEF8;
+  --purple-300:  #F2D1F3;
+  --purple-400:  #E9C2EC;
+  --purple-500:  #DEADE3;
+  --purple-600:  #CF91D8;
+  --purple-700:  #AB4ABA;
+  --purple-800:  #A144AF;
+  --purple-900:  #953EA3;
+  --purple-1000: #53195D;
+
+  /* Teal */
+  --teal-100:  #E0F8F8;
+  --teal-200:  #CCF3F3;
+  --teal-300:  #B8EAE9;
+  --teal-400:  #A1DEDC;
+  --teal-500:  #83CDCC;
+  --teal-600:  #53B9B7;
+  --teal-700:  #12A5A0;
+  --teal-800:  #008E88;
+  --teal-900:  #007A78;
+  --teal-1000: #00615F;
+
+  /* Alpha (black-with-opacity overlays — for scrims, sticky shadows) */
+  --alpha-50:  rgba(26, 24, 22, 0.08);   /* tint hover */
+  --alpha-100: rgba(26, 24, 22, 0.16);   /* divider/borders on imagery */
+  --alpha-200: rgba(26, 24, 22, 0.40);   /* image scrims */
+  --alpha-300: rgba(26, 24, 22, 0.72);   /* modal overlay */
+
+  /* ============================================================
+     SEMANTIC TOKENS — `Value.tokens.json` mappings.
+     These are the only color tokens product code should consume.
+     ============================================================ */
+
+  /* Brand */
+  --brand:               var(--red-600);   /* #D92228 */
+
+  /* Backgrounds */
+  --bg-base:             var(--gray-white);
+  --bg-alternate:        var(--gray-100);
+  --bg-bold:             var(--gray-600);
+  --bg-inverse:          var(--gray-1200);
+  --bg-inverse-alternate: var(--gray-1000);
+  --bg-overlay:          var(--alpha-300);
+  --bg-disabled:         var(--gray-200);
+
+  /* Borders */
+  --border-base:         var(--gray-300);
+  --border-alternate:    var(--gray-600);
+  --border-highlight:    var(--gray-700);
+  --border-bold:         var(--gray-1200);
+  --border-inverse:      var(--gray-white);
+  --border-focus:        #3377CC;          /* unique focus blue, not in palette */
+  --border-disabled:     var(--gray-400);
+
+  /* Text */
+  --text-base:           var(--gray-1200);
+  --text-alternate:      var(--gray-700);
+  --text-inverse:        var(--gray-white);
+  --text-disabled:       var(--gray-800);
+
+  /* Status — bold + subtle pairs */
+  --status-error:           var(--red-600);
+  --status-error-subtle:    var(--red-100);
+  --status-warning:         var(--yellow-500);
+  --status-warning-subtle:  var(--yellow-200);
+  --status-info:            var(--blue-600);
+  --status-info-subtle:     var(--blue-100);
+  --status-success:         var(--green-900);
+  --status-success-subtle:  var(--green-100);
+  --status-neutral:         var(--gray-1000);
+  --status-neutral-subtle:  var(--gray-200);
+
+  /* Blur tints (for glass/scrim effects) */
+  --blur-light:          rgba(255, 255, 255, 0.60);
+  --blur-dark:           rgba(0, 0, 0, 0.60);
+
+  /* ============================================================
+     LEGACY FG ALIASES — bridge for older preview cards & UI kit.
+     New code: use --text-*, --bg-*, --border-* directly.
+     ============================================================ */
+  --fg-default:    var(--text-base);
+  --fg-muted:      var(--text-alternate);
+  --fg-subtle:     var(--gray-600);
+  --fg-disabled:   var(--text-disabled);
+  --fg-on-dark:    var(--text-inverse);
+  --fg-on-brand:   var(--text-inverse);
+  --fg-brand:      var(--brand);
+  --fg-brand-hover: var(--red-700);
+  --fg-success:    var(--status-success);
+  --fg-warning:    #685700;
+  --fg-info:       var(--status-info);
+  --fg-link:       var(--text-base);
+  --fg-link-hover: var(--brand);
+
+  --bg-default:    var(--bg-base);
+  --bg-canvas:     var(--gray-50);
+  --bg-subtle:     var(--bg-alternate);
+  --bg-muted:      var(--gray-200);
+  --bg-brand:      var(--brand);
+  --bg-brand-hover: var(--red-700);
+  --bg-action:     var(--gray-1000);   /* primary button (dark, not red) */
+  --bg-action-hover: var(--gray-1200);
+  --bg-success:    var(--status-success-subtle);
+  --bg-warning:    var(--status-warning-subtle);
+  --bg-info:       var(--status-info-subtle);
+
+  --border-default: var(--border-base);
+  --border-muted:   var(--gray-200);
+  --border-strong:  var(--border-highlight);
+  --border-inverse: var(--gray-white);
+  --border-brand:   var(--brand);
+
+  /* ============================================================
+     SUBTLE TAG / DATA-COLOR PALETTE
+     Pale fills, saturated text. Maps to the bold + subtle
+     status tokens above plus optional accent hues.
+     ============================================================ */
+  --tag-gray-bg:    var(--gray-200);
+  --tag-gray-fg:    var(--gray-1000);
+  --tag-blue-bg:    var(--blue-100);
+  --tag-blue-fg:    var(--blue-800);
+  --tag-yellow-bg:  var(--yellow-200);
+  --tag-yellow-fg:  var(--yellow-900);
+  --tag-red-bg:     var(--red-100);
+  --tag-red-fg:     var(--red-800);
+  --tag-green-bg:   var(--green-100);
+  --tag-green-fg:   var(--green-900);
+  --tag-teal-bg:    var(--teal-200);
+  --tag-teal-fg:    var(--teal-1000);
+  --tag-purple-bg:  var(--purple-200);
+  --tag-purple-fg:  var(--purple-1000);
+  --tag-orange-bg:  var(--orange-200);
+  --tag-orange-fg:  var(--orange-1000);
+  --tag-pink-bg:    var(--pink-200);
+  --tag-pink-fg:    var(--pink-1000);
+
+  /* ============================================================
+     SIZE TOKENS — spacing, radius, border-width, blur.
+     Numeric scale matches Figma `size.*` tokens.
+     ============================================================ */
+
+  /* Spacing — Figma scale: 100=2, 200=4, 300=8, 400=12, 500=16,
+     600=24, 700=32, 800=40, 900=48, 1000=56, 1100=64, 1200=72,
+     1300=80, 1400=96, 1500=120, 1600=132 */
+  --space-100:  2px;
+  --space-200:  4px;
+  --space-300:  8px;
+  --space-400: 12px;
+  --space-500: 16px;
+  --space-600: 24px;
+  --space-700: 32px;
+  --space-800: 40px;
+  --space-900: 48px;
+  --space-1000: 56px;
+  --space-1100: 64px;
+  --space-1200: 72px;
+  --space-1300: 80px;
+  --space-1400: 96px;
+  --space-1500: 120px;
+  --space-1600: 132px;
+
+  /* Legacy aliases */
+  --space-0:   0;
+  --space-1:   var(--space-200);
+  --space-2:   var(--space-300);
+  --space-3:   var(--space-400);
+  --space-4:   var(--space-500);
+  --space-5:   20px;
+  --space-6:   var(--space-600);
+  --space-8:   var(--space-700);
+  --space-10:  var(--space-800);
+  --space-12:  var(--space-900);
+  --space-16:  var(--space-1100);
+  --space-20:  var(--space-1300);
+  --space-24:  var(--space-1400);
+  --space-32:  128px;
+
+  /* Border radius — 100=4, 200=8, 300=16, 400=40, 500=9999 (pill) */
+  --radius-100: 4px;
+  --radius-200: 8px;
+  --radius-300: 16px;
+  --radius-400: 40px;     /* button radius */
+  --radius-500: 9999px;   /* full pill */
+
+  /* Legacy aliases */
+  --radius-xs:     var(--radius-100);
+  --radius-sm:     var(--radius-200);
+  --radius-md:     12px;                  /* between 200/300 */
+  --radius-lg:     var(--radius-300);     /* card radius */
+  --radius-xl:     24px;
+  --radius-pill:   var(--radius-500);
+  --radius-button: var(--radius-400);
+
+  /* Border width — Figma `size.border.*`. Authoritative tokens.
+     | Token                | Value | Usage                                                              |
+     | -------------------- | ----- | ------------------------------------------------------------------ |
+     | --size-border-100    | 1px   | Dividers, input borders, table rows                                |
+     | --size-border-200    | 2px   | School-rating bubble, picker red-selected state, active-state tab  |
+     | --size-border-300    | 4px   | Toast left border, active-state tab                                |
+  */
+  --size-border-100: 1px;
+  --size-border-200: 2px;
+  --size-border-300: 4px;
+
+  /* Legacy short-name aliases — prefer --size-border-* in new code */
+  --border-100: var(--size-border-100);
+  --border-200: var(--size-border-200);
+  --border-300: var(--size-border-300);
+
+  /* Blur sizes (for backdrop-filter) */
+  --blur-100: 12px;
+  --blur-200: 16px;
+  --blur-300: 24px;
+  --blur-400: 40px;
+
+  /* ============================================================
+     SHADOWS — authoritative from Shadow.pdf.
+     Six tokens, ambient+key two-layer. Use as box-shadow values.
+     ============================================================ */
+  --shadow-recessed: inset 0 2px 4px rgba(0, 0, 0, 0.12);
+  --shadow-raised:   0 0 4px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.16);
+  --shadow-lifted:   0 0 8px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.16);
+  --shadow-sticky:   0 4px 8px rgba(0, 0, 0, 0.12);
+  --shadow-float:    0 1px 12px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.16);
+  --shadow-dialog:   0 2px 16px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.16);
+
+  /* ============================================================
+     Z-INDEX SCALE — mirrors rdcUiTheme.zIndex.*
+     ============================================================ */
+  --z-base:     0; /* @kind other */
+  --z-raised:   10; /* @kind other */
+  --z-sticky:   100; /* @kind other */
+  --z-dropdown: 1000; /* @kind other */
+  --z-overlay:  1100; /* @kind other */
+  --z-modal:    1200; /* @kind other */
+  --z-popover:  1300; /* @kind other */
+  --z-tooltip:  1400; /* @kind other */
+  --z-toast:    1500; /* @kind other */
+
+  /* ============================================================
+     ANIMATION
+     ============================================================ */
+  --motion-fast:    120ms; /* @kind other */
+  --motion-base:    180ms; /* @kind other */
+  --motion-medium:  220ms; /* @kind other */
+  --motion-slow:    280ms; /* @kind other */
+  --motion-ease:    cubic-bezier(0.2, 0.8, 0.2, 1); /* @kind other */
+  --motion-ease-out: cubic-bezier(0.0, 0.0, 0.2, 1); /* @kind other */
+
+  /* ============================================================
+     BREAKPOINTS
+     ============================================================ */
+  --bp-xs: 480px; /* @kind other */
+  --bp-sm: 768px; /* @kind other */
+  --bp-md: 1024px; /* @kind other */
+  --bp-lg: 1280px; /* @kind other */
+  --bp-xl: 1440px; /* @kind other */
+
+  /* ============================================================
+     TYPOGRAPHY — Galano Grotesque Alt across all tiers
+     (display, body, caption, numericData all use the same family).
+     ============================================================ */
+  --font-display: "Galano Grotesque Alt", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body:    "Galano Grotesque Alt", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-caption: "Galano Grotesque Alt", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-numeric: "Galano Grotesque Alt", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-text:    var(--font-body);  /* legacy alias */
+  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Font-size scale — Figma: 100=10, 200=12, 300=14, 400=16,
+     500=18, 600=20, 700=24, 800=32, 900=56 */
+  --fs-100:  10px;
+  --fs-200:  12px;
+  --fs-300:  14px;
+  --fs-400:  16px;
+  --fs-500:  18px;
+  --fs-600:  20px;
+  --fs-700:  24px;
+  --fs-800:  32px;
+  --fs-900:  56px;
+
+  /* Line-height scale (px) — Figma: 100=12 ... 1100=64 */
+  --lh-100:  12px;
+  --lh-200:  14px;
+  --lh-300:  16px;
+  --lh-400:  20px;
+  --lh-500:  24px;
+  --lh-600:  28px;
+  --lh-700:  32px;
+  --lh-800:  40px;
+  --lh-900:  48px;
+  --lh-1000: 56px;
+  --lh-1100: 64px;
+
+  /* Letter-spacing — Figma values verbatim (px-equivalent) */
+  --ls-0:   0; /* @kind font */
+  --ls-100: -1.68px;   /* ultra-tight, display-900 only */
+  --ls-200: -0.24px;
+  --ls-300: 0.48px;
+  --ls-400: 0.60px;
+
+  /* Weights — Figma uses Regular / Medium / SemiBold names */
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     600;  /* 'bold' in this system = SemiBold */
+  --weight-heavy:    600;  /* alias — no heavier weight ships */
+
+  /* Legacy alias scale (kept so older preview cards render) */
+  --text-xs:   var(--fs-200);
+  --text-sm:   var(--fs-300);
+  --text-base: var(--fs-400);
+  --text-md:   var(--fs-500);
+  --text-lg:   var(--fs-600);
+  --text-xl:   var(--fs-700);
+  --text-2xl:  var(--fs-800);
+  --text-3xl:  40px;
+  --text-4xl:  48px;
+  --text-5xl:  var(--fs-900);
+  --text-6xl:  64px;
+  --text-7xl:  72px;
+  --lh-tight:   1.05; /* @kind font */
+  --lh-snug:    1.15; /* @kind font */
+  --lh-normal:  1.40; /* @kind font */
+  --lh-relaxed: 1.50; /* @kind font */
+  --tracking-tight: -0.02em;
+  --tracking-snug:  -0.01em;
+  --tracking-normal: 0em;
+  --tracking-wide:   0.04em;
+}
+
+/* ============================================================
+   ELEMENT DEFAULTS — semantic styles for raw HTML
+   ============================================================ */
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--fs-400);
+  line-height: var(--lh-500);
+  color: var(--text-base);
+  background: var(--colors-bg-base);
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-tight);
+  color: var(--text-base);
+  margin: 0 0 var(--space-500);
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--fs-900); line-height: var(--lh-1000); letter-spacing: var(--ls-100); }
+h2 { font-size: var(--fs-800); line-height: var(--lh-800); }
+h3 { font-size: var(--fs-700); line-height: var(--lh-700); }
+h4 { font-size: var(--fs-600); line-height: var(--lh-600); }
+h5 { font-size: var(--fs-500); line-height: var(--lh-500); }
+h6 { font-size: var(--fs-400); line-height: var(--lh-500); text-transform: none; letter-spacing: 0; }
+
+p {
+  margin: 0 0 var(--space-500);
+  text-wrap: pretty;
+  line-height: var(--lh-500);
+}
+
+a {
+  color: var(--text-base);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  transition: color 120ms ease;
+}
+a:hover { color: var(--brand); text-decoration-thickness: 2px; }
+
+small { font-size: var(--fs-300); color: var(--text-alternate); }
+
+code, pre, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+code {
+  background: var(--bg-alternate);
+  padding: 2px 6px;
+  border-radius: var(--radius-100);
+  border: 1px solid var(--gray-200);
+}
+pre {
+  background: var(--bg-inverse);
+  color: var(--text-inverse);
+  padding: var(--space-500) 20px;
+  border-radius: var(--radius-200);
+  overflow-x: auto;
+  line-height: var(--lh-500);
+}
+pre code { background: transparent; border: 0; padding: 0; color: inherit; }
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border-base);
+  margin: var(--space-700) 0;
+}
+
+/* Eyebrow / label microtype */
+.eyebrow {
+  font-family: var(--font-caption);
+  font-size: var(--fs-200);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--ls-300);
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+/* ============================================================
+   TYPE STYLETYPES — authoritative from Web Typescale.pdf.
+   Tiers: Display 500–800, Body 200–400, Caption 100, Legal 50.
+   Each Body/Caption/Legal tier has Regular (400) / Medium (500) /
+   Bold (600) weight variants.
+   ============================================================ */
+/* Display — single-weight (SemiBold 600), tightened tracking
+   Display tiers RESPOND DOWN ONE STEP on mobile (≤640px):
+     D800 56→32, D700 32→24, D600 24→20, D500 20→18.
+   Body / caption / legal sizes stay constant on all devices. */
+.ty-display800 { font-family: var(--font-display); font-size: 56px; line-height: 64px; letter-spacing: -1.68px; font-weight: 600; }
+.ty-display700 { font-family: var(--font-display); font-size: 32px; line-height: 40px; letter-spacing: -0.24px; font-weight: 600; }
+.ty-display600 { font-family: var(--font-display); font-size: 24px; line-height: 28px; letter-spacing: -0.24px; font-weight: 600; }
+.ty-display500 { font-family: var(--font-display); font-size: 20px; line-height: 24px; letter-spacing: -0.24px; font-weight: 600; }
+
+@media (max-width: 640px) {
+  .ty-display800 { font-size: 32px; line-height: 40px; letter-spacing: -0.24px; }
+  .ty-display700 { font-size: 24px; line-height: 28px; letter-spacing: -0.24px; }
+  .ty-display600 { font-size: 20px; line-height: 24px; letter-spacing: -0.24px; }
+  .ty-display500 { font-size: 18px; line-height: 24px; letter-spacing: -0.24px; }
+}
+
+/* Body — Regular / Medium / Bold variants */
+.ty-body400        { font-family: var(--font-body); font-size: 18px; line-height: 28px; font-weight: 400; }
+.ty-body400-medium { font-family: var(--font-body); font-size: 18px; line-height: 28px; font-weight: 500; }
+.ty-body400-bold   { font-family: var(--font-body); font-size: 18px; line-height: 28px; font-weight: 600; }
+.ty-body300        { font-family: var(--font-body); font-size: 16px; line-height: 24px; font-weight: 400; }
+.ty-body300-medium { font-family: var(--font-body); font-size: 16px; line-height: 24px; font-weight: 500; }
+.ty-body300-bold   { font-family: var(--font-body); font-size: 16px; line-height: 24px; font-weight: 600; }
+.ty-body200        { font-family: var(--font-body); font-size: 14px; line-height: 20px; font-weight: 400; }
+.ty-body200-medium { font-family: var(--font-body); font-size: 14px; line-height: 20px; font-weight: 500; }
+.ty-body200-bold   { font-family: var(--font-body); font-size: 14px; line-height: 20px; font-weight: 600; }
+
+/* Caption — 12/16, normal tracking (NOT uppercase, NOT tracked) */
+.ty-caption100        { font-family: var(--font-caption); font-size: 12px; line-height: 16px; font-weight: 400; }
+.ty-caption100-medium { font-family: var(--font-caption); font-size: 12px; line-height: 16px; font-weight: 500; }
+.ty-caption100-bold   { font-family: var(--font-caption); font-size: 12px; line-height: 16px; font-weight: 600; }
+
+/* Legal — 10/14, fine print */
+.ty-legal50           { font-family: var(--font-body); font-size: 10px; line-height: 14px; font-weight: 400; }
+.ty-legal50-medium    { font-family: var(--font-body); font-size: 10px; line-height: 14px; font-weight: 500; }
+.ty-legal50-bold      { font-family: var(--font-body); font-size: 10px; line-height: 14px; font-weight: 600; }
+
+/* Inline text links — underlined, Medium weight */
+.ty-link-inline {
+  font-family: var(--font-body);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: inherit;
+}
+.ty-link-inline:hover { color: var(--gray-800); }
+.ty-link-dotted {
+  font-family: var(--font-body);
+  font-weight: 500;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  color: inherit;
+}
+.ty-link-dotted:hover { color: var(--gray-800); }
+
+/* Tabular figures helper (numerics use Body/Display tiers + this class) */
+.ty-tabular { font-variant-numeric: tabular-nums; }
+
+/* Data type styles — same tiers as Body/Display but with monospaced/tabular
+   numerals for column-aligned numeric data (tables, prices, statistics). */
+.ty-numeric-data,
+.ty-numeric-display800, .ty-numeric-display700, .ty-numeric-display600, .ty-numeric-display500,
+.ty-numeric-body400, .ty-numeric-body400-medium, .ty-numeric-body400-bold,
+.ty-numeric-body300, .ty-numeric-body300-medium, .ty-numeric-body300-bold,
+.ty-numeric-body200, .ty-numeric-body200-medium, .ty-numeric-body200-bold,
+.ty-numeric-caption100, .ty-numeric-caption100-medium, .ty-numeric-caption100-bold,
+.ty-numeric-legal50, .ty-numeric-legal50-medium, .ty-numeric-legal50-bold {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.ty-numeric-display800 { font-family: var(--font-display); font-size: 56px; line-height: 64px; font-weight: 600; }
+.ty-numeric-display700 { font-family: var(--font-display); font-size: 32px; line-height: 40px; font-weight: 600; }
+.ty-numeric-display600 { font-family: var(--font-display); font-size: 24px; line-height: 28px; font-weight: 600; }
+.ty-numeric-display500 { font-family: var(--font-display); font-size: 20px; line-height: 24px; font-weight: 600; }
+@media (max-width: 640px) {
+  .ty-numeric-display800 { font-size: 32px; line-height: 40px; }
+  .ty-numeric-display700 { font-size: 24px; line-height: 28px; }
+  .ty-numeric-display600 { font-size: 20px; line-height: 24px; }
+  .ty-numeric-display500 { font-size: 18px; line-height: 24px; }
+}
+.ty-numeric-body400        { font-family: var(--font-body); font-size: 18px; line-height: 28px; font-weight: 400; }
+.ty-numeric-body400-medium { font-family: var(--font-body); font-size: 18px; line-height: 28px; font-weight: 500; }
+.ty-numeric-body400-bold   { font-family: var(--font-body); font-size: 18px; line-height: 28px; font-weight: 600; }
+.ty-numeric-body300        { font-family: var(--font-body); font-size: 16px; line-height: 24px; font-weight: 400; }
+.ty-numeric-body300-medium { font-family: var(--font-body); font-size: 16px; line-height: 24px; font-weight: 500; }
+.ty-numeric-body300-bold   { font-family: var(--font-body); font-size: 16px; line-height: 24px; font-weight: 600; }
+.ty-numeric-body200        { font-family: var(--font-body); font-size: 14px; line-height: 20px; font-weight: 400; }
+.ty-numeric-body200-medium { font-family: var(--font-body); font-size: 14px; line-height: 20px; font-weight: 500; }
+.ty-numeric-body200-bold   { font-family: var(--font-body); font-size: 14px; line-height: 20px; font-weight: 600; }
+.ty-numeric-caption100        { font-family: var(--font-caption); font-size: 12px; line-height: 16px; font-weight: 400; }
+.ty-numeric-caption100-medium { font-family: var(--font-caption); font-size: 12px; line-height: 16px; font-weight: 500; }
+.ty-numeric-caption100-bold   { font-family: var(--font-caption); font-size: 12px; line-height: 16px; font-weight: 600; }
+.ty-numeric-legal50        { font-family: var(--font-body); font-size: 10px; line-height: 14px; font-weight: 400; }
+.ty-numeric-legal50-medium { font-family: var(--font-body); font-size: 10px; line-height: 14px; font-weight: 500; }
+.ty-numeric-legal50-bold   { font-family: var(--font-body); font-size: 10px; line-height: 14px; font-weight: 600; }
+
+/* Dotted-link numeric variants (e.g. dotted underline on a tabular figure) */
+.ty-link-dotted-numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  font-weight: 500;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  color: inherit;
+}
+
+/* Type modifiers (mirror Type props) */
+.ty-bold     { font-weight: 600; }
+.ty-medium   { font-weight: 500; }
+.ty-regular  { font-weight: 400; }
+.ty-subtle   { color: var(--text-alternate); }
+.ty-reversed { color: var(--text-inverse); }
+.ty-numeric  { font-variant-numeric: tabular-nums; }
+
+/* Display-1/2 legacy aliases (kept for older preview cards) */
+.display-1 { font-family: var(--font-display); font-size: 56px; line-height: 64px; letter-spacing: -1.68px; font-weight: 600; }
+.display-2 { font-family: var(--font-display); font-size: 32px; line-height: 40px; letter-spacing: -0.24px; font-weight: 600; }
+
+/* Currency / price treatment — Display 600 + tabular */
+.price {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 28px;
+  letter-spacing: -0.24px;
+  color: var(--text-base);
+  font-variant-numeric: tabular-nums;
+}
