@@ -183,6 +183,20 @@ const FINANCING_BY_STATUS: Record<ClientStatus, string> = {
   Archived: 'Pre-approval expired',
 }
 
+/**
+ * The Realtor.com product a client originally came in through. The dataset carries no
+ * acquisition channel, so it's picked deterministically off the client id from the same
+ * product vocabulary the Leads pipeline uses — stable across renders. A client promoted
+ * from a lead keeps that lead's own product instead (see `clientFromLead`).
+ */
+const CLIENT_PRODUCT_SOURCES = ['Market VIP', 'Local Expert', 'ReadyConnect Concierge']
+
+function productSourceFor(id: string): string {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return CLIENT_PRODUCT_SOURCES[h % CLIENT_PRODUCT_SOURCES.length]
+}
+
 /** `{ priceMin: 600000, priceMax: 950000 }` → `"$600K–$950K"`. */
 function budgetFromSearch(search: SavedSearch | undefined): string {
   if (!search) return EMPTY
@@ -224,6 +238,7 @@ function toClient(c: SampleClient): Client {
     greetingName: greetingName(c),
     initials: clientInitials(c),
     stage: c.status,
+    productSource: productSourceFor(c.id),
     budget: budgetFromSearch(search),
     looking: briefFromSearch(search),
     financing: FINANCING_BY_STATUS[c.status],
@@ -1052,3 +1067,604 @@ export const assistantNudges: AssistantNudge[] = (() => {
 
 /** The count the assistant greeting quotes — "N things need attention today." */
 export const attentionCount = assistantNudges.length
+
+// ─── Leads ──────────────────────────────────────────────────────────────────────
+//
+// The "Leads" page (RDCPro's lead-management list) is deliberately distinct from Clients:
+// a lead is a *prospect* who has not yet become a client, so these are net-new contacts,
+// not the ten client records. They follow the dataset's own fictional conventions — 555-
+// block phones, `example.com` emails — and shop/sell in the dataset's real markets. Each
+// carries a Buyer/Seller type (the page's two tabs), a pipeline status, and the lead-CRM
+// columns (market, budget/est. value, date, delivery channel). The whole page is one agent's
+// own pipeline — there's no team-lead "assigned agent" dimension.
+
+export type LeadType = 'Buyer' | 'Seller'
+
+export type LeadStatus =
+  | 'New'
+  | 'Connected'
+  | 'Engaged'
+  | 'Met'
+  | 'Appointment set'
+  | 'Offer made'
+  | 'Nurture'
+
+export interface LeadDelivery {
+  /** How the lead reaches the agent — "Priority", "Live transfer", "Home value lead". */
+  method: string
+  /** The Realtor.com product the lead came through — Market VIP, Local Expert, RCC. */
+  product: string
+}
+
+export interface Lead {
+  id: string
+  type: LeadType
+  name: string
+  initials: string
+  email: string
+  phone: string
+  status: LeadStatus
+  /** Tag colour for the status pill. */
+  statusColor: TagColor
+  /** Follow-up line under the status — "Follow up Aug 15", "Follow-up overdue", or new-lead prompt. */
+  followUp: string
+  overdue: boolean
+  /** The CRM the design credits the last touch to — the "Updated by" caption. */
+  updatedBy: string
+  /**
+   * The lead has been worked past first contact (Engaged, Met, Appointment set, or Offer made),
+   * so it's warm enough to invite into RDC+ and promote to a client. New/Nurture leads aren't.
+   */
+  readyToPromote: boolean
+  marketCity: string
+  marketZip: string
+  /** Buyer budget ceiling, or seller estimated value — a real dataset listing price. */
+  budget: string
+  budgetValue: number
+  dateLabel: string
+  /** Minutes since the lead last showed activity — the Date column sorts on this. */
+  recencyMins: number
+  delivery: LeadDelivery
+  /** Everything the detail page shows that the table row doesn't. */
+  detail: LeadDetail
+}
+
+/** The property the lead first inquired on — a real dataset listing, shown as a card. */
+export interface LeadInquiry {
+  photo: string
+  line1: string
+  cityLine: string
+  mls: string
+  priceLabel: string
+}
+
+/** The referral's call-recording metadata, powering the (inert) audio player. */
+export interface LeadRecording {
+  /** Short date the call was recorded — "6/11/25". */
+  dateLabel: string
+  /** How long until the recording is purged — "in 47 days" or "Expired". */
+  expiresLabel: string
+  /** Playhead position, e.g. "0:24". */
+  elapsed: string
+  /** Total length, e.g. "1:08". */
+  total: string
+  /** Playhead as a percentage of total, for the static progress track. */
+  percent: number
+}
+
+/** The co-marketing partner attached to the referral (lender for buyers, title/escrow for sellers). */
+export interface LeadPartner {
+  role: string
+  name: string
+  phone: string
+  email: string
+}
+
+/** Realtor.com's dispatch tallies for this lead. */
+export interface LeadContactLog {
+  calls: number
+  texts: number
+  inquiries: number
+}
+
+/**
+ * The starter saved search the invite offers to set up, generated from the lead's market and
+ * budget so the consumer lands in RDC+ already looking at the right homes.
+ */
+export interface LeadStarterSearch {
+  /** "Homes in Austin up to $650K". */
+  title: string
+  /** "Austin, TX". */
+  line: string
+  /** "Single-family · Up to $650,000" — the criteria under the title. */
+  detail: string
+}
+
+export interface LeadDetail {
+  /** Buyer budget or seller estimated value, spelled in full — "$615,000". */
+  budgetLabel: string
+  propertyType: string
+  timeframe: string
+  inquiry: LeadInquiry
+  /** Long date the first inquiry arrived — "February 18, 2025". */
+  firstInquiryLabel: string
+  /** Long date + time of the last CRM edit — "January 24, 2026 at 3:12PM". */
+  lastEditedLabel: string
+  /** The Status card's due line — "Due in 3 days", "Overdue", or the new-lead prompt. */
+  dueLabel: string
+  /** The Concierge's hand-off note, templated from the lead's attributes. */
+  conciergeNote: string
+  /** "Financing status" for buyers, "Reason for selling" for sellers. */
+  financingLabel: string
+  financingValue: string
+  availability: string
+  /** Null for new leads, which haven't been called yet. */
+  recording: LeadRecording | null
+  partner: LeadPartner
+  contactLog: LeadContactLog
+  /**
+   * A pre-filled, agent-voiced invitation to continue the relationship on RDC+, drafted from
+   * the qualifying-call data (market, budget, timeframe). The agent edits this before sending.
+   */
+  inviteMessage: string
+  /** A short pre-filled push-notification version of the invite, sent only if the agent opts in. */
+  invitePush: string
+  /** The starter saved search the invite attaches, generated from market + budget. */
+  starterSearch: LeadStarterSearch
+}
+
+/** Status → Tag colour. Every status the data can produce has an entry. */
+const LEAD_STATUS_COLOR: Record<LeadStatus, TagColor> = {
+  New: 'blueSubtle',
+  Connected: 'greenSubtle',
+  Engaged: 'graySubtle',
+  Met: 'greenSubtle',
+  'Appointment set': 'purpleSubtle',
+  'Offer made': 'greenSubtle',
+  Nurture: 'orangeSubtle',
+}
+
+/** Delivery channels, keyed by lead type and picked by hash. Sellers use the seller-side products. */
+const LEAD_DELIVERIES: Record<LeadType, LeadDelivery[]> = {
+  Buyer: [
+    { method: 'Priority', product: 'Market VIP' },
+    { method: 'Live transfer', product: 'Market VIP' },
+    { method: 'Email pass', product: 'Market VIP' },
+    { method: 'Live transfer', product: 'ReadyConnect Concierge' },
+  ],
+  Seller: [
+    { method: 'Listing inquiry', product: 'Local Expert' },
+    { method: 'Home value lead', product: 'Market VIP' },
+    { method: 'Priority', product: 'Local Expert' },
+    { method: 'Email pass', product: 'ReadyConnect Concierge' },
+  ],
+}
+
+/** Stable per-id hash, so a lead's market/budget/delivery pick never shifts between renders. */
+function leadHash(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return h
+}
+
+const LEAD_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const leadShortDate = (d: Date): string => `${LEAD_MONTHS[d.getMonth()]} ${d.getDate()}`
+
+/** Recency units in minutes, for the seed table below. */
+const MIN = 1
+const HR = 60
+const DAY = 1_440
+const MONTH = 43_200
+
+/**
+ * The 20 leads, as a seed of the fields that can't be derived — name, contact, buyer/seller
+ * type, pipeline status, and minutes since last activity. Everything else (market, budget,
+ * delivery, dates, follow-up) is derived below so the columns stay internally consistent.
+ * Names are fictional and distinct from the ten client records.
+ */
+const LEAD_SEED: Array<{
+  name: string
+  email: string
+  phone: string
+  type: LeadType
+  status: LeadStatus
+  recencyMins: number
+}> = [
+  { name: 'Delia Ashford', email: 'delia.ashford@example.com', phone: '(555) 720-8801', type: 'Buyer', status: 'Connected', recencyMins: 25 * MIN },
+  { name: 'Marcus Trelane', email: 'marcus.trelane@example.com', phone: '(555) 720-8802', type: 'Buyer', status: 'Engaged', recencyMins: 2 * HR },
+  { name: 'Yusuf Demir', email: 'yusuf.demir@example.com', phone: '(555) 720-8803', type: 'Buyer', status: 'Appointment set', recencyMins: 4 * HR },
+  { name: 'Priya Venkatesh', email: 'priya.venkatesh@example.com', phone: '(555) 720-8804', type: 'Buyer', status: 'New', recencyMins: 15 * MIN },
+  { name: 'Colton Reyes', email: 'colton.reyes@example.com', phone: '(555) 720-8805', type: 'Buyer', status: 'Met', recencyMins: 1 * DAY },
+  { name: 'Ingrid Solheim', email: 'ingrid.solheim@example.com', phone: '(555) 720-8806', type: 'Buyer', status: 'Offer made', recencyMins: 3 * HR },
+  { name: 'Devon Pryce', email: 'devon.pryce@example.com', phone: '(555) 720-8807', type: 'Buyer', status: 'Nurture', recencyMins: 3 * MONTH },
+  { name: 'Rosalind Kwok', email: 'rosalind.kwok@example.com', phone: '(555) 720-8808', type: 'Buyer', status: 'Connected', recencyMins: 6 * HR },
+  { name: 'Theo Amara', email: 'theo.amara@example.com', phone: '(555) 720-8809', type: 'Buyer', status: 'Engaged', recencyMins: 8 * DAY },
+  { name: 'Naomi Fielder', email: 'naomi.fielder@example.com', phone: '(555) 720-8810', type: 'Buyer', status: 'New', recencyMins: 40 * MIN },
+  { name: 'Everett Blackwood', email: 'everett.blackwood@example.com', phone: '(555) 720-8811', type: 'Buyer', status: 'Met', recencyMins: 5 * DAY },
+  { name: 'Camille Fontaine', email: 'camille.fontaine@example.com', phone: '(555) 720-8812', type: 'Buyer', status: 'Appointment set', recencyMins: 1 * HR },
+  { name: 'Harlan Voss', email: 'harlan.voss@example.com', phone: '(555) 720-8813', type: 'Seller', status: 'Connected', recencyMins: 2 * HR },
+  { name: 'Beatrice Okonkwo', email: 'beatrice.okonkwo@example.com', phone: '(555) 720-8814', type: 'Seller', status: 'Appointment set', recencyMins: 5 * HR },
+  { name: 'Soren Dahl', email: 'soren.dahl@example.com', phone: '(555) 720-8815', type: 'Seller', status: 'Nurture', recencyMins: 4 * MONTH },
+  { name: 'Marisol Vega', email: 'marisol.vega@example.com', phone: '(555) 720-8816', type: 'Seller', status: 'Met', recencyMins: 7 * DAY },
+  { name: 'Grant Whitlock', email: 'grant.whitlock@example.com', phone: '(555) 720-8817', type: 'Seller', status: 'New', recencyMins: 30 * MIN },
+  { name: 'Anaïs Lemaire', email: 'anais.lemaire@example.com', phone: '(555) 720-8818', type: 'Seller', status: 'Engaged', recencyMins: 1 * DAY },
+  { name: 'Tobias Crane', email: 'tobias.crane@example.com', phone: '(555) 720-8819', type: 'Seller', status: 'Connected', recencyMins: 10 * HR },
+  { name: 'Fern Halloway', email: 'fern.halloway@example.com', phone: '(555) 720-8820', type: 'Seller', status: 'Offer made', recencyMins: 6 * HR },
+]
+
+// ── Detail-page derivations ───────────────────────────────────────────────────
+// The detail page shows a handful of referral attributes the table row doesn't. None
+// are in the seed; all are picked deterministically off the per-lead hash so a lead's
+// timeframe, financing, availability and partner never shift between renders.
+
+const LEAD_MONTHS_FULL = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+/** "February 18, 2025" — the long form used for the first-inquiry line. */
+const leadLongDate = (d: Date): string => `${LEAD_MONTHS_FULL[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+
+/** "6/11/25" — the short numeric form used on the call-recording line. */
+const leadNumericDate = (d: Date): string =>
+  `${d.getMonth() + 1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)}`
+
+/** "January 24, 2026 at 3:12PM" — long date plus a 12-hour clock, for the last-edited caption. */
+const leadLongDateTime = (d: Date): string => {
+  const h = ((d.getHours() + 11) % 12) + 1
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  const ap = d.getHours() < 12 ? 'AM' : 'PM'
+  return `${leadLongDate(d)} at ${h}:${mm}${ap}`
+}
+
+/** Seconds → "m:ss". */
+const leadDuration = (sec: number): string => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+
+const LEAD_TIMEFRAMES: Record<LeadType, string[]> = {
+  Buyer: ['0–3 months', '3–6 months', '6–12 months', 'Just browsing'],
+  Seller: ['Listing now', '30–60 days', '2–3 months', 'Exploring options'],
+}
+const BUYER_FINANCING = ['Pre-approved', 'Pre-qualified', 'Cash buyer', 'Financing not started']
+const SELLER_REASON = ['Relocating for work', 'Upsizing', 'Downsizing', 'Settling an estate']
+const LEAD_AVAILABILITY = ['Weekday evenings', 'Weekend mornings', 'Anytime by text', 'Contact to confirm']
+
+/** Co-marketing partners: a lender for buyers, title/escrow for sellers. Picked by hash. */
+const LEAD_PARTNERS: Record<LeadType, LeadPartner[]> = {
+  Buyer: [
+    { role: 'Loan officer', name: 'Justin Greenwood', phone: '(555) 281-5736', email: 'justin.greenwood@example.com' },
+    { role: 'Loan officer', name: 'Renata Alvarez', phone: '(555) 281-5737', email: 'renata.alvarez@example.com' },
+    { role: 'Loan officer', name: 'Desmond Clarke', phone: '(555) 281-5738', email: 'desmond.clarke@example.com' },
+  ],
+  Seller: [
+    { role: 'Title & escrow', name: 'Priscilla Nomura', phone: '(555) 281-5741', email: 'priscilla.nomura@example.com' },
+    { role: 'Title & escrow', name: 'Owen Bradshaw', phone: '(555) 281-5742', email: 'owen.bradshaw@example.com' },
+    { role: 'Home stager', name: 'Camille Dubois', phone: '(555) 281-5743', email: 'camille.dubois@example.com' },
+  ],
+}
+
+/** How the availability preference reads as a closing sentence in the Concierge note. */
+const availabilitySentence = (availability: string): string => {
+  switch (availability) {
+    case 'Weekday evenings':
+      return 'Best reached on weekday evenings.'
+    case 'Weekend mornings':
+      return 'Prefers weekend mornings for showings.'
+    case 'Anytime by text':
+      return 'Happy to be contacted anytime by text.'
+    default:
+      return 'Reach out to confirm the best time to connect.'
+  }
+}
+
+/** How each buyer-financing value reads mid-sentence ("they're …"). */
+const BUYER_FINANCING_PHRASE: Record<string, string> = {
+  'Pre-approved': 'already pre-approved',
+  'Pre-qualified': 'pre-qualified',
+  'Cash buyer': 'a cash buyer',
+  'Financing not started': 'still lining up financing',
+}
+
+/** The Concierge's hand-off paragraph, built from the lead's own attributes. */
+function buildConciergeNote(
+  s: { name: string; type: LeadType },
+  city: string,
+  propertyType: string,
+  budgetFull: string,
+  timeframe: string,
+  financingValue: string,
+  availability: string,
+  deliveryProduct: string,
+): string {
+  const first = s.name.split(/\s+/)[0]
+  const type = propertyType.toLowerCase()
+  const tail = availabilitySentence(availability)
+  if (s.type === 'Buyer') {
+    const financing = BUYER_FINANCING_PHRASE[financingValue] ?? financingValue.toLowerCase()
+    const timing =
+      timeframe === 'Just browsing'
+        ? "They're still early in the search — just browsing for now."
+        : `Hoping to tour within ${timeframe}.`
+    return (
+      `${first} came in through ${deliveryProduct} looking for a ${type} in ${city}. ` +
+      `Budget tops out around ${budgetFull}, and they're ${financing}. ${timing} ${tail}`
+    )
+  }
+  const timing =
+    timeframe === 'Exploring options'
+      ? "They're still exploring their options."
+      : timeframe === 'Listing now'
+        ? 'Ready to list now.'
+        : `Aiming to list within ${timeframe}.`
+  return (
+    `${first} came in through ${deliveryProduct} preparing to sell their ${type} in ${city}. ` +
+    `Estimated value is around ${budgetFull}, motivated by ${financingValue.toLowerCase()}. ${timing} ${tail}`
+  )
+}
+
+/**
+ * The pre-filled RDC+ invitation. It reads as the agent (Georgia) personally continuing the
+ * relationship — the qualifying-call details do the work, RDC+ is named once as the shared
+ * space rather than the subject. The agent can edit every word before sending.
+ */
+function buildInviteMessage(
+  s: { name: string; type: LeadType },
+  city: string,
+  propertyType: string,
+  budgetFull: string,
+): string {
+  const first = s.name.split(/\s+/)[0]
+  const me = AGENT_FULL_NAME.split(/\s+/)[0]
+  const type = propertyType.toLowerCase()
+  if (s.type === 'Buyer') {
+    return (
+      `Hi ${first}, it's ${me} with Brightwater Realty Group. It's been great helping you look ` +
+      `for a ${type} in ${city} — I'd love to make the search easier from here. I've set up a ` +
+      `shared space for us where you'll see new ${city} listings around ${budgetFull} as they ` +
+      `come up, and we can compare homes and line up tours in one place. Accept below and I'll ` +
+      `keep the right ones coming your way.`
+    )
+  }
+  return (
+    `Hi ${first}, it's ${me} with Brightwater Realty Group. Thanks for talking through selling ` +
+    `your ${type} in ${city}. To keep the next steps simple, I've set up a shared space for us ` +
+    `where you can follow your home's value, see comparable ${city} sales near ${budgetFull}, ` +
+    `and reach me directly. Accept below and we'll get your listing moving.`
+  )
+}
+
+/** A short push-notification version of the invite — one line, agent-named, RDC+ secondary. */
+function buildInvitePush(s: { type: LeadType }, city: string): string {
+  const me = AGENT_FULL_NAME.split(/\s+/)[0]
+  return s.type === 'Buyer'
+    ? `${me} at Brightwater invited you to keep your ${city} home search going on RDC+.`
+    : `${me} at Brightwater invited you to track your ${city} home sale on RDC+.`
+}
+
+/** The starter saved search the invite attaches, built from the lead's market and budget. */
+function buildStarterSearch(
+  s: { type: LeadType },
+  city: string,
+  state: string,
+  propertyType: string,
+  budgetFull: string,
+  budgetShort: string,
+): LeadStarterSearch {
+  if (s.type === 'Buyer') {
+    return {
+      title: `Homes in ${city} up to ${budgetShort}`,
+      line: `${city}, ${state}`,
+      detail: `${propertyType} · Up to ${budgetFull}`,
+    }
+  }
+  return {
+    title: `${city} sales near ${budgetShort}`,
+    line: `${city}, ${state}`,
+    detail: `Comparable ${propertyType.toLowerCase()} sales near ${budgetFull}`,
+  }
+}
+
+/** First + last initial, e.g. "Delia Ashford" → "DA". */
+const leadInitials = (name: string): string =>
+  name
+    .split(/\s+/)
+    .map(w => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+
+/**
+ * The 20 leads, most-recent activity first (the Date column's default descending sort).
+ * A lead stale by six days or more reads as overdue; a "New" lead has no agent yet and an
+ * "awaiting first contact" prompt in place of a dated follow-up.
+ */
+export const LEADS: Lead[] = LEAD_SEED.map((s, i): Lead => {
+  const id = `lead_${String(i + 1).padStart(2, '0')}`
+  const hash = leadHash(id + s.name)
+
+  // Market + $ figure both come from one real dataset listing, so they read as one place.
+  const listing = SAMPLE_LISTINGS[hash % SAMPLE_LISTINGS.length]
+  const budgetValue = listing.price
+
+  const isNew = s.status === 'New'
+  const overdue = !isNew && s.recencyMins >= 8_640
+  const dueDays = 1 + (hash % 5)
+  const followUp = isNew
+    ? 'Awaiting first contact'
+    : overdue
+      ? 'Follow-up overdue'
+      : `Follow up ${leadShortDate(new Date(PROTOTYPE_TODAY.getTime() + dueDays * DAY_MS))}`
+
+  const delivery = LEAD_DELIVERIES[s.type][hash % LEAD_DELIVERIES[s.type].length]
+
+  // ── Detail-only derivations ──────────────────────────────────────────────────
+  const budgetFull = formatPrice(budgetValue)
+  const timeframe = LEAD_TIMEFRAMES[s.type][hash % 4]
+  const availability = LEAD_AVAILABILITY[hash % LEAD_AVAILABILITY.length]
+  const financingLabel = s.type === 'Buyer' ? 'Financing status' : 'Reason for selling'
+  const financingValue = (s.type === 'Buyer' ? BUYER_FINANCING : SELLER_REASON)[hash % 4]
+
+  // The activity timeline: last touch, the first inquiry that predates it, and — for any
+  // lead that's been called — a recorded call somewhere between the two.
+  const lastActivity = new Date(PROTOTYPE_TODAY.getTime() - s.recencyMins * 60_000)
+  const firstInquiry = new Date(lastActivity.getTime() - (20 + (hash % 70)) * DAY_MS)
+  const recordDate = new Date(lastActivity.getTime() - (hash % 6) * DAY_MS)
+  const expiryDays = Math.round((recordDate.getTime() + 90 * DAY_MS - PROTOTYPE_TODAY.getTime()) / DAY_MS)
+  const totalSec = 40 + (hash % 80)
+  const elapsedSec = Math.round(totalSec * 0.35)
+
+  const dueLabel = isNew
+    ? 'Awaiting first contact'
+    : overdue
+      ? 'Overdue'
+      : `Due in ${dueDays} ${dueDays === 1 ? 'day' : 'days'}`
+
+  const detail: LeadDetail = {
+    budgetLabel: budgetFull,
+    propertyType: listing.propertyType,
+    timeframe,
+    inquiry: {
+      photo: listing.primaryPhoto,
+      line1: listing.address.line1,
+      cityLine: formatCityLine(listing),
+      mls: listing.mlsId,
+      priceLabel: formatPrice(listing.price),
+    },
+    firstInquiryLabel: leadLongDate(firstInquiry),
+    lastEditedLabel: leadLongDateTime(lastActivity),
+    dueLabel,
+    conciergeNote: buildConciergeNote(
+      s,
+      listing.address.city,
+      listing.propertyType,
+      budgetFull,
+      timeframe,
+      financingValue,
+      availability,
+      delivery.product,
+    ),
+    financingLabel,
+    financingValue,
+    availability,
+    recording: isNew
+      ? null
+      : {
+          dateLabel: leadNumericDate(recordDate),
+          expiresLabel: expiryDays > 0 ? `in ${expiryDays} days` : 'Expired',
+          elapsed: leadDuration(elapsedSec),
+          total: leadDuration(totalSec),
+          percent: Math.round((elapsedSec / totalSec) * 100),
+        },
+    partner: LEAD_PARTNERS[s.type][hash % LEAD_PARTNERS[s.type].length],
+    contactLog: {
+      calls: isNew ? 0 : 1 + (hash % 7),
+      texts: isNew ? 0 : hash % 22,
+      inquiries: 1 + (hash % 3),
+    },
+    inviteMessage: buildInviteMessage(s, listing.address.city, listing.propertyType, budgetFull),
+    invitePush: buildInvitePush(s, listing.address.city),
+    starterSearch: buildStarterSearch(
+      s,
+      listing.address.city,
+      listing.address.state,
+      listing.propertyType,
+      budgetFull,
+      formatPriceShort(budgetValue),
+    ),
+  }
+
+  return {
+    id,
+    type: s.type,
+    name: s.name,
+    initials: leadInitials(s.name),
+    email: s.email,
+    phone: s.phone,
+    status: s.status,
+    statusColor: LEAD_STATUS_COLOR[s.status],
+    followUp,
+    overdue,
+    updatedBy: 'Follow Up Boss',
+    readyToPromote:
+      s.status === 'Engaged' ||
+      s.status === 'Met' ||
+      s.status === 'Appointment set' ||
+      s.status === 'Offer made',
+    marketCity: listing.address.city,
+    marketZip: listing.address.zip,
+    budget: formatPriceShort(budgetValue),
+    budgetValue,
+    dateLabel: leadShortDate(new Date(PROTOTYPE_TODAY.getTime() - s.recencyMins * 60_000)),
+    recencyMins: s.recencyMins,
+    delivery,
+    detail,
+  }
+}).sort((a, b) => a.recencyMins - b.recencyMins)
+
+/**
+ * A freshly-invited lead, shaped as a Client row for the clients list. Its stage is "Invited"
+ * — the relationship now exists, but the consumer hasn't accepted yet — so it carries no saved
+ * homes and no next tour. Budget and search brief carry over from the lead's qualifying call.
+ */
+export function clientFromLead(lead: Lead): Client {
+  const first = lead.name.split(/\s+/)[0]
+  return {
+    id: lead.id,
+    name: lead.name,
+    greetingName: first,
+    initials: lead.initials,
+    stage: 'Invited',
+    productSource: lead.delivery.product,
+    budget: lead.type === 'Seller' ? lead.budget : `Up to ${lead.budget}`,
+    looking: `${lead.detail.propertyType} in ${lead.marketCity}`,
+    financing: 'Invitation sent',
+    lastActivity: 'Invited just now',
+    saved: 0,
+    nextTour: EMPTY,
+  }
+}
+
+/** A listing paired with how well it fits a lead's qualifying call. */
+export interface ListingMatch {
+  listing: ClientListing
+  /** 0–100 relevance to the lead's market, budget and property type. */
+  matchScore: number
+}
+
+/**
+ * How well a listing fits the lead: full marks minus a budget-gap penalty, a market-mismatch
+ * penalty, and a property-type-mismatch penalty. Clamped to 55–99 so nothing reads as a perfect
+ * or a hopeless match. Deterministic, and monotonic with relevance so the highest score is the
+ * best fit — which is what makes it the spotlight below.
+ */
+function matchScoreFor(l: SampleListing, lead: Lead): number {
+  const priceGapRatio = lead.budgetValue > 0 ? Math.abs(l.price - lead.budgetValue) / lead.budgetValue : 1
+  let score = 99
+  score -= Math.min(30, Math.round(priceGapRatio * 60))
+  if (l.address.city !== lead.marketCity) score -= 15
+  if (l.propertyType !== lead.detail.propertyType) score -= 6
+  return Math.max(55, Math.min(99, score))
+}
+
+/**
+ * The homes the invite previews — the listings the lead's starter search would surface,
+ * best-fitting first (that one becomes the spotlight; the rest are selectable extras). Ranked
+ * by `matchScore`, then freshness, stable by id. Sold homes are excluded — a starter search
+ * surfaces available inventory. Returned as `ClientListing`s so the invite can render them with
+ * the same Haven `PropertyCard` the Clients feed uses.
+ */
+export function listingMatchesForLead(lead: Lead, count = 5): ListingMatch[] {
+  const byId = new Map(clientListings.map(l => [l.id, l]))
+  return [...SAMPLE_LISTINGS]
+    .filter(l => l.status !== 'Closed')
+    .map(l => ({ l, score: matchScoreFor(l, lead) }))
+    .sort(
+      (a, b) => b.score - a.score || a.l.daysOnMarket - b.l.daysOnMarket || a.l.id.localeCompare(b.l.id),
+    )
+    .slice(0, count)
+    .map(({ l, score }) => {
+      const listing = byId.get(l.id)
+      return listing ? { listing, matchScore: score } : null
+    })
+    .filter((m): m is ListingMatch => Boolean(m))
+}

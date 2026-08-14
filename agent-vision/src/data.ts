@@ -30,6 +30,8 @@ export interface Client {
   greetingName: string
   initials: string
   stage: string
+  /** The Realtor.com product this client came in through — Market VIP, Local Expert, RCC. */
+  productSource: string
   budget: string
   looking: string
   financing: string
@@ -79,6 +81,12 @@ export interface Thread {
 }
 
 export const CLIENTS: Client[] = sample.clients
+
+/** Builds a Client row (stage "Invited") from a lead the agent just invited to RDC+. */
+export const clientFromLead = sample.clientFromLead
+
+/** The listings a lead's starter search would surface, each scored by fit and ranked. */
+export const listingMatchesForLead = sample.listingMatchesForLead
 
 export const LISTINGS: Listing[] = sample.listings
 
@@ -179,6 +187,7 @@ export const {
   activeClientCount,
   invitedClientCount,
   requestClientCount,
+  LEADS,
 } = sample
 
 export type {
@@ -187,6 +196,17 @@ export type {
   ClientListing,
   ClientListingGroup,
   ClientNeed,
+  Lead,
+  LeadContactLog,
+  LeadDelivery,
+  LeadDetail,
+  LeadInquiry,
+  LeadPartner,
+  LeadRecording,
+  LeadStarterSearch,
+  LeadStatus,
+  LeadType,
+  ListingMatch,
   ListingPill,
   MapTour,
   MapTourStop,

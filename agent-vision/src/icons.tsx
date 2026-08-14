@@ -509,3 +509,97 @@ export function IconMenuDots(p: SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
+
+/* ---------------------------------------------------------------------------
+ * Lead-detail glyphs. The lead detail page's contact row, call-recording player
+ * and Realtor.com contact-log card need a small set of line icons not otherwise
+ * used in the shell. Drawn to the same 24-box stroke grid as the icons above.
+ * ------------------------------------------------------------------------- */
+
+/** Phone handset — the contact row and the "Total calls" tally. */
+export function IconPhone({ size = 15, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <path d="M15.5 3.5A5 5 0 0 1 20.5 8.5" />
+      <path d="M15.5 7A1.5 1.5 0 0 1 17 8.5" />
+      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h2.6a1.5 1.5 0 0 1 1.48 1.26l.6 3.2a1.5 1.5 0 0 1-.42 1.32l-1.3 1.3a13 13 0 0 0 5.14 5.14l1.3-1.3a1.5 1.5 0 0 1 1.32-.42l3.2.6A1.5 1.5 0 0 1 20 17.9v2.6A1.5 1.5 0 0 1 18.5 22 15.5 15.5 0 0 1 4 5.5Z" />
+    </svg>
+  )
+}
+
+/** Envelope — the contact row's email link. */
+export function IconMail({ size = 15, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <path d="M4 7l8 6 8-6" />
+    </svg>
+  )
+}
+
+/** Globe — the contact row's delivery-channel marker. */
+export function IconGlobe({ size = 15, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
+    </svg>
+  )
+}
+
+/** Filled play triangle — the call-recording player's transport button. */
+export function IconPlay({ size = 14, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...p}>
+      <path d="M7 4.5v15a1 1 0 0 0 1.52.85l12-7.5a1 1 0 0 0 0-1.7l-12-7.5A1 1 0 0 0 7 4.5Z" />
+    </svg>
+  )
+}
+
+/** Speaker with waves — the call-recording player's volume control. */
+export function IconVolume({ size = 15, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <path d="M11 5 6.5 8.5H3v7h3.5L11 19Z" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+      <path d="M18 6a8.5 8.5 0 0 1 0 12" />
+    </svg>
+  )
+}
+
+/** Circled "i" — the contact-log card's info affordance. */
+export function IconInfo({ size = 15, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 7.6h.01" />
+    </svg>
+  )
+}
+
+/** Tray with a down arrow — the call-recording player's download control. */
+export function IconDownload({ size = 15, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <path d="M12 3v11" />
+      <path d="M7 10l5 5 5-5" />
+      <path d="M4 20h16" />
+    </svg>
+  )
+}
+
+/** Adjustments/sliders glyph — the Leads table's "Filters" button. */
+export function IconFilters({ size = 15, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <path d="M4 6h10" />
+      <path d="M18 6h2" />
+      <circle cx="16" cy="6" r="2" />
+      <path d="M4 18h2" />
+      <path d="M10 18h10" />
+      <circle cx="8" cy="18" r="2" />
+    </svg>
+  )
+}

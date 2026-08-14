@@ -1,22 +1,18 @@
 /**
- * Home: a colour-forward dashboard — accented stat cards, a client-pipeline donut and a
+ * Home: a colour-forward dashboard — a floating black stat bar, a client-pipeline donut and a
  * "saved homes" bar chart (both drawn from the real book of business and sharing one
  * stage-colour language), then "Upcoming tours" + "Client needs", and finally the stage
  * filter column beside the client table.
  */
-import type { ComponentType } from 'react'
 import { Tag } from '@rdc-npm/rdc-ui-v4'
 import { C, DISPLAY_FONT, CHART, TAG_CHART_COLOR } from '../theme'
 import { HoverButton, HoverDiv, Initials } from '../components/primitives'
 import {
   IconChevronRight,
   IconSpark,
-  IconClients,
-  IconCalendar,
-  IconChat,
-  IconBell,
+  IconCircleCheck,
 } from '../icons'
-import { TAGC, type Client, type UpcomingTour } from '../data'
+import { TAGC, type Client, type Lead, type UpcomingTour } from '../data'
 
 export interface StatItem {
   value: number
@@ -59,16 +55,14 @@ const CAPTION = { fontSize: 11.5, color: C.muted, fontWeight: 600 } as const
 const GRID_COLS = 'minmax(190px,2fr) 1.4fr 1.1fr 1.8fr 1.5fr 48px'
 
 /**
- * Icon + colour per stat card, in the fixed order the shell passes them (active clients,
- * upcoming tours, tour requests, invites pending). Keyed by index rather than label so the
- * accent survives a copy tweak upstream.
+ * Realtor.com product → its bar colour on the "Lead sources" chart. Falls back to gray for any
+ * product the palette doesn't name, so a new source can't render an undefined colour.
  */
-const STAT_ACCENTS: Array<{ icon: ComponentType<{ size?: number }>; color: string; tint: string }> = [
-  { icon: IconClients, color: CHART.green, tint: CHART.greenTint },
-  { icon: IconCalendar, color: CHART.blue, tint: CHART.blueTint },
-  { icon: IconChat, color: CHART.orange, tint: CHART.orangeTint },
-  { icon: IconBell, color: CHART.purple, tint: CHART.purpleTint },
-]
+const LEAD_SOURCE_COLOR: Record<string, string> = {
+  'Market VIP': CHART.blue,
+  'Local Expert': CHART.purple,
+  'ReadyConnect Concierge': CHART.orange,
+}
 
 function CardHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -115,34 +109,18 @@ function AskButton({ onClick, label }: { onClick: () => void; label: string }) {
   )
 }
 
-/** A colour-accented KPI tile: a tinted icon chip, the value, and its label. */
-function StatCard({ stat, accent }: { stat: StatItem; accent: (typeof STAT_ACCENTS)[number] }) {
-  const Icon = accent.icon
+/** One cell of the floating stat bar: the value over its label, in white on black. */
+function StatCard({ stat }: { stat: StatItem }) {
   return (
-    <div style={{ ...CARD, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-      <span
-        style={{
-          width: 40,
-          height: 40,
-          flex: 'none',
-          borderRadius: 12,
-          background: accent.tint,
-          color: accent.color,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
+    <div style={{ flex: 1, minWidth: 0, padding: '0 20px' }}>
+      <div
+        className="ty-numeric-body100"
+        style={{ fontSize: 26, fontWeight: 700, lineHeight: '30px', color: C.white }}
       >
-        <Icon size={22} />
-      </span>
-      <div style={{ minWidth: 0 }}>
-        <div
-          className="ty-numeric-body100"
-          style={{ fontSize: 24, fontWeight: 700, lineHeight: '28px', color: accent.color }}
-        >
-          {stat.value}
-        </div>
-        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{stat.label}</div>
+        {stat.value}
+      </div>
+      <div style={{ marginTop: 2, fontSize: 12, color: 'rgba(255,255,255,0.72)', fontWeight: 600 }}>
+        {stat.label}
       </div>
     </div>
   )
@@ -210,12 +188,16 @@ interface HomeScreenProps {
   stats: StatItem[]
   /** The full book (unfiltered), for the pipeline and saved-homes charts. */
   allClients: Client[]
+  /** Open (un-promoted) leads, for the "New leads" list and the "Lead sources" chart. */
+  leads: Lead[]
   tours: UpcomingTour[]
   needs: NeedItem[]
   needsCount: number
   stageItems: StageItem[]
   rows: Client[]
   onOpenTours: () => void
+  /** Jump to a lead's detail page from the dashboard. */
+  onOpenLead: (id: string) => void
   onAsk: (text: string) => void
 }
 
@@ -223,12 +205,14 @@ export function HomeScreen({
   mobile,
   stats,
   allClients,
+  leads,
   tours,
   needs,
   needsCount,
   stageItems,
   rows,
   onOpenTours,
+  onOpenLead,
   onAsk,
 }: HomeScreenProps) {
   // Pipeline segments come from the stage filters (full counts, filter-independent), coloured
@@ -249,6 +233,21 @@ export function HomeScreen({
     .slice(0, 6)
   const savedMax = savedRows.reduce((m, c) => Math.max(m, c.saved), 0) || 1
 
+  // New leads feeding the pipeline. The shell passes only open (un-promoted) leads; surface the
+  // ready-to-work ones first, then the most recent, and cap the card at four.
+  const leadsToWork = [...leads]
+    .sort((a, b) => Number(b.readyToPromote) - Number(a.readyToPromote) || a.recencyMins - b.recencyMins)
+    .slice(0, 4)
+  const readyCount = leads.filter((l) => l.readyToPromote).length
+
+  // Where those leads came from — the Realtor.com product, tallied for the source bars.
+  const sourceCounts = new Map<string, number>()
+  for (const l of leads) sourceCounts.set(l.delivery.product, (sourceCounts.get(l.delivery.product) ?? 0) + 1)
+  const sources = [...sourceCounts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+  const sourceMax = sources.reduce((m, s) => Math.max(m, s.count), 0) || 1
+
   return (
     <div
       data-screen-label="Home"
@@ -257,22 +256,189 @@ export function HomeScreen({
         flex: 1,
         minHeight: 0,
         overflow: 'auto',
-        margin: mobile ? '4px 16px 16px' : '4px 24px 24px',
+        // Gutter split between margin and padding: the padding keeps the floating KPI bar's
+        // drop shadow inside the scroll box so `overflow` can't clip it. Total gutter is
+        // unchanged, so the content below sits exactly where it did.
+        margin: mobile ? '0 2px 16px' : '0 10px 24px',
+        padding: mobile ? '10px 14px 0' : '14px 14px 0',
       }}
     >
+      {/* Floating black KPI bar: white stats, hairline dividers, no icons or accent colour. */}
       <div
         style={{
-          display: 'grid',
-          // `auto-fit` with a 150px floor: four across when they fit, dropping to two at
-          // phone width. Wider than the old 120px floor to hold the icon chip + value row.
-          gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))',
-          gap: 12,
+          display: 'flex',
+          alignItems: 'center',
+          background: C.dark,
+          borderRadius: 16,
+          padding: mobile ? '16px 8px' : '18px 12px',
           marginBottom: 12,
+          boxShadow: '0 14px 34px rgba(0,0,0,0.20)',
         }}
       >
         {stats.map((k, i) => (
-          <StatCard key={k.label} stat={k} accent={STAT_ACCENTS[i % STAT_ACCENTS.length]} />
+          <div
+            key={k.label}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.14)' : 'none',
+            }}
+          >
+            <StatCard stat={k} />
+          </div>
         ))}
+      </div>
+
+      {/*
+        New leads — the warm inbound funnel, given top billing right under the KPIs. The ready-to-
+        become-client leads sort first and carry a green rail + "Ready" flag so they read as the
+        priority; each row opens the lead's detail page, and the bars split the same leads by the
+        product source they came in through.
+      */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit,minmax(min(320px,100%),1fr))',
+          gap: 12,
+          marginBottom: 20,
+        }}
+      >
+        <div style={CARD}>
+          <div style={CARD_HEAD}>
+            <CardHeading>New leads</CardHeading>
+            <span className="ty-numeric-caption100" style={CAPTION}>
+              {readyCount} ready to work with
+            </span>
+          </div>
+          {leadsToWork.length === 0 ? (
+            <div style={{ padding: '16px', fontSize: 12.5, color: C.muted }}>No open leads right now.</div>
+          ) : (
+            leadsToWork.map((l) => (
+              <HoverDiv
+                key={l.id}
+                onClick={() => onOpenLead(l.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  // Ready-to-become-client leads carry a green left rail so they read as the
+                  // priority; a transparent rail keeps the rest aligned to the same inset.
+                  borderLeft: `3px solid ${l.readyToPromote ? C.online : 'transparent'}`,
+                  padding: '12px 16px 12px 13px',
+                  borderBottom: `1px solid ${C.alt}`,
+                  cursor: 'pointer',
+                  transition: 'background 120ms',
+                }}
+                hoverStyle={{ background: C.rowHover }}
+              >
+                <Initials initials={l.initials} size={36} fontSize={12} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13.5,
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {l.name}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      color: C.muted,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {l.marketCity} · {l.budget} · {l.delivery.product}
+                  </div>
+                </div>
+                {l.readyToPromote && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      flex: 'none',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: C.online,
+                    }}
+                  >
+                    <IconCircleCheck size={11} />
+                    Ready
+                  </span>
+                )}
+                <Tag dataColor={l.statusColor}>{l.status}</Tag>
+                <IconChevronRight size={11} />
+              </HoverDiv>
+            ))
+          )}
+        </div>
+
+        {/* Lead sources — the same open leads, split by the product they came in through. */}
+        <div style={CARD}>
+          <div style={CARD_HEAD}>
+            <CardHeading>Lead sources</CardHeading>
+            <span className="ty-numeric-caption100" style={CAPTION}>
+              By product
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '18px 16px' }}>
+            {sources.map((s) => {
+              const color = LEAD_SOURCE_COLOR[s.label] ?? CHART.gray
+              const pct = Math.round((s.count / sourceMax) * 100)
+              return (
+                <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div
+                    style={{
+                      width: mobile ? 112 : 152,
+                      flex: 'none',
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      color: C.dark,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    title={s.label}
+                  >
+                    {s.label}
+                  </div>
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      height: 12,
+                      borderRadius: 6,
+                      background: C.alt,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${pct}%`,
+                        height: '100%',
+                        borderRadius: 6,
+                        background: color,
+                        transition: 'width 200ms',
+                      }}
+                    />
+                  </div>
+                  <span
+                    className="ty-numeric-caption100"
+                    style={{ width: 22, flex: 'none', textAlign: 'right', fontSize: 12.5, fontWeight: 700 }}
+                  >
+                    {s.count}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       <div
@@ -601,7 +767,7 @@ export function HomeScreen({
               }}
             >
               <span>Client</span>
-              <span>Stage</span>
+              <span>Stage &amp; source</span>
               <span>Budget</span>
               <span>Last activity</span>
               <span>Next tour</span>
@@ -638,8 +804,11 @@ export function HomeScreen({
                     <div style={{ fontSize: 11.5, color: C.muted }}>{r.saved} saved homes</div>
                   </div>
                 </div>
-                <div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
                   <Tag dataColor={TAGC[r.stage] ?? 'graySubtle'}>{r.stage}</Tag>
+                  {/* The product this client came in through — neutral, so it reads as
+                      an attribute of the client rather than a second status. */}
+                  <Tag dataColor="graySubtle">{r.productSource}</Tag>
                 </div>
                 <div
                   className="ty-numeric-body100"
