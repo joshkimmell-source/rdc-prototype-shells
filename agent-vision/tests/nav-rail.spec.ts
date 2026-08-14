@@ -16,9 +16,8 @@ test.describe('static nav rail', () => {
     const rail = page.getByRole('navigation', { name: 'Main' })
     await expect(rail).toBeVisible()
 
-    // Home is intentionally absent — Clients is the landing screen.
-    await expect(rail.getByText('Home', { exact: true })).toHaveCount(0)
-    for (const label of ['Clients', 'Search', 'Tours', 'Support', 'Alerts', 'Chat']) {
+    // Home leads the rail (Clients is still the landing screen), then the rest of the column.
+    for (const label of ['Home', 'Clients', 'Search', 'Tours', 'Support', 'Alerts', 'Chat']) {
       await expect(rail.getByText(label, { exact: true })).toBeVisible()
     }
     // Account is the footer identity cell, with the agent headshot beside its label.

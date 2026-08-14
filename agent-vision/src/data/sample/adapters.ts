@@ -1083,7 +1083,7 @@ export type LeadType = 'Buyer' | 'Seller'
 export type LeadStatus =
   | 'New'
   | 'Connected'
-  | 'Spoke'
+  | 'Engaged'
   | 'Met'
   | 'Appointment set'
   | 'Offer made'
@@ -1112,7 +1112,7 @@ export interface Lead {
   /** The CRM the design credits the last touch to — the "Updated by" caption. */
   updatedBy: string
   /**
-   * The lead has been worked past first contact (Spoke, Met, Appointment set, or Offer made),
+   * The lead has been worked past first contact (Engaged, Met, Appointment set, or Offer made),
    * so it's warm enough to invite into RDC+ and promote to a client. New/Nurture leads aren't.
    */
   readyToPromote: boolean
@@ -1217,7 +1217,7 @@ export interface LeadDetail {
 const LEAD_STATUS_COLOR: Record<LeadStatus, TagColor> = {
   New: 'blueSubtle',
   Connected: 'greenSubtle',
-  Spoke: 'graySubtle',
+  Engaged: 'graySubtle',
   Met: 'greenSubtle',
   'Appointment set': 'purpleSubtle',
   'Offer made': 'greenSubtle',
@@ -1271,14 +1271,14 @@ const LEAD_SEED: Array<{
   recencyMins: number
 }> = [
   { name: 'Delia Ashford', email: 'delia.ashford@example.com', phone: '(555) 720-8801', type: 'Buyer', status: 'Connected', recencyMins: 25 * MIN },
-  { name: 'Marcus Trelane', email: 'marcus.trelane@example.com', phone: '(555) 720-8802', type: 'Buyer', status: 'Spoke', recencyMins: 2 * HR },
+  { name: 'Marcus Trelane', email: 'marcus.trelane@example.com', phone: '(555) 720-8802', type: 'Buyer', status: 'Engaged', recencyMins: 2 * HR },
   { name: 'Yusuf Demir', email: 'yusuf.demir@example.com', phone: '(555) 720-8803', type: 'Buyer', status: 'Appointment set', recencyMins: 4 * HR },
   { name: 'Priya Venkatesh', email: 'priya.venkatesh@example.com', phone: '(555) 720-8804', type: 'Buyer', status: 'New', recencyMins: 15 * MIN },
   { name: 'Colton Reyes', email: 'colton.reyes@example.com', phone: '(555) 720-8805', type: 'Buyer', status: 'Met', recencyMins: 1 * DAY },
   { name: 'Ingrid Solheim', email: 'ingrid.solheim@example.com', phone: '(555) 720-8806', type: 'Buyer', status: 'Offer made', recencyMins: 3 * HR },
   { name: 'Devon Pryce', email: 'devon.pryce@example.com', phone: '(555) 720-8807', type: 'Buyer', status: 'Nurture', recencyMins: 3 * MONTH },
   { name: 'Rosalind Kwok', email: 'rosalind.kwok@example.com', phone: '(555) 720-8808', type: 'Buyer', status: 'Connected', recencyMins: 6 * HR },
-  { name: 'Theo Amara', email: 'theo.amara@example.com', phone: '(555) 720-8809', type: 'Buyer', status: 'Spoke', recencyMins: 8 * DAY },
+  { name: 'Theo Amara', email: 'theo.amara@example.com', phone: '(555) 720-8809', type: 'Buyer', status: 'Engaged', recencyMins: 8 * DAY },
   { name: 'Naomi Fielder', email: 'naomi.fielder@example.com', phone: '(555) 720-8810', type: 'Buyer', status: 'New', recencyMins: 40 * MIN },
   { name: 'Everett Blackwood', email: 'everett.blackwood@example.com', phone: '(555) 720-8811', type: 'Buyer', status: 'Met', recencyMins: 5 * DAY },
   { name: 'Camille Fontaine', email: 'camille.fontaine@example.com', phone: '(555) 720-8812', type: 'Buyer', status: 'Appointment set', recencyMins: 1 * HR },
@@ -1287,7 +1287,7 @@ const LEAD_SEED: Array<{
   { name: 'Soren Dahl', email: 'soren.dahl@example.com', phone: '(555) 720-8815', type: 'Seller', status: 'Nurture', recencyMins: 4 * MONTH },
   { name: 'Marisol Vega', email: 'marisol.vega@example.com', phone: '(555) 720-8816', type: 'Seller', status: 'Met', recencyMins: 7 * DAY },
   { name: 'Grant Whitlock', email: 'grant.whitlock@example.com', phone: '(555) 720-8817', type: 'Seller', status: 'New', recencyMins: 30 * MIN },
-  { name: 'Anaïs Lemaire', email: 'anais.lemaire@example.com', phone: '(555) 720-8818', type: 'Seller', status: 'Spoke', recencyMins: 1 * DAY },
+  { name: 'Anaïs Lemaire', email: 'anais.lemaire@example.com', phone: '(555) 720-8818', type: 'Seller', status: 'Engaged', recencyMins: 1 * DAY },
   { name: 'Tobias Crane', email: 'tobias.crane@example.com', phone: '(555) 720-8819', type: 'Seller', status: 'Connected', recencyMins: 10 * HR },
   { name: 'Fern Halloway', email: 'fern.halloway@example.com', phone: '(555) 720-8820', type: 'Seller', status: 'Offer made', recencyMins: 6 * HR },
 ]
@@ -1586,7 +1586,7 @@ export const LEADS: Lead[] = LEAD_SEED.map((s, i): Lead => {
     overdue,
     updatedBy: 'Follow Up Boss',
     readyToPromote:
-      s.status === 'Spoke' ||
+      s.status === 'Engaged' ||
       s.status === 'Met' ||
       s.status === 'Appointment set' ||
       s.status === 'Offer made',

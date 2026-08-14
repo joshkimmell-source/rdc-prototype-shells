@@ -215,6 +215,33 @@ export function InviteModal({ lead, onClose, onSend }: InviteModalProps) {
   const send = () => {
     onSend(lead.id)
     setSent(true)
+    // Hand the invited lead + the homes they'll see to the onboarding preview. It's served
+    // same-origin, so localStorage carries the payload across to the popped window.
+    const selected = miniCards.filter((m) => selectedMini.has(m.listing.id))
+    const attached = attachSearch ? (spotlight ? [spotlight, ...selected] : selected) : []
+    const parts = lead.name.split(/\s+/)
+    try {
+      localStorage.setItem(
+        'rdc-plus-invite',
+        JSON.stringify({
+          lead: { name: lead.name, first: parts[0], last: parts.slice(1).join(' '), email: lead.email },
+          homes: attached.map((m) => ({
+            photo: m.listing.photo,
+            price: m.listing.price,
+            address: m.listing.address1,
+            beds: m.listing.meta.beds,
+            baths: m.listing.meta.baths_full,
+            sqft: m.listing.meta.sqft,
+            match: m.matchScore,
+          })),
+        }),
+      )
+    } catch {
+      // Private-mode / storage-disabled: the preview just falls back to its defaults.
+    }
+    // Preview what the lead receives: pop the RDC+ onboarding page (served from public/).
+    // Opened straight off the click so the browser treats it as a user gesture, not a popup.
+    window.open('rdc-plus-onboarding.html', '_blank', 'noopener')
   }
 
   return (

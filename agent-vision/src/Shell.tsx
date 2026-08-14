@@ -68,7 +68,6 @@ import {
   clientNeeds,
   feedFor,
   requestClientCount,
-  tourRequestsTotal,
   type Client,
   type UpcomingTour,
 } from './data'
@@ -401,6 +400,9 @@ export function Shell() {
   )
   // Reactive so an invite sent this session bumps the Home "Invites pending" stat.
   const invitedClientCount = clients.filter((c) => c.stage === 'Invited').length
+  // Open leads worked past first contact — the "ready to work with" pool. Drops as invites
+  // promote leads out of the list this session.
+  const qualifiedLeadCount = LEADS.filter((l) => !promotedLeadIds.has(l.id) && l.readyToPromote).length
 
   const stageItems: StageItem[] = STAGES.map(([id, label]) => ({
     id,
@@ -446,7 +448,7 @@ export function Shell() {
         ? 'Search'
         : isLeads
           ? 'Leads'
-          : 'Dashboard'
+          : 'Home'
 
   const countLabel = isClients
     ? `${clientFeed.listingCount} ${clientFeed.listingCount === 1 ? 'listing' : 'listings'}`
@@ -796,7 +798,7 @@ export function Shell() {
               stats={[
                 { value: activeClientCount, label: 'Active clients' },
                 { value: upcomingTours.length, label: 'Upcoming tours' },
-                { value: tourRequestsTotal, label: 'Tour requests' },
+                { value: qualifiedLeadCount, label: 'Qualified leads' },
                 { value: invitedClientCount, label: 'Invites pending' },
               ]}
               allClients={clients}

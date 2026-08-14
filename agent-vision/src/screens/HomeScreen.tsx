@@ -256,7 +256,11 @@ export function HomeScreen({
         flex: 1,
         minHeight: 0,
         overflow: 'auto',
-        margin: mobile ? '4px 16px 16px' : '4px 24px 24px',
+        // Gutter split between margin and padding: the padding keeps the floating KPI bar's
+        // drop shadow inside the scroll box so `overflow` can't clip it. Total gutter is
+        // unchanged, so the content below sits exactly where it did.
+        margin: mobile ? '0 2px 16px' : '0 10px 24px',
+        padding: mobile ? '10px 14px 0' : '14px 14px 0',
       }}
     >
       {/* Floating black KPI bar: white stats, hairline dividers, no icons or accent colour. */}

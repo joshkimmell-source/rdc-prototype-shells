@@ -20,11 +20,11 @@ export type NavId = 'home' | 'leads' | 'clients' | 'search' | 'tours'
 
 /**
  * Shared with `NavBar`, so the two layouts cannot drift apart. Home leads the rail, labelled
- * "Dashboard" — the `?view=home` destination surfaced as a first-class nav item. "Leads" sits
+ * "Home" — the `?view=home` destination surfaced as a first-class nav item. "Leads" sits
  * directly above "Clients": a lead becomes a client, so the funnel reads top-to-bottom.
  */
 export const NAV_ITEMS: Array<{ id: NavId; label: string; icon: ReactNode }> = [
-  { id: 'home', label: 'Dashboard', icon: <IconHome /> },
+  { id: 'home', label: 'Home', icon: <IconHome /> },
   // Haven's contact glyph, sized to 20px (2.5 × the 8px base) to match the sibling icons.
   { id: 'leads', label: 'Leads', icon: <IconContact size={2.5} /> },
   { id: 'clients', label: 'Clients', icon: <IconClients /> },
