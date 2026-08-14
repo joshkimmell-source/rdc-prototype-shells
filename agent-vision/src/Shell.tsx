@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { C, EASE } from './theme'
 import { isMobileViewport, useIsMobile, useIsMedium } from './useMobile'
-import { readNavParam, writeNavParam } from './navParam'
+import { readLeadParam, readNavParam, writeLeadParam, writeNavParam } from './navParam'
 import { readAbParam } from './abParam'
 import { IconBookmark, IconCalendar, IconExport } from './icons'
 import { NavRail, RAIL_WIDTH, type NavId } from './components/NavRail'
@@ -30,6 +30,9 @@ import { HomeScreen, type NeedItem, type StageItem } from './screens/HomeScreen'
 import { SearchScreen } from './screens/SearchScreen'
 import { ToursScreen } from './screens/ToursScreen'
 import { ClientsScreen, type ClientsView } from './screens/ClientsScreen'
+import { LeadsScreen } from './screens/LeadsScreen'
+import { LeadDetailScreen } from './screens/LeadDetailScreen'
+import { InviteModal } from './components/InviteModal'
 import { AssistantPanel, type Msg } from './panels/AssistantPanel'
 import {
   runAddClient,
@@ -53,6 +56,7 @@ import {
   DEFAULT_BUYER_ID,
   DEFAULT_TOUR_ID,
   INITIAL_UPCOMING_TOURS,
+  LEADS,
   STAGES,
   THREADS,
   TOURS,
@@ -60,9 +64,9 @@ import {
   rescheduleTourViews,
   WITHHELD_TOUR_IDS,
   activeClientCount,
+  clientFromLead,
   clientNeeds,
   feedFor,
-  invitedClientCount,
   requestClientCount,
   tourRequestsTotal,
   type Client,
@@ -127,6 +131,17 @@ export function Shell() {
 
   // Seeded from `?view=` so a linked or reloaded URL lands on the screen it names.
   const [activeNav, setActiveNav] = useState<NavId>(readNavParam)
+  // The open lead on the Leads page, mirrored as `?lead=`. Only meaningful under the leads
+  // view; a lead id in the URL under any other view is ignored (and cleared on navigation).
+  const [selectedLead, setSelectedLead] = useState<string | null>(() =>
+    readNavParam() === 'leads' ? readLeadParam() : null
+  )
+  // Leads the agent has invited into RDC+ this session. A promoted lead becomes a connected
+  // client, so it drops out of the active pipeline — same rule the "Connected" status already
+  // uses. Session-only, matching the shell's other prototype mutations (e.g. created tours).
+  const [promotedLeadIds, setPromotedLeadIds] = useState<Set<string>>(() => new Set())
+  // The lead whose invite composer is open, if any.
+  const [inviteLeadId, setInviteLeadId] = useState<string | null>(null)
   // Open beside the content on desktop, closed on a phone: as a full-height overlay it
   // would otherwise bury `main` before the first interaction.
   const [subnavOpen, setSubnavOpen] = useState(() => !isMobileViewport())
@@ -375,9 +390,17 @@ export function Shell() {
   const isClients = activeNav === 'clients'
   const isSearch = activeNav === 'search'
   const isTours = activeNav === 'tours'
-  const isHome = !isClients && !isSearch && !isTours
+  const isLeads = activeNav === 'leads'
+  const isHome = !isClients && !isSearch && !isTours && !isLeads
 
   const filtered = filter === 'all' ? clients : clients.filter((c) => c.stage === filter)
+  // Home roster leads with Active clients — sort is stable, so order within a stage is preserved
+  // and the single-stage filtered views are unaffected.
+  const clientRows = [...filtered].sort(
+    (a, b) => Number(b.stage === 'Active') - Number(a.stage === 'Active'),
+  )
+  // Reactive so an invite sent this session bumps the Home "Invites pending" stat.
+  const invitedClientCount = clients.filter((c) => c.stage === 'Invited').length
 
   const stageItems: StageItem[] = STAGES.map(([id, label]) => ({
     id,
@@ -394,6 +417,11 @@ export function Shell() {
     dot: n.tone === 'brand' ? C.brand : C.amber,
     ask: () => send(n.prompt),
   }))
+
+  // The open lead's full record, or null when showing the list. A `?lead=` that names no
+  // real lead (an edited or stale URL) falls back to the list rather than a blank page.
+  const selectedLeadRecord = selectedLead ? LEADS.find((l) => l.id === selectedLead) ?? null : null
+  const inviteLeadRecord = inviteLeadId ? LEADS.find((l) => l.id === inviteLeadId) ?? null : null
 
   const selectedBuyerRecord = BUYERS.find((b) => b.id === selectedBuyer) ?? BUYERS[1]
   // Each client is shown a different number of listings, so the Clients screen follows
@@ -416,13 +444,15 @@ export function Shell() {
       ? selectedMapTour?.client ?? 'Tour'
       : isSearch
         ? 'Search'
-        : 'Home'
+        : isLeads
+          ? 'Leads'
+          : 'Dashboard'
 
   const countLabel = isClients
     ? `${clientFeed.listingCount} ${clientFeed.listingCount === 1 ? 'listing' : 'listings'}`
     : isTours
       ? selectedMapTour?.date ?? ''
-      : isSearch
+      : isSearch || isLeads
         ? ''
         : `${filtered.length}${filter === 'all' ? ' clients' : ` of ${clients.length} clients`}`
 
@@ -535,12 +565,49 @@ export function Shell() {
   const navigate = (id: NavId) => {
     setActiveNav(id)
     writeNavParam(id)
+    // The open-lead parameter only makes sense under the Leads view; drop it on the way out
+    // so returning to Leads later lands on the list, not a stale detail.
+    if (id !== 'leads' && selectedLead) {
+      setSelectedLead(null)
+      writeLeadParam(null)
+    }
     setPushExpanded(false)
+  }
+
+  // Open a lead's detail page, and close it back to the list.
+  const openLead = (id: string) => {
+    setSelectedLead(id)
+    writeLeadParam(id)
+  }
+  const closeLead = () => {
+    setSelectedLead(null)
+    writeLeadParam(null)
+  }
+
+  // Open/close the invite-to-RDC+ composer for a lead.
+  const openInvite = (id: string) => setInviteLeadId(id)
+  const closeInvite = () => setInviteLeadId(null)
+  // Sending the invite promotes the lead to a connected client. It's recorded here; the modal
+  // shows its own confirmation and closes on "Done", which also backs out of a detail page for
+  // that lead so the agent doesn't land on a record that's left the pipeline.
+  const sendInvite = (id: string) => {
+    setPromotedLeadIds((prev) => new Set(prev).add(id))
+    // Promote the lead into the clients list as an "Invited" client — same relationship, new
+    // state. Guarded so re-sending can't double-add. Prepended so it reads as the newest client.
+    const lead = LEADS.find((l) => l.id === id)
+    if (lead) {
+      setClients((prev) => (prev.some((c) => c.id === id) ? prev : [clientFromLead(lead), ...prev]))
+    }
+    if (selectedLead === id) closeLead()
   }
 
   // Back and forward walk the destinations, since every navigation pushed an entry.
   useEffect(() => {
-    const onPop = () => setActiveNav(readNavParam())
+    const onPop = () => {
+      const view = readNavParam()
+      setActiveNav(view)
+      setSelectedLead(view === 'leads' ? readLeadParam() : null)
+    }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
@@ -570,6 +637,11 @@ export function Shell() {
     >
       {/* Sample-data disclaimer, shown on load and dismissed with its "Okay" button. */}
       <PrototypeNotice />
+
+      {/* Invite-to-RDC+ composer, opened from a ready lead on the list or its detail page. */}
+      {inviteLeadRecord && (
+        <InviteModal lead={inviteLeadRecord} onClose={closeInvite} onSend={sendInvite} />
+      )}
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0, position: 'relative' }}>
         {!isMobile && <NavRail activeNav={activeNav} onNavigate={navigate} />}
@@ -728,15 +800,37 @@ export function Shell() {
                 { value: invitedClientCount, label: 'Invites pending' },
               ]}
               allClients={clients}
+              leads={LEADS.filter((l) => !promotedLeadIds.has(l.id))}
               tours={upcomingTours}
               needs={needs}
               needsCount={needs.length}
               stageItems={stageItems}
-              rows={filtered}
+              rows={clientRows}
               onOpenTours={() => navigate('tours')}
+              onOpenLead={(id) => {
+                navigate('leads')
+                openLead(id)
+              }}
               onAsk={send}
             />
           )}
+
+          {isLeads &&
+            (selectedLeadRecord ? (
+              <LeadDetailScreen
+                mobile={isMobile}
+                lead={selectedLeadRecord}
+                onBack={closeLead}
+                onInvite={openInvite}
+              />
+            ) : (
+              <LeadsScreen
+                mobile={isMobile}
+                onOpenLead={openLead}
+                promotedLeadIds={promotedLeadIds}
+                onInvite={openInvite}
+              />
+            ))}
 
           {isSearch && <SearchScreen />}
 

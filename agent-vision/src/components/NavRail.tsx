@@ -13,16 +13,20 @@ import { C } from '../theme'
 import { HoverButton } from './primitives'
 import { AccountAvatar } from './AccountAvatar'
 import { AGENT_FULL_NAME } from '../data'
-import { IconBell, IconCalendar, IconChat, IconClients, IconSearch, IconSupport } from '../icons'
+import { IconContact } from '@rdc-npm/rdc-ui-v4'
+import { IconBell, IconCalendar, IconChat, IconClients, IconHome, IconSearch, IconSupport } from '../icons'
 
-export type NavId = 'home' | 'clients' | 'search' | 'tours'
+export type NavId = 'home' | 'leads' | 'clients' | 'search' | 'tours'
 
 /**
- * Shared with `NavBar`, so the two layouts cannot drift apart. Home is intentionally omitted
- * from the nav — Clients is the landing screen — though `?view=home` still resolves for links
- * that target the dashboard directly.
+ * Shared with `NavBar`, so the two layouts cannot drift apart. Home leads the rail, labelled
+ * "Dashboard" — the `?view=home` destination surfaced as a first-class nav item. "Leads" sits
+ * directly above "Clients": a lead becomes a client, so the funnel reads top-to-bottom.
  */
 export const NAV_ITEMS: Array<{ id: NavId; label: string; icon: ReactNode }> = [
+  { id: 'home', label: 'Dashboard', icon: <IconHome /> },
+  // Haven's contact glyph, sized to 20px (2.5 × the 8px base) to match the sibling icons.
+  { id: 'leads', label: 'Leads', icon: <IconContact size={2.5} /> },
   { id: 'clients', label: 'Clients', icon: <IconClients /> },
   { id: 'search', label: 'Search', icon: <IconSearch /> },
   { id: 'tours', label: 'Tours', icon: <IconCalendar /> },
