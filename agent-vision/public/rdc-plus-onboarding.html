@@ -566,13 +566,17 @@
   }
   go(0);
 
-  // The invite flow (agent-vision shell) drops the invited lead + selected homes into
-  // localStorage right before it pops this window. Read them and personalize the email;
-  // opened standalone, the page keeps its hardcoded defaults.
-  (function personalize() {
-    let data = null;
-    try { data = JSON.parse(localStorage.getItem('rdc-plus-invite') || 'null'); } catch (e) { data = null; }
-    if (!data) return;
+  // The invite flow (agent-vision shell) hands over the invited lead + selected homes to
+  // personalize the email. Two delivery paths, because the shell may run inside a sandboxed
+  // iframe (e.g. hosted on RealPrototypes) where localStorage is partitioned or unavailable:
+  //   1. localStorage — read on load, so local dev / non-sandboxed hosts personalize with no flash.
+  //   2. postMessage — the shell posts the payload to this frame on load; the reliable path
+  //      in a sandboxed host, since messaging works regardless of origin or storage access.
+  // Opened standalone with neither, the page keeps its hardcoded defaults.
+  var inviteApplied = false;
+  function applyInvite(data) {
+    if (inviteApplied || !data) return;
+    inviteApplied = true;
 
     const lead = data.lead || {};
     const setText = (id, value) => { const el = document.getElementById(id); if (el && value) el.textContent = value; };
@@ -584,6 +588,7 @@
     const homes = Array.isArray(data.homes) ? data.homes : [];
     if (homes.length) {
       const list = document.getElementById('mailHomesList');
+      list.innerHTML = '';
       const usd = new Intl.NumberFormat('en-US');
       homes.forEach((h) => {
         const meta = [
@@ -618,7 +623,24 @@
       });
       document.getElementById('mailHomes').style.display = 'block';
     }
-  })();
+  }
+
+  // Path 1 — localStorage, for local dev and non-sandboxed hosts.
+  try { applyInvite(JSON.parse(localStorage.getItem('rdc-plus-invite') || 'null')); } catch (e) {}
+
+  // Path 2 — postMessage, the reliable path when the shell runs in a sandboxed iframe.
+  window.addEventListener('message', function (e) {
+    if (e && e.data && e.data.type === 'rdc-plus-invite') applyInvite(e.data.payload);
+  });
+
+  // Announce readiness to the embedding shell now that the listener above is attached, so it
+  // replies with the invite payload. Doing this after wiring the listener makes the handoff
+  // race-free — the shell never posts before we can receive it.
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'rdc-plus-onboard-ready' }, '*');
+    }
+  } catch (e) {}
 </script>
 
 </body>

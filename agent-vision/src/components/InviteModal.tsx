@@ -12,7 +12,7 @@
  * and toggle are real local state so the composition reads as live; "Send" only records the
  * promotion.
  */
-import { useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Modal, Button, TextArea, Toggle, PropertyCard, Tag, Checkbox } from '@rdc-npm/rdc-ui-v4'
 import { C, DISPLAY_FONT } from '../theme'
 import { IconCircleCheck } from '../icons'
@@ -193,6 +193,29 @@ export function InviteModal({ lead, onClose, onSend }: InviteModalProps) {
   const [pushMessage, setPushMessage] = useState(d.invitePush)
   const [attachSearch, setAttachSearch] = useState(true)
   const [sent, setSent] = useState(false)
+  const [preview, setPreview] = useState(false)
+  // The lead + homes payload for the onboarding preview. Held in a ref (not state) so the
+  // handshake responder below always reads the latest value with no stale-closure risk.
+  const payloadRef = useRef<unknown>(null)
+
+  // Answer the onboarding preview's readiness handshake. The preview iframe announces itself
+  // once its own message listener is attached; we reply to that exact window with the payload.
+  // This is the race-free path: unlike the iframe's onLoad (which can fire before the child's
+  // listener exists), the child only asks after it's ready, so the reply is never missed. It
+  // also crosses the sandbox boundary where localStorage can't — messaging always works.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e?.data?.type === 'rdc-plus-onboard-ready' && e.source) {
+        try {
+          ;(e.source as Window).postMessage({ type: 'rdc-plus-invite', payload: payloadRef.current }, '*')
+        } catch {
+          // Frame went away between the handshake and our reply — nothing to personalize.
+        }
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
   const budgetLabel = lead.type === 'Seller' ? 'Est. value' : 'Budget'
 
   // One spotlight (best fit) plus four selectable extras.
@@ -215,37 +238,45 @@ export function InviteModal({ lead, onClose, onSend }: InviteModalProps) {
   const send = () => {
     onSend(lead.id)
     setSent(true)
-    // Hand the invited lead + the homes they'll see to the onboarding preview. It's served
-    // same-origin, so localStorage carries the payload across to the popped window.
+    // Hand the invited lead + the homes they'll see to the onboarding preview. Two paths,
+    // because the preview iframe may not share storage with this shell: localStorage works
+    // in local dev / non-sandboxed hosts, while postMessage (below, on the iframe's onLoad)
+    // is the reliable handoff when the shell runs inside a sandboxed iframe (RealPrototypes),
+    // where storage is partitioned or unavailable and only messaging crosses the boundary.
     const selected = miniCards.filter((m) => selectedMini.has(m.listing.id))
     const attached = attachSearch ? (spotlight ? [spotlight, ...selected] : selected) : []
     const parts = lead.name.split(/\s+/)
-    try {
-      localStorage.setItem(
-        'rdc-plus-invite',
-        JSON.stringify({
-          lead: { name: lead.name, first: parts[0], last: parts.slice(1).join(' '), email: lead.email },
-          homes: attached.map((m) => ({
-            photo: m.listing.photo,
-            price: m.listing.price,
-            address: m.listing.address1,
-            beds: m.listing.meta.beds,
-            baths: m.listing.meta.baths_full,
-            sqft: m.listing.meta.sqft,
-            match: m.matchScore,
-          })),
-        }),
-      )
-    } catch {
-      // Private-mode / storage-disabled: the preview just falls back to its defaults.
+    const payload = {
+      lead: { name: lead.name, first: parts[0], last: parts.slice(1).join(' '), email: lead.email },
+      homes: attached.map((m) => ({
+        photo: m.listing.photo,
+        price: m.listing.price,
+        address: m.listing.address1,
+        beds: m.listing.meta.beds,
+        baths: m.listing.meta.baths_full,
+        sqft: m.listing.meta.sqft,
+        match: m.matchScore,
+      })),
     }
-    // Preview what the lead receives: pop the RDC+ onboarding page (served from public/).
-    // Opened straight off the click so the browser treats it as a user gesture, not a popup.
-    window.open('rdc-plus-onboarding.html', '_blank', 'noopener')
+    payloadRef.current = payload
+    try {
+      localStorage.setItem('rdc-plus-invite', JSON.stringify(payload))
+    } catch {
+      // Private-mode / storage-disabled: the postMessage path still personalizes the preview.
+    }
+    // Preview what the lead receives, shown in-app rather than a popped tab. A hosted
+    // prototype runs inside a sandboxed iframe where window.open to a new tab is blocked,
+    // so the overlay iframe below is the reliable way to render it. Its src literal is what
+    // the single-file bundle rewrites to the inlined onboarding blob URL.
+    setPreview(true)
   }
 
   return (
-    <Modal open onClose={onClose} size="lg">
+    <>
+    {/* Closed while the preview is up: the Modal's full-screen overlay would otherwise sit
+        above the preview and swallow the clicks that drive the onboarding flow. Reopens on
+        the confirmation screen when the preview is dismissed. */}
+    <Modal open={!preview} onClose={onClose} size="lg">
       {sent ? (
         <>
           <Modal.Body>
@@ -283,6 +314,9 @@ export function InviteModal({ lead, onClose, onSend }: InviteModalProps) {
             </div>
           </Modal.Body>
           <Modal.Footer>
+            <Button styleType="Tertiary" onClick={() => setPreview(true)}>
+              Preview what {first} receives
+            </Button>
             <Button styleType="Primary" onClick={onClose}>
               Done
             </Button>
@@ -493,5 +527,65 @@ export function InviteModal({ lead, onClose, onSend }: InviteModalProps) {
         </>
       )}
     </Modal>
+
+    {/* In-app preview of what the invited lead receives. An iframe rather than a popped tab,
+        so it renders even where the host embeds this prototype in a sandboxed iframe. The
+        src literal below is rewritten to the inlined onboarding blob URL by the single-file
+        bundle; in dev it resolves to the page served from public/. */}
+    {preview && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Preview — what ${first} receives`}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 2000,
+          background: 'rgba(0, 0, 0, 0.55)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '10px 16px',
+            background: C.white,
+            borderBottom: `1px solid ${C.hair}`,
+            flex: 'none',
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>
+            Preview — what {first} receives
+          </span>
+          <Button styleType="Tertiary" onClick={() => setPreview(false)}>
+            Close preview
+          </Button>
+        </div>
+        <iframe
+          title={`RDC+ onboarding preview for ${first}`}
+          src="rdc-plus-onboarding.html"
+          onLoad={(e) => {
+            // Belt-and-suspenders alongside the readiness handshake above: if the child's
+            // listener is already attached by load, this personalizes it a beat sooner. Reads
+            // the ref (not stale state) and targets '*' because the inlined onboarding runs
+            // from an opaque-origin blob URL; the page guards on the message's own `type`.
+            try {
+              e.currentTarget.contentWindow?.postMessage(
+                { type: 'rdc-plus-invite', payload: payloadRef.current },
+                '*',
+              )
+            } catch {
+              // Cross-origin frame with messaging blocked: the preview keeps its defaults.
+            }
+          }}
+          style={{ flex: 1, width: '100%', border: 0, background: C.white }}
+        />
+      </div>
+    )}
+    </>
   )
 }
