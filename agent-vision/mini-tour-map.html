@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tour map</title>
+<link rel="stylesheet" href="haven/colors_and_type.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<style>
+  html, body { margin:0; height:100%; background:#FFFFFF; font-family:var(--font-body, 'Mulish', sans-serif); color:#1A1816; }
+  #map { position:absolute; inset:0; }
+  /* The same lettered square pin the full tour map draws, so a briefing map reads identically. */
+  .stop-pin { background:transparent; border:none; }
+  .stop-pin .sq { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:6px; background:#1A1816; color:#FFFFFF; font-family:var(--font-body,'Mulish',sans-serif); font-weight:800; font-size:12px; box-shadow:0 1px 4px rgba(26,24,22,0.4); border:2px solid #FFFFFF; transform:translate(-50%,-50%); }
+  .leaflet-container { background:#EDEAE6; }
+</style>
+</head>
+<body>
+  <div id="map"></div>
+<script>
+  // A compact, chrome-free version of tours-map.html for the Catch Up briefing's embedded tour
+  // cards. The stops come in on the URL — `?stops=<encoded JSON>` — as an array of
+  // { o, lat, lng, addr, city }, so each briefing card can frame its own tour without the shell
+  // having to post one in. It still accepts `ra:tour-select` as a fallback, matching the full map.
+  const BASE_VIEW = [37.5410, -122.0490];
+  let map = null;
+  let tourLayer = null;
+  let routeToken = 0;
+
+  function ensureMap() {
+    if (map) return;
+    map = L.map('map', { zoomControl: false, attributionControl: false, dragging: true, scrollWheelZoom: false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  }
+
+  function drawFallback(stops) {
+    return L.polyline(stops.map(s => s.ll), { color: '#6B7F9E', weight: 5, opacity: 0.85, dashArray: '8 8' });
+  }
+
+  function render(stops) {
+    if (!stops || !stops.length) return;
+    ensureMap();
+    if (tourLayer) tourLayer.remove();
+    tourLayer = L.featureGroup().addTo(map);
+    stops.forEach(s => {
+      const icon = L.divIcon({ className: 'stop-pin', html: '<span class="sq">' + s.order + '</span>', iconSize: [0, 0] });
+      const popup = '<b>' + (s.addr || '') + '</b>' + (s.city ? '<br>' + s.city : '');
+      L.marker(s.ll, { icon }).addTo(tourLayer).bindPopup(popup);
+    });
+    const token = ++routeToken;
+    if (stops.length > 1) {
+      map.fitBounds(L.latLngBounds(stops.map(s => s.ll)).pad(0.35));
+      // Real driving route via OSRM, exactly as the full tour map — falls back to straight legs.
+      fetch('https://router.project-osrm.org/route/v1/driving/' + stops.map(s => s.ll[1] + ',' + s.ll[0]).join(';') + '?overview=full&geometries=geojson')
+        .then(r => r.json())
+        .then(d => {
+          if (token !== routeToken) return;
+          if (d.routes && d.routes[0]) {
+            L.geoJSON(d.routes[0].geometry, { style: { color: '#6B7F9E', weight: 6, opacity: 0.9 } }).addTo(tourLayer);
+            map.fitBounds(tourLayer.getBounds().pad(0.2));
+          } else drawFallback(stops).addTo(tourLayer);
+        })
+        .catch(() => { if (token === routeToken) drawFallback(stops).addTo(tourLayer); });
+    } else {
+      map.setView(stops[0].ll, 15);
+    }
+    setTimeout(() => map.invalidateSize(), 60);
+  }
+
+  /** URL stops arrive as { o, lat, lng, addr, city }; normalise to the { order, ll } the map draws. */
+  function fromUrl() {
+    try {
+      // URLSearchParams already percent-decodes, so parse the value straight through.
+      const raw = new URLSearchParams(location.search).get('stops');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || !parsed.length) return null;
+      return parsed.map(s => ({ order: s.o || s.order, addr: s.addr, city: s.city, ll: [s.lat, s.lng] }));
+    } catch (e) { return null; }
+  }
+
+  const urlStops = fromUrl();
+  if (urlStops) render(urlStops);
+  else { ensureMap(); map.setView(BASE_VIEW, 13); }
+
+  // Fallback: accept a posted tour (same message the full map listens for).
+  window.addEventListener('message', e => {
+    const d = e && e.data;
+    if (d && d.type === 'ra:tour-select' && d.tour && Array.isArray(d.tour.stops)) render(d.tour.stops);
+  });
+</script>
+</body>
+</html>

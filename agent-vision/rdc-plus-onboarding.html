@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RDC+ Onboarding Prototype v2 — Email-triggered flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --rdc-red:#D92228;
+    --rdc-red-dark:#B01B20;
+    --ink:#1A1816;
+    --ink-soft:#5C5A57;
+    --ink-faint:#9A9793;
+    --line:rgba(26,24,22,0.10);
+    --bg:#FFFFFF;
+    --bg-warm:#FAF8F6;
+    --chip:#F4F1EE;
+    --pill:9999px;
+    --font:'Poppins',-apple-system,sans-serif;
+    --wf-line:#B8B5AF;
+    --wf-fill:#EFEDE9;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:var(--font);
+    background:var(--bg-warm);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:28px 12px 60px;
+    min-height:100vh;
+  }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
+
+  .rig{ display:flex; flex-direction:column; align-items:center; gap:16px; width:100%; max-width:400px; }
+  .rig-label{
+    font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--ink-faint); text-align:center;
+  }
+  .phone{
+    width:100%;
+    aspect-ratio:9/19.5;
+    background:#000;
+    border-radius:38px;
+    padding:10px;
+    box-shadow:0 24px 60px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.15);
+    position:relative;
+  }
+  .screen{
+    width:100%; height:100%;
+    background:var(--bg);
+    border-radius:30px;
+    overflow:hidden;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+  }
+  .notch{
+    position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:120px; height:26px; background:#000; border-radius:0 0 16px 16px; z-index:20;
+  }
+
+  .frame{ display:none; width:100%; height:100%; flex-direction:column; animation:fadeIn .25s ease; }
+  .frame.show{ display:flex; }
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+
+  /* ---- mail chrome ---- */
+  .mailbar{
+    height:52px; display:flex; align-items:center; gap:10px; padding:0 14px; flex-shrink:0;
+    border-bottom:1px solid var(--line);
+  }
+  .mailbar .back-btn{
+    width:30px; height:30px; border-radius:50%; border:none; background:var(--chip);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .mailbar .back-btn svg{ width:13px; height:13px; }
+  .mail-meta{ flex:1; overflow:hidden; }
+  .mail-subject{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mail-time{ font-size:11px; color:var(--ink-faint); flex-shrink:0; }
+
+  .mail-from-row{ padding:12px 16px 8px; display:flex; gap:10px; align-items:flex-start; border-bottom:1px solid var(--line); }
+  .mail-avatar{
+    width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#F9C3B7,#D92228);
+    color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;
+  }
+  .mail-from-name{ font-size:13px; font-weight:600; }
+  .mail-from-addr{ font-size:11px; color:var(--ink-faint); }
+  .mail-to{ font-size:11px; color:var(--ink-faint); margin-top:1px; }
+
+  .mail-body{ flex:1; overflow-y:auto; padding:24px 20px 20px; }
+  .mail-body::-webkit-scrollbar{ display:none; }
+  .mail-logo{ display:flex; align-items:center; justify-content:center; gap:5px; font-weight:700; font-size:17px; margin-bottom:22px; }
+  .mail-logo .logo-icon{ width:16px; height:16px; }
+  .mail-logo .logo-real{ color:var(--ink); }
+  .mail-logo .logo-tor{ color:var(--rdc-red); }
+  .mail-logo .logo-plus{ color:var(--rdc-red); }
+  .mail-h1{ font-size:19px; font-weight:800; text-align:center; line-height:1.3; margin-bottom:8px; letter-spacing:-0.01em; }
+  .mail-sub{ font-size:12.5px; color:var(--ink-soft); text-align:center; margin-bottom:18px; }
+  .mail-greet{ font-size:13px; margin-bottom:10px; }
+  .mail-p{ font-size:13px; color:var(--ink-soft); line-height:1.5; margin-bottom:18px; }
+  .mail-cta-wrap{ display:flex; justify-content:center; margin-bottom:22px; }
+  .mail-cta{
+    background:var(--ink); color:#fff; border:none; border-radius:var(--pill);
+    padding:12px 26px; font-family:var(--font); font-size:13.5px; font-weight:700; cursor:pointer;
+  }
+  .mail-cta:active{ transform:scale(0.98); }
+  .agent-block{
+    border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:18px;
+  }
+  .agent-row{ display:flex; gap:10px; align-items:center; margin-bottom:10px; }
+  .agent-avatar-lg{
+    width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#F9C3B7,#D92228);
+    color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0;
+  }
+  .agent-name-lg{ font-size:13.5px; font-weight:700; }
+  .agent-meta-lg{ font-size:11.5px; color:var(--ink-soft); }
+  .agent-phone{ font-size:12px; font-weight:600; margin-top:1px; }
+  .agent-divider{ border-top:1px solid var(--line); padding-top:10px; display:flex; align-items:center; gap:8px; }
+  .agent-mls-badge{ font-size:10px; font-weight:700; background:var(--chip); color:var(--ink-soft); padding:3px 8px; border-radius:6px; }
+  .mail-footer{ font-size:10.5px; color:var(--ink-faint); text-align:center; line-height:1.6; }
+
+  /* ---- selected homes attached to the invite ---- */
+  .mail-homes{ margin-bottom:22px; }
+  .mail-homes-label{
+    font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-faint); text-align:center; margin-bottom:10px;
+  }
+  .home-card{
+    display:flex; gap:10px; align-items:stretch; background:#fff;
+    border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:10px;
+  }
+  .home-card img{ width:84px; height:84px; object-fit:cover; flex-shrink:0; background:var(--chip); }
+  .home-card-body{ flex:1; min-width:0; padding:9px 12px 9px 0; display:flex; flex-direction:column; justify-content:center; }
+  .home-price{ font-size:15px; font-weight:800; letter-spacing:-0.01em; }
+  .home-addr{ font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .home-meta{ font-size:11.5px; color:var(--ink-faint); margin-top:2px; }
+  .home-match{ font-size:10.5px; font-weight:700; color:#2E5C4A; margin-top:4px; }
+
+  /* ---- app chrome (post-tap) ---- */
+  .topbar{
+    height:56px; display:flex; align-items:center; padding:0 18px; flex-shrink:0;
+    border-bottom:1px solid var(--line);
+  }
+  .topbar.plain{ justify-content:center; }
+  .back-btn{
+    width:32px; height:32px; border-radius:50%; border:none; background:var(--chip);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
+  }
+  .back-btn svg{ width:14px; height:14px; }
+  .topbar-title{ font-size:15px; font-weight:600; flex:1; text-align:center; margin-right:32px; }
+  .logo-mark{ display:flex; align-items:center; gap:5px; font-weight:700; font-size:16px; }
+  .logo-mark .logo-icon{ width:15px; height:15px; flex-shrink:0; }
+  .logo-mark .logo-real{ color:var(--ink); }
+  .logo-mark .logo-tor{ color:var(--rdc-red); }
+  .logo-mark .logo-plus{ color:var(--rdc-red); }
+
+  .content{ flex:1; overflow-y:auto; padding:20px 22px 18px; display:flex; flex-direction:column; }
+  .content::-webkit-scrollbar{ display:none; }
+
+  .footer-cta{ padding:14px 22px 22px; flex-shrink:0; }
+  .btn{
+    width:100%; border:none; border-radius:var(--pill); padding:15px 20px;
+    font-family:var(--font); font-size:15px; font-weight:600; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn-primary{ background:var(--ink); color:#fff; }
+  .btn-primary:hover{ background:#000; }
+  .btn-ghost{ background:transparent; color:var(--ink-soft); font-weight:500; font-size:13px; padding:8px; }
+
+  .eyebrow{ font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--rdc-red); margin-bottom:8px; }
+  .h1{ font-size:22px; font-weight:800; letter-spacing:-0.02em; line-height:1.2; margin-bottom:8px; }
+  .p{ font-size:13.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:6px; }
+
+  .value-row{ display:flex; gap:10px; align-items:flex-start; margin-bottom:14px; }
+  .value-dot{
+    width:26px; height:26px; border-radius:50%; background:var(--chip); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; margin-top:1px;
+  }
+  .value-dot svg{ width:13px; height:13px; }
+  .value-title{ font-size:13px; font-weight:700; }
+  .value-sub{ font-size:12px; color:var(--ink-soft); line-height:1.4; }
+
+  .field-label-row{ display:flex; align-items:baseline; justify-content:space-between; margin-top:14px; margin-bottom:6px; }
+  .field-label{ font-size:12.5px; font-weight:700; color:var(--ink); }
+  .field-required{ font-size:11px; color:var(--ink-faint); }
+  .input{
+    width:100%; border:1.5px solid var(--line); border-radius:6px; padding:12px 14px;
+    font-family:var(--font); font-size:14px; background:#fff; color:var(--ink-faint);
+  }
+  .input.filled{ color:var(--ink-faint); }
+  .input.locked{ background:var(--chip); color:var(--ink-soft); display:flex; align-items:center; gap:8px; }
+  .input.locked svg{ width:14px; height:14px; flex-shrink:0; opacity:.6; }
+
+  .divider-row{ display:flex; align-items:center; gap:10px; margin:16px 0; }
+  .divider-row .line{ flex:1; height:1px; background:var(--line); }
+  .divider-row span{ font-size:11px; color:var(--ink-faint); }
+  .sso-btn{
+    width:100%; border:1.5px solid var(--line); border-radius:var(--pill); padding:11px 16px;
+    font-family:var(--font); font-size:13px; font-weight:600; background:#fff; color:var(--ink);
+    display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:8px;
+  }
+  .link-text{ font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:10px; }
+  .link-text a{ color:var(--ink); font-weight:600; }
+
+  .agent-card{
+    display:flex; flex-direction:column; gap:12px; margin-bottom:18px;
+  }
+  .agent-card-top{ display:flex; align-items:center; gap:12px; }
+  .avatar{
+    width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,#F9C3B7,#D92228);
+    color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; flex-shrink:0;
+  }
+  .agent-card-name{ font-size:14.5px; font-weight:700; }
+  .agent-card-meta{ font-size:12px; color:var(--ink-soft); }
+  .agent-card-brokerage{
+    display:flex; align-items:center; gap:8px; padding-top:12px; border-top:1px solid var(--line);
+  }
+  .agent-card-brokerage svg{ width:18px; height:18px; flex-shrink:0; }
+  .agent-card-brokerage-name{ font-size:11.5px; font-weight:700; color:#2E5C4A; line-height:1.2; }
+  .agent-card-brokerage-sub{ font-size:9.5px; color:var(--ink-soft); line-height:1.2; }
+  .agent-card-divider-line{ width:1px; height:22px; background:var(--line); flex-shrink:0; }
+  .agent-card-badge{ font-size:11px; font-weight:600; color:var(--ink); }
+
+  .fine{ font-size:11px; color:var(--ink-soft); line-height:1.6; margin-top:16px; }
+  .fine a{ color:var(--ink); text-decoration:underline; font-weight:600; }
+
+  .decision-row{ display:flex; align-items:center; gap:20px; margin-top:6px; }
+  .decline-link{ font-size:13.5px; font-weight:600; color:var(--ink); background:none; border:none; text-decoration:underline; cursor:pointer; padding:0; }
+  .accept-btn{
+    background:var(--ink); color:#fff; border:none; border-radius:var(--pill);
+    padding:12px 22px; font-family:var(--font); font-size:13.5px; font-weight:700; cursor:pointer;
+  }
+  .accept-btn:active{ transform:scale(0.98); }
+
+  .confetti-wrap{ display:flex; align-items:center; justify-content:center; margin:18px 0 8px; }
+  .center-text{ text-align:center; }
+  .center-text .h1{ text-align:center; }
+  .center-text .p{ text-align:center; }
+
+  .controls{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .ctrl-btn{
+    font-family:var(--font); font-size:12px; font-weight:600; color:var(--ink-soft);
+    background:#fff; border:1px solid var(--line); border-radius:var(--pill); padding:8px 14px; cursor:pointer;
+  }
+  .ctrl-btn.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .step-note{ font-size:12px; color:var(--ink-faint); text-align:center; max-width:340px; line-height:1.5; }
+
+  /* ---- search screen ---- */
+  .search-top{ padding:10px 14px 8px; flex-shrink:0; }
+  .search-row{ display:flex; align-items:center; gap:8px; }
+  .search-bar{
+    flex:1; display:flex; align-items:center; gap:8px; background:var(--chip);
+    border-radius:var(--pill); padding:10px 14px; font-size:14px; color:var(--ink);
+  }
+  .search-bar svg{ width:15px; height:15px; color:var(--ink-soft); flex-shrink:0; }
+  .list-btn{
+    display:flex; align-items:center; gap:6px; color:var(--ink);
+    padding:10px 6px; font-size:15px; font-weight:600; flex-shrink:0;
+  }
+  .list-btn svg{ width:15px; height:15px; color:var(--ink); }
+  .chip-scroll{ display:flex; gap:7px; margin-top:10px; overflow:hidden; }
+  .fchip{
+    display:flex; align-items:center; gap:5px; background:var(--ink); color:#fff;
+    border-radius:var(--pill); padding:8px 12px; font-size:12.5px; font-weight:600; white-space:nowrap; flex-shrink:0;
+  }
+  .fchip svg{ width:11px; height:11px; flex-shrink:0; }
+  .fchip.fade{ opacity:.35; }
+
+  .map-area{ position:relative; flex:1; overflow:hidden; background:#EDE8DC; }
+  .map-area .map-note{
+    position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:5;
+    font-size:9.5px; color:var(--ink-faint); background:rgba(255,255,255,.85); padding:3px 8px; border-radius:6px;
+  }
+  .map-pin{ position:absolute; left:48%; top:44%; width:18px; height:18px; border-radius:50%; background:var(--rdc-red); border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+  .map-fab-col{ position:absolute; right:12px; bottom:80px; display:flex; flex-direction:column; gap:10px; z-index:6; }
+  .map-fab{
+    width:38px; height:38px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  .map-fab svg{ width:16px; height:16px; color:var(--ink); }
+  .map-fab.ai{ background:var(--rdc-red); }
+  .map-fab.ai svg{ color:#fff; }
+  .results-bar{
+    position:absolute; left:14px; right:14px; bottom:16px; z-index:6;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .results-count{ font-size:12px; font-weight:600; color:var(--ink); background:rgba(255,255,255,.9); padding:8px 12px; border-radius:var(--pill); }
+  .save-search-btn{
+    display:flex; align-items:center; gap:8px; background:#fff; border-radius:var(--pill);
+    padding:11px 18px; font-size:13px; font-weight:600; color:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,.12);
+  }
+  .save-search-btn svg{ width:14px; height:14px; }
+
+  .tab-bar{ display:flex; border-top:1px solid var(--line); flex-shrink:0; background:#fff; }
+  .tab-item{ flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 0 10px; position:relative; }
+  .tab-item svg{ width:20px; height:20px; color:var(--ink-faint); }
+  .tab-item.active svg{ color:var(--rdc-red); }
+  .tab-item span{ font-size:9.5px; font-weight:600; color:var(--ink-faint); }
+  .tab-item.active span{ color:var(--rdc-red); }
+  .tab-dot{ position:absolute; top:4px; right:26%; width:6px; height:6px; border-radius:50%; background:var(--rdc-red); }
+
+  /* ---- correct realtor.com+ brand mark (serif, red/black, house with r) ---- */
+  .logo-correct{ display:flex; align-items:center; gap:6px; font-family:Georgia,'Times New Roman',serif; }
+  .logo-correct .logo-icon{ flex-shrink:0; }
+  .logo-correct .lc-real{ color:var(--rdc-red); font-weight:700; }
+  .logo-correct .lc-tor{ color:var(--ink); font-weight:700; }
+  .logo-correct .lc-plus{ color:var(--ink); font-weight:700; }
+
+  /* ---- wireframe placeholders, deliberately unbranded ---- */
+  .wf-chip{
+    font-size:10.5px; font-weight:700; letter-spacing:.06em; color:#7A776F; background:var(--wf-fill);
+    border:1px dashed var(--wf-line); border-radius:6px; padding:6px 10px; margin:0 auto;
+  }
+  .wf-note{ font-size:11.5px; color:#8A8780; font-style:italic; line-height:1.5; margin-bottom:16px; }
+  .wf-box{
+    border:1.5px dashed var(--wf-line); border-radius:10px; background:var(--wf-fill); padding:14px;
+  }
+  .wf-box-lg{ min-height:56px; display:flex; flex-direction:column; justify-content:center; }
+  .wf-line{ height:10px; background:#D8D5CF; border-radius:4px; }
+  .wf-line-30{ width:30%; } .wf-line-40{ width:40%; } .wf-line-50{ width:50%; }
+  .wf-line-60{ width:60%; } .wf-line-70{ width:70%; } .wf-line-80{ width:80%; } .wf-line-90{ width:90%; }
+  .wf-avatar{ width:38px; height:38px; border-radius:50%; background:var(--wf-fill); border:1.5px dashed var(--wf-line); flex-shrink:0; }
+  .wf-btn{
+    width:100%; border:1.5px dashed var(--wf-line); background:var(--wf-fill); color:#6B6862;
+    border-radius:var(--pill); padding:14px 18px; font-family:var(--font); font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .wf-btn-ghost{
+    border:1.5px dashed var(--wf-line); background:transparent; color:#8A8780;
+    border-radius:var(--pill); padding:13px 16px; font-family:var(--font); font-size:12.5px; font-weight:600; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="rig">
+  <div class="rig-label">Prototype 3, v5 · Fully sourced: email &rarr; agree &rarr; confirmed &rarr; search</div>
+
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="screen">
+
+      <!-- FRAME 0: email -->
+      <div class="frame show" id="f0">
+        <div class="mailbar">
+          <button class="back-btn" onclick="void(0)"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#1A1816" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div class="mail-meta">
+            <div class="mail-subject">Georgia Booth invited you to Realtor.com+</div>
+          </div>
+          <div class="mail-time">9:14 AM</div>
+        </div>
+        <div class="mail-from-row">
+          <div class="mail-avatar">GB</div>
+          <div>
+            <div class="mail-from-name">Georgia Booth</div>
+            <div class="mail-from-addr">georgia.booth@realty123.com</div>
+            <div class="mail-to">to me</div>
+          </div>
+        </div>
+        <div class="mail-body">
+          <div class="logo-correct" style="justify-content:center; margin-bottom:22px;">
+            <img src="assets/logo-realtor-plus.svg" alt="realtor.com+" style="height:22px; width:auto;">
+          </div>
+          <div class="mail-h1">You're invited to connect with Georgia Booth</div>
+          <div class="mail-sub">Search smarter. Move faster. Together.</div>
+          <div class="mail-greet" id="mailGreet">Hi there,</div>
+          <p class="mail-p">Georgia wants to search together on Realtor.com+. Accept to unlock shared search, direct messaging, and updates on homes you're both watching.</p>
+          <div class="mail-homes" id="mailHomes" style="display:none;">
+            <div class="mail-homes-label">Homes Georgia picked for you</div>
+            <div id="mailHomesList"></div>
+          </div>
+          <div class="mail-cta-wrap">
+            <button class="mail-cta" onclick="go(1)">Accept invitation</button>
+          </div>
+          <div class="agent-block">
+            <div class="agent-row">
+              <div class="agent-avatar-lg">GB</div>
+              <div>
+                <div class="agent-name-lg">Georgia Booth</div>
+                <div class="agent-meta-lg">Norwalk Realty</div>
+                <div class="agent-phone">(555) 555-5555</div>
+              </div>
+            </div>
+            <div class="agent-divider">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2 20l6-10 4 6 3-5 7 9H2z" fill="#2E5C4A"/></svg>
+              <span style="font-size:11px; font-weight:700; color:#2E5C4A;">Norwalk Realty Group</span>
+              <span style="color:var(--line);">|</span>
+              <span class="agent-mls-badge">PRO MLS</span>
+            </div>
+          </div>
+          <div class="mail-footer">Realtor.com+ · 901 E 6th St, Austin, TX 78702<br>Privacy · Update my preferences</div>
+        </div>
+      </div>
+
+      <!-- FRAME 1: agree to work with agent (sourced) -->
+      <div class="frame" id="f1">
+        <div class="topbar plain">
+          <div class="logo-correct" style="justify-content:center;">
+            <img src="assets/logo-realtor-plus.svg" alt="realtor.com+" style="height:16px; width:auto;">
+          </div>
+        </div>
+        <div class="content">
+          <div class="agent-card">
+            <div class="agent-card-top">
+              <div class="avatar">GB</div>
+              <div>
+                <div class="agent-card-name">Georgia Booth</div>
+                <div class="agent-card-meta">Norwalk Realty Group</div>
+              </div>
+            </div>
+            <div class="agent-card-brokerage">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M2 20l6-10 4 6 3-5 7 9H2z" fill="#2E5C4A"/></svg>
+              <div>
+                <div class="agent-card-brokerage-name">Norwalk<br>Realty Group</div>
+              </div>
+              <div class="agent-card-divider-line"></div>
+              <div class="agent-card-badge">PRO MLS</div>
+            </div>
+          </div>
+
+          <div class="h1">You've been invited by your agent to search together on Realtor.com+</div>
+          <p class="p">Collaborate on listings, save favorites, and stay in sync throughout your home search.</p>
+
+          <div class="field-label-row"><span class="field-label">First name</span><span class="field-required">required</span></div>
+          <div class="input filled" id="fldFirst">Jordan</div>
+          <div class="field-label-row"><span class="field-label">Last name</span><span class="field-required">required</span></div>
+          <div class="input filled" id="fldLast">Ellis</div>
+          <div class="field-label-row"><span class="field-label">Email</span></div>
+          <div class="input locked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span id="fldEmail">jordan.ellis@gmail.com</span></div>
+
+          <div class="fine">By clicking &ldquo;I accept,&rdquo; you agree to share your past and future browsing information on Realtor.com and Realtor.com+ with your real estate agent (shown on this page), including but not limited to your search history and homes you have saved. You also agree to receive emails pertaining to your home search sent by Realtor.com+ on her behalf. If you do not agree, click &ldquo;I decline.&rdquo; You also agree to our <a>Terms of Use</a> and our <a>Privacy Notice</a>.</div>
+        </div>
+        <div class="footer-cta">
+          <div class="decision-row">
+            <button class="decline-link" onclick="go(0)">I decline</button>
+            <button class="accept-btn" onclick="go(2)">I accept</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FRAME 2: confirmed (sourced) -->
+      <div class="frame" id="f2">
+        <div class="topbar plain">
+          <div class="logo-correct" style="justify-content:center;">
+            <img src="assets/logo-realtor-plus.svg" alt="realtor.com+" style="height:16px; width:auto;">
+          </div>
+        </div>
+        <div class="content center-text" style="justify-content:center; flex:1;">
+          <div class="confetti-wrap">
+            <svg width="120" height="90" viewBox="0 0 120 90" fill="none">
+              <path d="M40 55c-6-10-4-24 8-30" stroke="#D92228" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <path d="M78 52c8-8 8-22-2-30" stroke="#3A3733" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <path d="M58 60c2-12 14-18 22-14" stroke="#9A9793" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <rect x="30" y="18" width="6" height="6" rx="1" fill="#1A1816" transform="rotate(20 33 21)"/>
+              <rect x="86" y="16" width="6" height="6" rx="1" fill="#D92228" transform="rotate(-15 89 19)"/>
+              <circle cx="20" cy="40" r="3" fill="#D92228"/>
+              <circle cx="98" cy="42" r="3" fill="#9A9793"/>
+              <circle cx="60" cy="14" r="2.5" fill="#9A9793"/>
+              <circle cx="46" cy="70" r="2.5" fill="#D92228"/>
+              <circle cx="74" cy="72" r="2.5" fill="#1A1816"/>
+              <path d="M14 55l6 4" stroke="#D92228" stroke-width="2" stroke-linecap="round"/>
+              <path d="M104 58l-6 4" stroke="#9A9793" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="logo-correct" style="justify-content:center; margin-bottom:12px;">
+            <img src="assets/logo-realtor-plus.svg" alt="realtor.com+" style="height:30px; width:auto;">
+          </div>
+          <div class="h1">You're now connected with Georgia Booth!</div>
+          <p class="p">You can now message directly, schedule tours, and get personalized support throughout your home search.</p>
+        </div>
+        <div class="footer-cta">
+          <button class="btn btn-primary" onclick="go(3)">Continue to Search</button>
+        </div>
+      </div>
+
+      <!-- FRAME 3: search (sourced) -->
+      <div class="frame" id="f3">
+        <div class="search-top">
+          <div class="search-row">
+            <div class="search-bar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg>
+              Austin, TX
+            </div>
+            <div class="list-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>List</div>
+          </div>
+          <div class="chip-scroll">
+            <div class="fchip"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 6v0a3 3 0 106 0M4 12h16M14 12v0a3 3 0 11-6 0M4 18h16M10 18v0a3 3 0 106 0"/></svg>9</div>
+            <div class="fchip"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>Up to $850K <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></div>
+            <div class="fchip"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>House <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></div>
+            <div class="fchip fade"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+          </div>
+        </div>
+
+        <div class="map-area">
+          <div class="map-note">Simplified map placeholder, not real map tile imagery</div>
+          <svg width="100%" height="100%" viewBox="0 0 360 500" preserveAspectRatio="xMidYMid slice" style="position:absolute; top:0; left:0;">
+            <rect width="360" height="500" fill="#EDE8DC"/>
+            <rect x="20" y="30" width="90" height="70" rx="4" fill="#D9E6C8"/>
+            <rect x="230" y="60" width="70" height="120" rx="4" fill="#D9E6C8"/>
+            <rect x="40" y="260" width="110" height="90" rx="4" fill="#D9E6C8"/>
+            <rect x="0" y="420" width="140" height="80" fill="#BFDCE8"/>
+            <line x1="180" y1="0" x2="170" y2="500" stroke="#C7C2B4" stroke-width="10"/>
+            <line x1="0" y1="150" x2="360" y2="130" stroke="#fff" stroke-width="4"/>
+            <line x1="0" y1="230" x2="360" y2="215" stroke="#fff" stroke-width="4"/>
+            <line x1="0" y1="320" x2="360" y2="330" stroke="#fff" stroke-width="4"/>
+            <line x1="90" y1="0" x2="80" y2="500" stroke="#fff" stroke-width="3"/>
+            <line x1="260" y1="0" x2="255" y2="500" stroke="#fff" stroke-width="3"/>
+          </svg>
+          <div class="map-pin"></div>
+
+          <div class="map-fab-col">
+            <div class="map-fab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
+            <div class="map-fab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l18-8-8 18-2-8-8-2z"/></svg></div>
+            <div class="map-fab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11V6a2 2 0 114 0v5M9 11l-2 1v5a4 4 0 004 4h2a4 4 0 004-4v-6a2 2 0 10-4 0"/></svg></div>
+            <div class="map-fab ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.5 5L18 9.5 13.5 11 12 16l-1.5-5L5 9.5 9.5 8z"/></svg></div>
+          </div>
+
+          <div class="results-bar">
+            <div class="results-count">0 results</div>
+            <div class="save-search-btn">Save search <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3M12 3v12M8 7l4-4 4 4"/></svg></div>
+          </div>
+        </div>
+
+        <div class="tab-bar">
+          <div class="tab-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span>Search</span></div>
+          <div class="tab-item" style="position:relative;"><div class="tab-dot"></div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.5-9.5-9A5.5 5.5 0 0112 4a5.5 5.5 0 019.5 7c-2.5 4.5-9.5 9-9.5 9z"/></svg><span>My Listings</span></div>
+          <div class="tab-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3L4 9l5 6 5-6-5-6z"/><path d="M17 4v4M15 6h4"/></svg><span>Discover</span></div>
+          <div class="tab-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12l5-7 5 7M12 12l5-7 5 7"/><path d="M4 12v7h6v-5h4v5h6v-7"/></svg><span>My Home</span></div>
+          <div class="tab-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg><span>More</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="controls" id="controls"></div>
+  <div class="step-note" id="stepnote"></div>
+</div>
+
+<script>
+  const steps = [
+    { id:'f0', label:'0 · Email', note:'Sourced from real reference screens. Tap "Accept invitation" to continue.' },
+    { id:'f1', label:'1 · Agree', note:'Sourced. Consumer is already logged in, no sign-up step. Agrees to share activity and work with the agent, or declines.' },
+    { id:'f2', label:'2 · Confirmed', note:'Sourced. Confirmation state before returning to standard search.' },
+    { id:'f3', label:'3 · Search', note:'Sourced from the real app screen. Map is a simplified placeholder, not real map tile imagery.' },
+  ];
+
+  const controls = document.getElementById('controls');
+  const stepnote = document.getElementById('stepnote');
+  steps.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.className = 'ctrl-btn';
+    b.textContent = s.label;
+    b.onclick = () => go(i);
+    controls.appendChild(b);
+  });
+
+  function go(i) {
+    steps.forEach((s, idx) => {
+      document.getElementById(s.id).classList.toggle('show', idx === i);
+      controls.children[idx].classList.toggle('active', idx === i);
+    });
+    stepnote.textContent = steps[i].note;
+  }
+  go(0);
+
+  // The invite flow (agent-vision shell) hands over the invited lead + selected homes to
+  // personalize the email. Two delivery paths, because the shell may run inside a sandboxed
+  // iframe (e.g. hosted on RealPrototypes) where localStorage is partitioned or unavailable:
+  //   1. localStorage — read on load, so local dev / non-sandboxed hosts personalize with no flash.
+  //   2. postMessage — the shell posts the payload to this frame on load; the reliable path
+  //      in a sandboxed host, since messaging works regardless of origin or storage access.
+  // Opened standalone with neither, the page keeps its hardcoded defaults.
+  var inviteApplied = false;
+  function applyInvite(data) {
+    if (inviteApplied || !data) return;
+    inviteApplied = true;
+
+    const lead = data.lead || {};
+    const setText = (id, value) => { const el = document.getElementById(id); if (el && value) el.textContent = value; };
+    if (lead.first) setText('mailGreet', 'Hi ' + lead.first + ',');
+    setText('fldFirst', lead.first);
+    setText('fldLast', lead.last);
+    setText('fldEmail', lead.email);
+
+    const homes = Array.isArray(data.homes) ? data.homes : [];
+    if (homes.length) {
+      const list = document.getElementById('mailHomesList');
+      list.innerHTML = '';
+      const usd = new Intl.NumberFormat('en-US');
+      homes.forEach((h) => {
+        const meta = [
+          h.beds != null ? h.beds + ' bd' : null,
+          h.baths != null ? h.baths + ' ba' : null,
+          h.sqft ? usd.format(h.sqft) + ' sqft' : null,
+        ].filter(Boolean).join(' · ');
+        const card = document.createElement('div');
+        card.className = 'home-card';
+        const img = document.createElement('img');
+        img.src = h.photo || ''; img.alt = '';
+        const body = document.createElement('div');
+        body.className = 'home-card-body';
+        const price = document.createElement('div');
+        price.className = 'home-price';
+        price.textContent = '$' + usd.format(h.price || 0);
+        const addr = document.createElement('div');
+        addr.className = 'home-addr';
+        addr.textContent = h.address || '';
+        const metaEl = document.createElement('div');
+        metaEl.className = 'home-meta';
+        metaEl.textContent = meta;
+        body.appendChild(price); body.appendChild(addr); body.appendChild(metaEl);
+        if (h.match != null) {
+          const m = document.createElement('div');
+          m.className = 'home-match';
+          m.textContent = h.match + '% match';
+          body.appendChild(m);
+        }
+        card.appendChild(img); card.appendChild(body);
+        list.appendChild(card);
+      });
+      document.getElementById('mailHomes').style.display = 'block';
+    }
+  }
+
+  // Path 1 — localStorage, for local dev and non-sandboxed hosts.
+  try { applyInvite(JSON.parse(localStorage.getItem('rdc-plus-invite') || 'null')); } catch (e) {}
+
+  // Path 2 — postMessage, the reliable path when the shell runs in a sandboxed iframe.
+  window.addEventListener('message', function (e) {
+    if (e && e.data && e.data.type === 'rdc-plus-invite') applyInvite(e.data.payload);
+  });
+
+  // Announce readiness to the embedding shell now that the listener above is attached, so it
+  // replies with the invite payload. Doing this after wiring the listener makes the handoff
+  // race-free — the shell never posts before we can receive it.
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'rdc-plus-onboard-ready' }, '*');
+    }
+  } catch (e) {}
+</script>
+
+</body>
+</html>
