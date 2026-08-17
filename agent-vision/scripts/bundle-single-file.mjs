@@ -49,6 +49,16 @@ const maps = {
   tours: inlineMapPage('tours-map.html'),
 }
 
+// ── Onboarding page, opened in a new tab as a blob URL ────────────────────────
+// The invite flow calls window.open('rdc-plus-onboarding.html'); inline it like the map
+// pages so the single-file bundle serves it with no separate document. Its one relative
+// asset is the realtor.com+ logo — swap it for the same data URL used elsewhere. The
+// blob URL is same-origin with the shell, so the page's localStorage handoff still works.
+const onboarding = read('rdc-plus-onboarding.html').replaceAll(
+  'assets/logo-realtor-plus.svg',
+  dataUrl.svg('assets/logo-realtor-plus.svg')
+)
+
 // ── Built CSS + JS ────────────────────────────────────────────────────────────
 // The build emits `dev.html` (see vite.config.ts — the root index.html is the bundle target).
 const html = read('dev.html')
@@ -75,6 +85,9 @@ for (const svg of [
 js = js.replaceAll('"search-map.html"', '__mapUrl("search")')
 js = js.replaceAll('"tours-map.html"', '__mapUrl("tours")')
 
+// Same for the onboarding page the invite flow opens in a new tab.
+js = js.replaceAll('"rdc-plus-onboarding.html"', '__onboardUrl()')
+
 /**
  * The map documents are embedded base64-encoded. Inlining them as JS string literals
  * would break the surrounding <script>: they contain `</script>` and quote sequences
@@ -95,6 +108,14 @@ window.__mapUrl = function (key) {
   }
   return window.__mapUrlCache[key];
 };
+window.__ONBOARD__ = "${Buffer.from(onboarding, 'utf8').toString('base64')}";
+window.__onboardUrl = function () {
+  if (!window.__onboardUrlCache) {
+    var bytes = Uint8Array.from(atob(window.__ONBOARD__), function (c) { return c.charCodeAt(0) });
+    window.__onboardUrlCache = URL.createObjectURL(new Blob([bytes], { type: 'text/html' }));
+  }
+  return window.__onboardUrlCache;
+};
 `.trim()
 
 // ── Assemble ──────────────────────────────────────────────────────────────────
@@ -104,11 +125,16 @@ let shell = html
   .replace(/<link rel="stylesheet"[^>]*>/g, '')
   .replace(/<script type="module"[^>]*><\/script>/, '')
 
+// The replacements go in as FUNCTIONS, not strings. A string replacement treats `$&`,
+// `$\``, `$'`, `$1` as special patterns, and the minified app JS contains `$&` and `$\``
+// literally — as a string arg those would splice the matched/preceding markup into the
+// script, injecting stray `<` and breaking it with `Unexpected token '<'`. A function
+// replacement is inserted verbatim, no `$` interpretation.
 const out = shell
-  .replace('</head>', `<style>${havenCss}</style>\n<style>${css}</style>\n</head>`)
+  .replace('</head>', () => `<style>${havenCss}</style>\n<style>${css}</style>\n</head>`)
   .replace(
     '</body>',
-    `<script>${mapShim}</script>\n<script type="module">${js}</script>\n</body>`
+    () => `<script>${mapShim}</script>\n<script type="module">${js}</script>\n</body>`
   )
 
 mkdirSync(resolve(root, 'upload'), { recursive: true })
@@ -121,3 +147,4 @@ console.log(`  haven css   ${kb(havenCss.length)} (fonts from CDN)`)
 console.log(`  app css     ${kb(css.length)}`)
 console.log(`  app js      ${kb(js.length)}`)
 console.log(`  map pages   ${kb(maps.search.length + maps.tours.length)}`)
+console.log(`  onboarding  ${kb(onboarding.length)}`)
