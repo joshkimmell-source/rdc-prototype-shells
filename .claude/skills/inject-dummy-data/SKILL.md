@@ -46,7 +46,7 @@ a real person.
 
 ### 1. Identify the target shell
 
-This repo has three: `agent-web/`, `client-web/`, `consumer-web/`. If the user
+This repo has three: `agent-vision/`, `agent-web/`, `consumer-web/`. If the user
 named one, use it. If not, and more than one could plausibly be meant, ask which
 — don't populate all three on a guess.
 
@@ -73,8 +73,6 @@ Grep the shell for the constants the screens read. As of this writing:
   `INITIAL_UPCOMING_TOURS`, `THREADS`, plus `TAGC` / `STAGES` / `CLIENT_PILLS`
   and the chip and menu label arrays.
 - `consumer-web/src/Shell.tsx` — `SAMPLE_LISTINGS`.
-- `client-web/src/Shell.tsx` — `CONTACT`, and the `AgentDetailScreen` identity
-  block.
 
 Verify by grepping rather than trusting that list; the shells change.
 
