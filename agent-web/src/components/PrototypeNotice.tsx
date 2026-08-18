@@ -1,13 +1,17 @@
 /**
- * On-load disclaimer: this is a prototype seeded with sample data, so nothing in it is real.
+ * On-load disclaimer + access gate: this is a prototype seeded with sample data, and the
+ * hosted copy sits behind a shared password so a public URL isn't open to anyone who finds it.
  *
- * Shown on every page load (open on first mount), dismissed by the "Okay" button — or the
- * modal's own overlay/escape/close affordances. The copy makes the fictional nature explicit
- * so a viewer never mistakes a sample client, listing, or address for a real one.
+ * Shown on every page load (open on first mount). Until the correct password is entered the
+ * modal cannot be dismissed — its overlay/escape/close affordances are inert — so the app
+ * behind it stays gated. A correct entry is remembered for the browser session, so a reload
+ * shows the disclaimer again but doesn't re-prompt for the password.
  *
- * Dismissal is not persisted, so a reload shows it again. The one escape hatch is the
- * `SUPPRESS_KEY` localStorage flag, which the E2E suite seeds so the overlay doesn't block
- * every test; real visitors never set it, so they always see the notice.
+ * This is a SOFT gate, not real security: the password ships in the client bundle, so anyone
+ * who reads the source can recover it. It only keeps casual visitors out of a demo link.
+ *
+ * The one escape hatch is the `SUPPRESS_KEY` localStorage flag, which the E2E suite seeds so
+ * the overlay doesn't block every test; real visitors never set it, so they always see the gate.
  */
 import { useState } from 'react'
 import { Modal, Button } from '@rdc-npm/rdc-ui-v4'
@@ -15,6 +19,10 @@ import { C } from '../theme'
 
 /** Set to `'1'` by the Playwright config so the notice never blocks the tests. */
 const SUPPRESS_KEY = 'ra-suppress-prototype-notice'
+/** Remembers a correct password for the browser session so reloads don't re-prompt. */
+const UNLOCK_KEY = 'ra-prototype-unlocked'
+/** Shared access password. Soft gate only — see the file header. */
+const PASSWORD = 'B0bsYourUncle'
 
 export function PrototypeNotice() {
   const [open, setOpen] = useState(() => {
@@ -25,20 +33,108 @@ export function PrototypeNotice() {
       return true
     }
   })
-  const close = () => setOpen(false)
+  const [unlocked, setUnlocked] = useState(() => {
+    try {
+      return window.sessionStorage.getItem(UNLOCK_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState(false)
+
+  // "Okay" once unlocked; otherwise validate the password and only then dismiss.
+  const proceed = () => {
+    if (unlocked) {
+      setOpen(false)
+      return
+    }
+    if (password === PASSWORD) {
+      setUnlocked(true)
+      try {
+        window.sessionStorage.setItem(UNLOCK_KEY, '1')
+      } catch {
+        // Storage blocked (e.g. sandboxed host) — the gate just re-prompts next load.
+      }
+      setOpen(false)
+    } else {
+      setError(true)
+    }
+  }
 
   return (
-    <Modal open={open} onClose={close} size="sm">
+    <Modal
+      open={open}
+      // Ignore overlay/escape/close while locked, so the gate can't be dismissed unanswered.
+      onClose={() => {
+        if (unlocked) setOpen(false)
+      }}
+      size="sm"
+    >
       <Modal.Header title="This is a prototype" />
       <Modal.Body>
         <p style={{ margin: 0, color: C.sub, fontSize: 15, lineHeight: 1.55 }}>
           Everything here is sample data for demonstration only. None of the people, listings,
           or addresses represent real individuals, properties, or locations.
         </p>
+
+        {!unlocked && (
+          <div style={{ marginTop: 20 }}>
+            <label
+              htmlFor="prototype-password"
+              style={{
+                display: 'block',
+                fontSize: 13,
+                fontWeight: 700,
+                color: C.dark,
+                marginBottom: 6,
+              }}
+            >
+              Password
+            </label>
+            <input
+              id="prototype-password"
+              type="password"
+              value={password}
+              autoFocus
+              autoComplete="off"
+              placeholder="Enter the access password"
+              aria-invalid={error}
+              aria-describedby={error ? 'prototype-password-error' : undefined}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                if (error) setError(false)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') proceed()
+              }}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '10px 12px',
+                fontSize: 15,
+                color: C.dark,
+                background: C.white,
+                border: `1px solid ${error ? C.brand : C.border}`,
+                borderRadius: 8,
+                outline: 'none',
+              }}
+            />
+            {error && (
+              <div
+                id="prototype-password-error"
+                role="alert"
+                style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: C.brand }}
+              >
+                Incorrect password. Try again.
+              </div>
+            )}
+          </div>
+        )}
       </Modal.Body>
       <Modal.Footer>
-        <Button styleType="Primary" onClick={close}>
-          Okay
+        <Button styleType="Primary" onClick={proceed} disabled={!unlocked && password.length === 0}>
+          {unlocked ? 'Okay' : 'Enter'}
         </Button>
       </Modal.Footer>
     </Modal>

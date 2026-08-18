@@ -1,24 +1,44 @@
 /**
- * Publishes `dist/` to the `gh-pages` branch.
+ * Publishes `dist/` to a per-shell subdirectory of the `gh-pages` branch, so one repo
+ * can serve several prototype shells side by side:
+ *
+ *   gh-pages/agent-vision/  →  https://<owner>.github.io/<repo>/agent-vision/
+ *   gh-pages/agent-web/     →  https://<owner>.github.io/<repo>/agent-web/
+ *
+ * The deploy is an OVERLAY: it checks out the existing `gh-pages` tree, replaces only this
+ * shell's own subdirectory, and pushes. Every other shell's folder (and anything at the
+ * branch root) is left untouched — deploying one shell never clobbers the others.
+ *
+ * The shell name defaults to this project's directory name (`agent-vision`); pass another
+ * as the first CLI arg to override: `npm run deploy -- agent-web`.
  *
  * Why this is a local script and not a GitHub Actions workflow: the build needs
  * `@rdc-npm/rdc-ui-v4` from internal Artifactory, which Actions runners cannot reach.
  * So the build happens here, on the VPN, and only the compiled output is pushed.
  *
- * The branch is committed with a detached worktree in a temp dir, so the working tree
- * and the current branch are never touched.
+ * The branch is committed in a detached worktree in a temp dir, so the working tree and
+ * the current branch are never touched.
  *
- * Usage: npm run deploy   (runs the build first)
+ * Usage: npm run deploy            (builds, then deploys this shell)
+ *        npm run deploy -- <name>  (deploys under a different subdirectory name)
  */
 import { execFileSync } from 'node:child_process'
 import { cpSync, mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs'
-import { dirname, resolve, join, extname } from 'node:path'
+import { basename, dirname, resolve, join, extname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const dist = resolve(root, 'dist')
 const BRANCH = 'gh-pages'
+
+// One subdirectory per shell. Defaults to this project's folder name; the arg is a simple
+// path segment, so reject anything that could escape into a sibling path or the branch root.
+const SHELL = (process.argv[2] || basename(root)).trim()
+if (!/^[a-z0-9][a-z0-9._-]*$/i.test(SHELL)) {
+  console.error(`Invalid shell name ${JSON.stringify(SHELL)} — use a single path segment.`)
+  process.exit(1)
+}
 
 /**
  * Font binaries are never published.
@@ -44,34 +64,38 @@ if (!existsSync(join(dist, 'dev.html'))) {
 // (see vite.config.ts). Copy rather than rename so `npm run bundle` still finds it.
 cpSync(join(dist, 'dev.html'), join(dist, 'index.html'))
 
-// Bypass Jekyll, which would otherwise skip files and dirs beginning with `_`.
-writeFileSync(join(dist, '.nojekyll'), '')
-
 const sha = git(['rev-parse', '--short', 'HEAD'])
 const worktree = mkdtempSync(join(tmpdir(), 'gh-pages-'))
-const STAGING = 'gh-pages-staging'
 
-// A previous run that died before cleanup leaves the scratch branch behind, and
-// `checkout --orphan` refuses to reuse an existing name.
+// Base the overlay on the current published tree so siblings survive. `git worktree add`
+// needs a committish; fetch the remote branch first and fall back to an empty orphan tree
+// the first time the branch does not exist yet.
+let hasBranch = false
 try {
-  git(['branch', '-D', STAGING])
+  git(['fetch', 'origin', BRANCH])
+  hasBranch = true
 } catch {
-  // Not there — the normal case.
+  // No remote gh-pages yet — first ever deploy. We'll start an orphan below.
 }
 
 try {
-  // Fresh orphan branch each deploy: this is a build artifact, so history has no value
-  // and keeping it would grow the repo with every publish.
-  git(['worktree', 'add', '--detach', worktree])
-  // `--orphan` fails if the branch already exists locally from an earlier deploy, so
-  // build the orphan under a scratch name and push it to BRANCH by refspec below.
-  execFileSync('git', ['checkout', '--orphan', STAGING], {
-    cwd: worktree,
-    stdio: 'pipe',
-  })
-  execFileSync('git', ['rm', '-rf', '--quiet', '.'], { cwd: worktree, stdio: 'pipe' })
+  if (hasBranch) {
+    // Detached worktree at the published tip: commits here advance a detached HEAD that we
+    // push to gh-pages by refspec, so no local branch is created or mutated.
+    git(['worktree', 'add', '--detach', worktree, 'FETCH_HEAD'])
+  } else {
+    git(['worktree', 'add', '--detach', worktree])
+    execFileSync('git', ['checkout', '--orphan', 'gh-pages-init'], { cwd: worktree, stdio: 'pipe' })
+    execFileSync('git', ['rm', '-rf', '--quiet', '.'], { cwd: worktree, stdio: 'pipe' })
+  }
 
-  cpSync(dist, worktree, { recursive: true, filter: publishable })
+  // Replace ONLY this shell's subdirectory; everything else in the tree is left as-is.
+  const shellDir = join(worktree, SHELL)
+  rmSync(shellDir, { recursive: true, force: true })
+  cpSync(dist, shellDir, { recursive: true, filter: publishable })
+
+  // Bypass Jekyll at the branch root, which would otherwise skip files/dirs beginning `_`.
+  writeFileSync(join(worktree, '.nojekyll'), '')
 
   // Belt and braces: fail loudly rather than publish a licensed binary if the filter
   // above is ever broken by a refactor.
@@ -83,19 +107,24 @@ try {
   }
 
   execFileSync('git', ['add', '-A'], { cwd: worktree, stdio: 'pipe' })
-  execFileSync('git', ['commit', '-m', `Deploy agent-web from ${sha}`], {
-    cwd: worktree,
-    stdio: 'pipe',
-  })
-  execFileSync('git', ['push', '--force', 'origin', `HEAD:${BRANCH}`], {
-    cwd: worktree,
-    stdio: 'inherit',
-  })
+  // Nothing to commit when the built output is byte-identical to what's already published.
+  const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: worktree, encoding: 'utf8' }).trim()
+  if (!dirty) {
+    console.log(`No changes for ${SHELL} — gh-pages already up to date.`)
+    process.exit(0)
+  }
+
+  execFileSync('git', ['commit', '-m', `Deploy ${SHELL} from ${sha}`], { cwd: worktree, stdio: 'pipe' })
+  // A plain (non-force) push: HEAD descends from the published tip, so this fast-forwards
+  // and preserves the other shells' history rather than orphaning the branch each deploy.
+  execFileSync('git', ['push', 'origin', `HEAD:${BRANCH}`], { cwd: worktree, stdio: 'inherit' })
 
   const remote = git(['remote', 'get-url', 'origin'])
   const m = remote.match(/github\.com[/:]([^/]+)\/(.+?)(?:\.git)?$/)
   console.log(
-    m ? `\nDeployed. https://${m[1]}.github.io/${m[2]}/` : '\nDeployed to gh-pages.'
+    m
+      ? `\nDeployed ${SHELL}. https://${m[1]}.github.io/${m[2]}/${SHELL}/`
+      : `\nDeployed ${SHELL} to gh-pages/${SHELL}/.`
   )
 } finally {
   rmSync(worktree, { recursive: true, force: true })
@@ -103,10 +132,5 @@ try {
     git(['worktree', 'prune'])
   } catch {
     // Nothing to prune if `worktree add` itself failed.
-  }
-  try {
-    git(['branch', '-D', STAGING])
-  } catch {
-    // Never created, if the failure came before checkout.
   }
 }
