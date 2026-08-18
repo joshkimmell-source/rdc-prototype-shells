@@ -13,11 +13,11 @@
  * The one escape hatch is the `SUPPRESS_KEY` localStorage flag, which the E2E suite seeds so
  * the overlay doesn't block every test; real visitors never set it, so they always see the gate.
  *
- * A shareable link can skip the password by carrying `?key=<ACCESS_TOKEN>`; a match pre-unlocks
- * on load, so the visitor sees the disclaimer and dismisses it with "Okay". The token is kept
- * distinct from the typed password on purpose — it travels in URLs (and now in the mirrored/
- * shared links from track.ts), and we'd rather not put the human password there. Still a soft
- * gate: the token ships in the bundle too.
+ * A shareable link can skip the gate entirely by carrying `?key=<ACCESS_TOKEN>`; a match closes
+ * the modal on load — no disclaimer, no password. The token is kept distinct from the typed
+ * password on purpose — it travels in URLs (and now in the mirrored/shared links from track.ts),
+ * and we'd rather not put the human password there. Still a soft gate: the token ships in the
+ * bundle too.
  */
 import { useEffect, useState } from 'react'
 import { Modal, Button } from '@rdc-npm/rdc-ui-v4'
@@ -44,6 +44,8 @@ function hasAccessToken() {
 
 export function PrototypeNotice() {
   const [open, setOpen] = useState(() => {
+    // A valid bypass token skips the modal entirely — no disclaimer, no password.
+    if (hasAccessToken()) return false
     try {
       return window.localStorage.getItem(SUPPRESS_KEY) !== '1'
     } catch {
