@@ -42,14 +42,26 @@ const click = (re) =>
     return !!el
   }, re.source)
 
+// The "This is a prototype" notice is now a password gate: its button reads "Enter" and stays
+// disabled until the password is typed. localStorage is disabled here (sandbox sim), so the
+// SUPPRESS_KEY short-circuit can't fire — we must actually unlock it to reach the app beneath.
+const unlockGate = async () => {
+  const input = page.locator('#prototype-password')
+  if (await input.count()) {
+    await input.fill('B0bsYourUncle')
+    await input.press('Enter')
+    await page.waitForTimeout(300)
+  }
+}
+
 await page.goto(`http://localhost:${port}/?ab=b&view=leads`, { waitUntil: 'networkidle' }).catch(() => {})
 await page.waitForTimeout(1000)
 
-// Dismiss the "This is a prototype" disclaimer if it's up (its overlay intercepts clicks).
-await click(/^Okay$/); await page.waitForTimeout(300)
-// Open the lead, dismiss any disclaimer again, open the invite composer, send.
+// Unlock the password gate if it's up (its overlay intercepts clicks).
+await unlockGate()
+// Open the lead, unlock again in case the gate is still up, open the invite composer, send.
 await click(/Camille Fontaine/); await page.waitForTimeout(600)
-await click(/^Okay$/); await page.waitForTimeout(300)
+await unlockGate()
 await click(/^Work with /); await page.waitForTimeout(500)
 await click(/^Send invite$/); await page.waitForTimeout(900)
 
