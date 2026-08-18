@@ -17,6 +17,7 @@ import { C, EASE } from './theme'
 import { isMobileViewport, useIsMobile, useIsMedium } from './useMobile'
 import { readNavParam, writeNavParam } from './navParam'
 import { readAbParam } from './abParam'
+import { mirrorState, readParticipant } from './track'
 import { IconBookmark, IconCalendar, IconExport } from './icons'
 import { NavRail, RAIL_WIDTH, type NavId } from './components/NavRail'
 import { NAV_BAR_HEIGHT, NavBar } from './components/NavBar'
@@ -42,6 +43,7 @@ import {
   triggersClientPulse,
   triggersSearchOpt,
   type AddClientFlow,
+  type Card,
   type CatchUpFlow,
   type ClientPulseFlow,
   type SearchOptFlow,
@@ -94,6 +96,25 @@ const PUSH_WIDTH_KEY = 'ra-push-width'
  */
 const SUBNAV_DRAWER_MAX = 288
 
+/**
+ * Whether an assistant turn ends on the design's brand-coloured "Completed" ✓ marker — the
+ * signal a task step finished. Mirrors the render conditions in AssistantPanel exactly: the
+ * three report cards and the upcoming-tour deep-dive always carry it, and an add-client message
+ * carries it when its own `completed` flag is set. The caller attributes it to whichever task
+ * produced the turn, so `?done` names the AI task, not the card. Keep in sync with
+ * `CompletedMarker` usage in AssistantPanel.tsx.
+ */
+function turnShowsCompleted(cards: Card[]): boolean {
+  return cards.some(
+    (c) =>
+      c.kind === 'catchUpBriefing' ||
+      c.kind === 'searchAnalysis' ||
+      c.kind === 'clientPulseReport' ||
+      c.kind === 'upcomingTour' ||
+      (c.kind === 'addClientMessage' && c.completed === true),
+  )
+}
+
 /** The widest the panel may be at this viewport — 30% of it, never below `PUSH_MIN`. */
 function pushCeiling() {
   return Math.max(PUSH_MIN, Math.round(window.innerWidth * PUSH_MAX_FRACTION))
@@ -124,6 +145,9 @@ export function Shell() {
   // a reload with a different `?ab=` gives a clean one.
   const [variant] = useState(readAbParam)
   const actionBar = variant === 'b'
+  // Attribution tag from `?u=`, fixed for the session. Surfaced on the shell root (below) and
+  // left in the URL so a shared link or observed session carries who the participant is.
+  const [participant] = useState(readParticipant)
 
   // Seeded from `?view=` so a linked or reloaded URL lands on the screen it names.
   const [activeNav, setActiveNav] = useState<NavId>(readNavParam)
@@ -198,6 +222,12 @@ export function Shell() {
   // "Onboarding {Full Name} as New Client") and the Catch Up flow ("Catch Up"). Null when
   // there's no titled conversation.
   const [threadTitle, setThreadTitle] = useState<string | null>(null)
+  // The most recent AI task to reach a "Completed" step in this conversation, mirrored to
+  // `?done` for attribution. Present state, not a log — one slot, reset on New chat.
+  const [completedTask, setCompletedTask] = useState<string | null>(null)
+  // True from a New-chat click until the next message is sent — mirrored to `?chat=new` so a
+  // shared link shows the participant is sitting in a freshly-started conversation.
+  const [newConversation, setNewConversation] = useState(false)
 
   const chatRef = useRef<HTMLDivElement>(null)
   const lastCount = useRef(-1)
@@ -266,6 +296,8 @@ export function Shell() {
     setInput('')
     setBusy(true)
     setPushContent(true)
+    // The conversation is no longer freshly-started once a message goes in.
+    setNewConversation(false)
     // Sending from the composer reveals the panel; in the medium band retract the subnav so
     // the two never dock side by side over a squished content column.
     if (isMedium) setSubnavOpen(false)
@@ -283,6 +315,7 @@ export function Shell() {
       ])
       setBusy(false)
       setAddFlow(flow)
+      if (turnShowsCompleted(result.cards)) setCompletedTask('add-client')
       if (result.threadTitle !== undefined) setThreadTitle(result.threadTitle)
       return
     }
@@ -299,6 +332,7 @@ export function Shell() {
       ])
       setBusy(false)
       setCatchUpFlow(flow)
+      if (turnShowsCompleted(result.cards)) setCompletedTask('catch-up')
       if (result.threadTitle !== undefined) setThreadTitle(result.threadTitle)
       return
     }
@@ -315,6 +349,7 @@ export function Shell() {
       ])
       setBusy(false)
       setSearchOptFlow(flow)
+      if (turnShowsCompleted(result.cards)) setCompletedTask('search-opt')
       if (result.threadTitle !== undefined) setThreadTitle(result.threadTitle)
       return
     }
@@ -331,6 +366,9 @@ export function Shell() {
       ])
       setBusy(false)
       setClientPulseFlow(flow)
+      // Pulse reuses the add-client message card for its opening prompt (also `completed`), so
+      // key completion on the report card itself rather than the generic marker predicate.
+      if (result.cards.some((c) => c.kind === 'clientPulseReport')) setCompletedTask('client-pulse')
       if (result.threadTitle !== undefined) setThreadTitle(result.threadTitle)
       return
     }
@@ -347,6 +385,9 @@ export function Shell() {
       ...(result.reply ? [{ role: 'ai', text: result.reply } as Msg] : []),
     ])
     setBusy(false)
+
+    // The tour flow: a booked tour or an upcoming-tour deep-dive both close on a "Completed" step.
+    if (result.scheduled || turnShowsCompleted(result.cards)) setCompletedTask('tour')
 
     if (result.scheduled) {
       const { client, address, when, type, tourId, at, date, startTime } = result.scheduled
@@ -545,6 +586,54 @@ export function Shell() {
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
+  // ── URL state mirroring (attribution only, no collection — see track.ts) ─────────
+  // The assistant panel: `?panel=open` while it's showing, cleared when closed.
+  useEffect(() => {
+    mirrorState('panel', pushContent && 'open')
+  }, [pushContent])
+
+  // Whether the Clients/Tours subnav is showing, but only on the screens that have one.
+  useEffect(() => {
+    const onSubnavScreen = activeNav === 'clients' || activeNav === 'tours'
+    mirrorState('subnav', onSubnavScreen ? (subnavOpen ? 'open' : 'closed') : null)
+  }, [activeNav, subnavOpen])
+
+  // The active RealAssist+ assistant flow, if any — the persistent "which prompt am I in"
+  // state. One-off prompts aren't mirrored: they're events, not current state.
+  useEffect(() => {
+    const flow = addFlow
+      ? 'add-client'
+      : catchUpFlow
+        ? 'catch-up'
+        : searchOptFlow
+          ? 'search-opt'
+          : clientPulseFlow
+            ? 'client-pulse'
+            : null
+    mirrorState('flow', flow)
+  }, [addFlow, catchUpFlow, searchOptFlow, clientPulseFlow])
+
+  // The last AI task that reached a "Completed" step this conversation — `?done=<task>`.
+  useEffect(() => {
+    mirrorState('done', completedTask)
+  }, [completedTask])
+
+  // The panel expanded to near-full-width — `?expanded=1`, only while the panel is open.
+  useEffect(() => {
+    mirrorState('expanded', pushContent && pushExpanded)
+  }, [pushContent, pushExpanded])
+
+  // The panel's own threads/conversation subnav — `?threads=open` while it's showing (docked or
+  // overlaid), only meaningful when the panel itself is open.
+  useEffect(() => {
+    mirrorState('threads', pushContent && pushOver ? 'open' : null)
+  }, [pushContent, pushOver])
+
+  // Sitting in a freshly-started conversation from the New-chat button — `?chat=new`.
+  useEffect(() => {
+    mirrorState('chat', newConversation ? 'new' : null)
+  }, [newConversation])
+
   // Escape backs out one overlay at a time, topmost first.
   useEffect(() => {
     if (!isMobile) return
@@ -560,6 +649,7 @@ export function Shell() {
   return (
     <div
       data-screen-label="RealAssist+ agent workspace"
+      data-participant={participant ?? undefined}
       className="ra-shell"
       style={{
         display: 'flex',
@@ -801,6 +891,8 @@ export function Shell() {
             setSearchOptFlow(null)
             setClientPulseFlow(null)
             setThreadTitle(null)
+            setCompletedTask(null)
+            setNewConversation(true)
           }}
         />
       </div>
