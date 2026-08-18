@@ -12,8 +12,14 @@
  *
  * The one escape hatch is the `SUPPRESS_KEY` localStorage flag, which the E2E suite seeds so
  * the overlay doesn't block every test; real visitors never set it, so they always see the gate.
+ *
+ * A shareable link can skip the password by carrying `?key=<ACCESS_TOKEN>`; a match pre-unlocks
+ * on load, so the visitor sees the disclaimer and dismisses it with "Okay". The token is kept
+ * distinct from the typed password on purpose — it travels in URLs (and now in the mirrored/
+ * shared links from track.ts), and we'd rather not put the human password there. Still a soft
+ * gate: the token ships in the bundle too.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal, Button } from '@rdc-npm/rdc-ui-v4'
 import { C } from '../theme'
 
@@ -23,6 +29,18 @@ const SUPPRESS_KEY = 'ra-suppress-prototype-notice'
 const UNLOCK_KEY = 'ra-prototype-unlocked'
 /** Shared access password. Soft gate only — see the file header. */
 const PASSWORD = 'B0bsYourUncle'
+/** URL bypass: `?key=<ACCESS_TOKEN>` pre-unlocks the gate. Distinct from PASSWORD by design. */
+const ACCESS_PARAM = 'key'
+const ACCESS_TOKEN = 'rp-preview-2026'
+
+/** Whether the current URL carries a valid bypass token. */
+function hasAccessToken() {
+  try {
+    return new URLSearchParams(window.location.search).get(ACCESS_PARAM) === ACCESS_TOKEN
+  } catch {
+    return false
+  }
+}
 
 export function PrototypeNotice() {
   const [open, setOpen] = useState(() => {
@@ -35,13 +53,26 @@ export function PrototypeNotice() {
   })
   const [unlocked, setUnlocked] = useState(() => {
     try {
-      return window.sessionStorage.getItem(UNLOCK_KEY) === '1'
+      if (window.sessionStorage.getItem(UNLOCK_KEY) === '1') return true
     } catch {
-      return false
+      // fall through to the token check
     }
+    return hasAccessToken()
   })
   const [password, setPassword] = useState('')
   const [error, setError] = useState(false)
+
+  // A token unlock earns the same session memory as a typed password, so removing `?key=` from
+  // the URL (or a later reload) doesn't re-prompt within the session.
+  useEffect(() => {
+    if (unlocked) {
+      try {
+        window.sessionStorage.setItem(UNLOCK_KEY, '1')
+      } catch {
+        // Storage blocked — the gate just re-evaluates the URL/password next load.
+      }
+    }
+  }, [unlocked])
 
   // "Okay" once unlocked; otherwise validate the password and only then dismiss.
   const proceed = () => {
