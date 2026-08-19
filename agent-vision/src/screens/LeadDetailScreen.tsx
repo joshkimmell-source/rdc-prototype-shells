@@ -192,9 +192,8 @@ export function LeadDetailScreen({ mobile, lead, onBack, onInvite }: LeadDetailS
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 20, marginTop: 16, borderBottom: `1px solid ${C.hair}` }}>
           {TABS.map((t) => (
-            <button
+            <HoverButton
               key={t.id}
-              type="button"
               onClick={() => setTab(t.id)}
               style={{
                 padding: '10px 2px',
@@ -209,7 +208,7 @@ export function LeadDetailScreen({ mobile, lead, onBack, onInvite }: LeadDetailS
               }}
             >
               {t.label}
-            </button>
+            </HoverButton>
           ))}
         </div>
 
@@ -504,7 +503,7 @@ export function LeadDetailScreen({ mobile, lead, onBack, onInvite }: LeadDetailS
                   </Heading>
                   <p style={{ margin: '12px 0 0', fontSize: 13, lineHeight: 1.5, color: C.sub }}>
                     Once you&apos;ve connected with {first} and moved them past first contact, you can
-                    invite them to RDC+ and promote them to a connected client.
+                    invite them to become a connected client.
                   </p>
                 </section>
               )}

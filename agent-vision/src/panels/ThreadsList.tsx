@@ -4,7 +4,7 @@
  */
 import { C } from '../theme'
 import { CircleButton, EmptyNote, Heading, HoverDiv, HoverButton, SearchField } from '../components/primitives'
-import { IconClose, IconPencil, IconTrash } from '../icons'
+import { IconClose, IconCompose, IconPencil, IconTrash } from '../icons'
 import type { Thread } from '../data'
 
 interface ThreadsListProps {
@@ -57,6 +57,7 @@ export function ThreadsList({ threads, query, onQuery, onClose, onNewChat }: Thr
           }}
           hoverStyle={{ background: C.dark }}
         >
+          <IconCompose size={16} />
           New conversation
         </HoverButton>
 
@@ -83,8 +84,7 @@ export function ThreadsList({ threads, query, onQuery, onClose, onNewChat }: Thr
             }}
             hoverStyle={{ background: C.border }}
           >
-            <button
-              type="button"
+            <HoverButton
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -113,7 +113,7 @@ export function ThreadsList({ threads, query, onQuery, onClose, onNewChat }: Thr
                 {t.title}
               </span>
               <span style={{ fontSize: 11, color: C.muted }}>{t.when}</span>
-            </button>
+            </HoverButton>
             <CircleButton hoverBg={C.threadIconHover} aria-label="Edit thread" title="Edit thread">
               <IconPencil />
             </CircleButton>

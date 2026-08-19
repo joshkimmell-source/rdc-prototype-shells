@@ -244,6 +244,15 @@ export function IconPencil({ size = 13, ...p }: S) {
   )
 }
 
+export function IconCompose({ size = 16, ...p }: S) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>
+      <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" />
+    </svg>
+  )
+}
+
 export function IconTrash({ size = 13, ...p }: S) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={2} {...stroke} {...p}>

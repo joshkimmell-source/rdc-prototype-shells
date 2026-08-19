@@ -305,7 +305,7 @@ export function InviteModal({ lead, onClose, onSend }: InviteModalProps) {
                     <strong style={{ color: C.dark }}>
                       {homesSent} {homesSent === 1 ? 'home' : 'homes'}
                     </strong>{' '}
-                    waiting in their RDC+ account.
+                    waiting in their Realtor.com+ account.
                   </>
                 ) : (
                   '.'
@@ -385,7 +385,7 @@ export function InviteModal({ lead, onClose, onSend }: InviteModalProps) {
                     Also send a push notification
                   </span>
                   <span style={{ display: 'block', marginTop: 2, fontSize: 12, color: C.sub }}>
-                    Nudge {first} in the RDC+ app alongside the email.
+                    Nudge {first} in the Realtor.com+ app alongside the email.
                   </span>
                 </span>
                 <Toggle
@@ -566,7 +566,7 @@ export function InviteModal({ lead, onClose, onSend }: InviteModalProps) {
           </Button>
         </div>
         <iframe
-          title={`RDC+ onboarding preview for ${first}`}
+          title={`Realtor.com+ onboarding preview for ${first}`}
           src="rdc-plus-onboarding.html"
           onLoad={(e) => {
             // Belt-and-suspenders alongside the readiness handshake above: if the child's

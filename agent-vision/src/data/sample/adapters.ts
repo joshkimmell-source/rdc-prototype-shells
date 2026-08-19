@@ -309,6 +309,7 @@ export const buyers: Buyer[] = [
       // listing counts are legible as five different counts.
       sub: `${n} ${n === 1 ? 'listing' : 'listings'} · ${c.lastSeen}`,
       online: isOnline(c.lastSeen),
+      status: c.status,
     }
   }),
 ]
@@ -1436,8 +1437,8 @@ function buildInviteMessage(
 function buildInvitePush(s: { type: LeadType }, city: string): string {
   const me = AGENT_FULL_NAME.split(/\s+/)[0]
   return s.type === 'Buyer'
-    ? `${me} at Brightwater invited you to keep your ${city} home search going on RDC+.`
-    : `${me} at Brightwater invited you to track your ${city} home sale on RDC+.`
+    ? `${me} at Brightwater invited you to keep your ${city} home search going on Realtor.com+.`
+    : `${me} at Brightwater invited you to track your ${city} home sale on Realtor.com+.`
 }
 
 /** The starter saved search the invite attaches, built from the lead's market and budget. */
