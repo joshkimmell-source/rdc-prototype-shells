@@ -27,6 +27,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Menu, type MenuItem } from './Menu'
+import { HoverButton } from './primitives'
 import { BRAND_GRADIENT_PILL, C, EASE } from '../theme'
 import { useIsTouch } from '../useMobile'
 
@@ -95,14 +96,19 @@ function Action({
   onTip?: (label: string, el: HTMLElement | null) => void
   tabbable?: boolean
 }) {
-  const [hover, setHover] = useState(false)
   const tone = item.tone ?? 'light'
   // A visible label needs no tooltip repeating it.
   const tip = collapsed ? onTip : undefined
+  // The hover lift's shadow — the brand action lifts on its own red, the others on neutral.
+  const hoverShadow =
+    tone === 'brand'
+      ? BRAND_SHADOW
+      : tone === 'light'
+        ? '0 1px 4px rgba(26,24,22,0.16)'
+        : '0 2px 8px rgba(26,24,22,0.2)'
 
   return (
-    <button
-      type="button"
+    <HoverButton
       onClick={() => {
         // Clicking an icon-only action opens the panel but leaves the pointer over the
         // button, so no `mouseleave` fires to retract its tooltip — dismiss it here, or it
@@ -113,14 +119,8 @@ function Action({
       aria-label={item.label}
       aria-pressed={item.pressed}
       tabIndex={tabbable ? undefined : -1}
-      onMouseEnter={(e) => {
-        setHover(true)
-        tip?.(item.label, e.currentTarget)
-      }}
-      onMouseLeave={() => {
-        setHover(false)
-        tip?.(item.label, null)
-      }}
+      onMouseEnter={(e) => tip?.(item.label, e.currentTarget)}
+      onMouseLeave={() => tip?.(item.label, null)}
       onFocus={(e) => tip?.(item.label, e.currentTarget)}
       onBlur={() => tip?.(item.label, null)}
       style={{
@@ -141,21 +141,16 @@ function Action({
         whiteSpace: 'nowrap',
         cursor: 'pointer',
         transition: `box-shadow 120ms, transform 120ms ${EASE}`,
-        transform: hover ? 'translateY(-1px)' : 'none',
-        boxShadow: hover
-          ? tone === 'brand'
-            ? BRAND_SHADOW
-            : tone === 'light'
-              ? '0 1px 4px rgba(26,24,22,0.16)'
-              : '0 2px 8px rgba(26,24,22,0.2)'
-          : 'none',
+        transform: 'none',
+        boxShadow: 'none',
         ...toneStyle(tone),
       }}
+      hoverStyle={{ transform: 'translateY(-1px)', boxShadow: hoverShadow }}
     >
       <span style={{ display: 'flex', flex: 'none', alignItems: 'center' }}>{item.icon}</span>
       {/* Dropped from the DOM rather than hidden, so the collapsed circle has nothing to size to. */}
       {!collapsed && <span>{item.label}</span>}
-    </button>
+    </HoverButton>
   )
 }
 

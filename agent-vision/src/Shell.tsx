@@ -26,7 +26,9 @@ import { MainHeader, type ToggleId, type Toggles } from './components/MainHeader
 import { type ActionItem } from './components/ActionBar'
 import { SearchHeaderLead } from './components/SearchHeaderLead'
 import { FAB } from './components/FAB'
+import { Button } from '@rdc-npm/rdc-ui-v4'
 import { PrototypeNotice } from './components/PrototypeNotice'
+import { RdcUiScanner } from '@rdc-npm/rdc-ui-scanner'
 import { HomeScreen, type NeedItem, type StageItem } from './screens/HomeScreen'
 import { SearchScreen } from './screens/SearchScreen'
 import { ToursScreen } from './screens/ToursScreen'
@@ -69,7 +71,7 @@ import {
   clientFromLead,
   clientNeeds,
   feedFor,
-  requestClientCount,
+  type Buyer,
   type Client,
   type UpcomingTour,
 } from './data'
@@ -91,6 +93,11 @@ const PUSH_WIDTH = 420
 const PUSH_MIN = 420
 const PUSH_MAX_FRACTION = 0.3
 const PUSH_WIDTH_KEY = 'ra-push-width'
+// Leads invited to become clients this session. Persisted to sessionStorage (not localStorage)
+// so the promotion survives a reload but is gone in a fresh session — a prototype mutation, not
+// real data. The set of lead ids is the source of truth; the "Invited" client records are
+// rebuilt from it deterministically via `clientFromLead`.
+const INVITED_LEADS_KEY = 'ra-invited-leads'
 
 /**
  * Width of the mobile subnav drawer. It stops short of the viewport so a strip of scrim
@@ -138,6 +145,27 @@ function readStoredPushWidth() {
   }
 }
 
+/** Lead ids invited this session, read back from sessionStorage and filtered to real leads. */
+function readInvitedLeadIds(): string[] {
+  try {
+    const raw = window.sessionStorage.getItem(INVITED_LEADS_KEY)
+    const ids: unknown = raw ? JSON.parse(raw) : []
+    if (!Array.isArray(ids)) return []
+    const valid = new Set(LEADS.map((l) => l.id))
+    return ids.filter((id): id is string => typeof id === 'string' && valid.has(id))
+  } catch {
+    return []
+  }
+}
+
+function writeInvitedLeadIds(ids: Iterable<string>) {
+  try {
+    window.sessionStorage.setItem(INVITED_LEADS_KEY, JSON.stringify([...ids]))
+  } catch {
+    // Private-mode / quota failures are non-fatal: the in-memory state still holds for the tab.
+  }
+}
+
 export function Shell() {
   const isMobile = useIsMobile()
   // The medium band sits between mobile and the wide desktop layout. In it the docked
@@ -162,7 +190,9 @@ export function Shell() {
   // Leads the agent has invited into RDC+ this session. A promoted lead becomes a connected
   // client, so it drops out of the active pipeline — same rule the "Connected" status already
   // uses. Session-only, matching the shell's other prototype mutations (e.g. created tours).
-  const [promotedLeadIds, setPromotedLeadIds] = useState<Set<string>>(() => new Set())
+  const [promotedLeadIds, setPromotedLeadIds] = useState<Set<string>>(
+    () => new Set(readInvitedLeadIds())
+  )
   // The lead whose invite composer is open, if any.
   const [inviteLeadId, setInviteLeadId] = useState<string | null>(null)
   // Open beside the content on desktop, closed on a phone: as a full-height overlay it
@@ -172,7 +202,7 @@ export function Shell() {
   // Subnav — clients
   const [clientQ, setClientQ] = useState('')
   const [selectedBuyer, setSelectedBuyer] = useState(DEFAULT_BUYER_ID)
-  const [clientTab, setClientTab] = useState<'active' | 'requests'>('active')
+  const [clientTab, setClientTab] = useState<'active' | 'invited' | 'requests'>('active')
 
   // Subnav — tours
   const [tourQ, setTourQ] = useState('')
@@ -199,7 +229,17 @@ export function Shell() {
   const [viewMode, setViewMode] = useState<ClientsView>('grid')
 
   // Home screen
-  const [clients, setClients] = useState<Client[]>(CLIENTS)
+  const [clients, setClients] = useState<Client[]>(() => {
+    // Rebuild any "Invited" clients created from leads earlier this session (newest first, to
+    // match sendInvite's prepend), then the dataset's own clients.
+    const invited = readInvitedLeadIds()
+      .flatMap((id) => {
+        const lead = LEADS.find((l) => l.id === id)
+        return lead ? [clientFromLead(lead)] : []
+      })
+      .reverse()
+    return [...invited, ...CLIENTS]
+  })
   const [filter, setFilter] = useState('all')
   const [upcomingTours, setUpcomingTours] = useState<UpcomingTour[]>(INITIAL_UPCOMING_TOURS)
 
@@ -466,7 +506,21 @@ export function Shell() {
   const selectedLeadRecord = selectedLead ? LEADS.find((l) => l.id === selectedLead) ?? null : null
   const inviteLeadRecord = inviteLeadId ? LEADS.find((l) => l.id === inviteLeadId) ?? null : null
 
-  const selectedBuyerRecord = BUYERS.find((b) => b.id === selectedBuyer) ?? BUYERS[1]
+  // Leads invited this session surface in the subnav as "Invited" clients too, derived from the
+  // reactive clients state (which rehydrates from sessionStorage) so they appear as soon as the
+  // invite is sent and persist across a reload. Prepended so the newest invite reads first.
+  const sessionInvitedBuyers: Buyer[] = clients
+    .filter((c) => c.stage === 'Invited' && !BUYERS.some((b) => b.id === c.id))
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      initials: c.initials,
+      sub: 'Invitation sent',
+      status: 'Invited',
+    }))
+  const allBuyers: Buyer[] = [...sessionInvitedBuyers, ...BUYERS]
+
+  const selectedBuyerRecord = allBuyers.find((b) => b.id === selectedBuyer) ?? BUYERS[1]
   // Each client is shown a different number of listings, so the Clients screen follows
   // the selected subnav row rather than rendering one feed for everybody.
   const clientFeed = feedFor(selectedBuyerRecord.id)
@@ -489,18 +543,15 @@ export function Shell() {
         ? 'Search'
         : isLeads
           ? 'Leads'
-          : 'Home'
+          : ''
 
   const countLabel = isClients
     ? `${clientFeed.listingCount} ${clientFeed.listingCount === 1 ? 'listing' : 'listings'}`
     : isTours
       ? selectedMapTour?.date ?? ''
-      : isSearch || isLeads
-        ? ''
-        : `${filtered.length}${filter === 'all' ? ' clients' : ` of ${clients.length} clients`}`
-
-  const buyerQuery = clientQ.trim().toLowerCase()
-  const buyers = BUYERS.filter((b) => b.name.toLowerCase().includes(buyerQuery))
+      : // Home, Search and Leads carry no count in the header — Home is the dashboard, not the
+        // client table, so the "N clients" label doesn't belong on it.
+        ''
 
   const tourQuery = tourQ.trim().toLowerCase()
   // Only tours that have been created show in the subnav — the assistant-coordinated one
@@ -634,7 +685,12 @@ export function Shell() {
   // shows its own confirmation and closes on "Done", which also backs out of a detail page for
   // that lead so the agent doesn't land on a record that's left the pipeline.
   const sendInvite = (id: string) => {
-    setPromotedLeadIds((prev) => new Set(prev).add(id))
+    setPromotedLeadIds((prev) => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev).add(id)
+      writeInvitedLeadIds(next) // persist to sessionStorage so the invite survives a reload
+      return next
+    })
     // Promote the lead into the clients list as an "Invited" client — same relationship, new
     // state. Guarded so re-sending can't double-add. Prepended so it reads as the newest client.
     const lead = LEADS.find((l) => l.id === id)
@@ -730,6 +786,14 @@ export function Shell() {
       {/* Sample-data disclaimer, shown on load and dismissed with its "Okay" button. */}
       <PrototypeNotice />
 
+      {/*
+        In-page RDC UI inspector — highlights v4/v3 components, assets, and non-DS text.
+        `render="dev"` keeps it out of production bundles; default-off and localStorage-backed,
+        so it stays invisible until toggled. Anchored bottom-left to clear the bottom-right FAB,
+        then nudged 48px right in shell.css (see `[data-rdc-ui-scanner-ui]`).
+      */}
+      <RdcUiScanner render="dev" position="bottom-left" />
+
       {/* Invite-to-RDC+ composer, opened from a ready lead on the list or its detail page. */}
       {inviteLeadRecord && (
         <InviteModal lead={inviteLeadRecord} onClose={closeInvite} onSend={sendInvite} />
@@ -744,15 +808,13 @@ export function Shell() {
           drawerMax={isMobile ? SUBNAV_DRAWER_MAX : undefined}
           variant={subnavVariant}
           onClose={() => setSubnavOpen(false)}
-          buyers={buyers}
+          buyers={allBuyers}
           clientQ={clientQ}
           onClientQ={setClientQ}
           selectedBuyer={selectedBuyer}
           onSelectBuyer={setSelectedBuyer}
           clientTab={clientTab}
           onClientTab={setClientTab}
-          activeCount={activeClientCount}
-          requestsCount={requestClientCount}
           tours={tourList}
           tourQ={tourQ}
           onTourQ={setTourQ}
@@ -815,8 +877,12 @@ export function Shell() {
             menuItems={headerMenuItems}
           />
 
-          <button
-            type="button"
+          {/* The FAB trigger is a real Haven v4 Button — `Ghost`/`size="inline"` strips the
+              recipe's chrome so the inline style below reproduces the floating pill exactly. */}
+          <Button
+            styleType="Ghost"
+            size="inline"
+            underline="never"
             onClick={(e) => {
               e.stopPropagation()
               setPushContent((p) => !p)
@@ -857,7 +923,7 @@ export function Shell() {
             }}
           >
             <FAB className="ra-fab" />
-          </button>
+          </Button>
 
           <div
             style={{
@@ -903,6 +969,7 @@ export function Shell() {
                 navigate('leads')
                 openLead(id)
               }}
+              onViewAllLeads={() => navigate('leads')}
               onAsk={send}
             />
           )}

@@ -52,6 +52,8 @@ export interface Buyer {
   initials: string
   sub: string
   online?: boolean
+  /** Relationship status (Active / Invited / Requests). Absent on the agent's own feed row. */
+  status?: string
 }
 
 export interface TourListItem {

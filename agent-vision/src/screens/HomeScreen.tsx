@@ -198,6 +198,8 @@ interface HomeScreenProps {
   onOpenTours: () => void
   /** Jump to a lead's detail page from the dashboard. */
   onOpenLead: (id: string) => void
+  /** Open the full Leads list — the "View all" link on the Qualified leads card. */
+  onViewAllLeads: () => void
   onAsk: (text: string) => void
 }
 
@@ -213,6 +215,7 @@ export function HomeScreen({
   rows,
   onOpenTours,
   onOpenLead,
+  onViewAllLeads,
   onAsk,
 }: HomeScreenProps) {
   // Pipeline segments come from the stage filters (full counts, filter-independent), coloured
@@ -250,7 +253,7 @@ export function HomeScreen({
 
   return (
     <div
-      data-screen-label="Home"
+      data-screen-label=""
       className="ra-scroll"
       style={{
         flex: 1,
@@ -305,10 +308,28 @@ export function HomeScreen({
       >
         <div style={CARD}>
           <div style={CARD_HEAD}>
-            <CardHeading>New leads</CardHeading>
-            <span className="ty-numeric-caption100" style={CAPTION}>
-              {readyCount} ready to work with
-            </span>
+            <CardHeading>Qualified leads <span className="ty-numeric-caption100" style={CAPTION}>({readyCount})</span></CardHeading>
+            
+            <HoverButton
+              onClick={onViewAllLeads}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 2,
+                flex: 'none',
+                padding: 0,
+                border: 'none',
+                background: 'transparent',
+                color: C.action,
+                fontSize: 11.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+              hoverStyle={{ textDecoration: 'underline' }}
+            >
+              View all
+              <IconChevronRight size={11} />
+            </HoverButton>
           </div>
           {leadsToWork.length === 0 ? (
             <div style={{ padding: '16px', fontSize: 12.5, color: C.muted }}>No open leads right now.</div>

@@ -56,16 +56,18 @@ function HeadCell({
   align?: 'left' | 'right'
 }) {
   const active = sortKey !== undefined && sortKey === activeKey
+  // Matches the "Clients" table header on the HomeScreen: 11px uppercase, wide tracking,
+  // muted colour, over a faint row-hover fill — not the display font.
   const base = {
-    padding: '10px 16px',
+    padding: '12px 16px',
     textAlign: align,
-    fontFamily: DISPLAY_FONT,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
-    letterSpacing: '0.02em',
+    letterSpacing: '0.07em',
     textTransform: 'uppercase' as const,
-    color: C.sub,
+    color: C.muted,
     whiteSpace: 'nowrap' as const,
+    background: C.rowHover,
     borderBottom: `1px solid ${C.hair}`,
   }
   if (!sortKey) return <th style={base}>{label}</th>
@@ -80,13 +82,13 @@ function HeadCell({
           justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
           gap: 5,
           width: '100%',
-          padding: '10px 16px',
+          padding: '12px 16px',
           border: 'none',
           background: 'transparent',
           font: 'inherit',
           letterSpacing: 'inherit',
           textTransform: 'inherit',
-          color: active ? C.dark : C.sub,
+          color: active ? C.dark : C.muted,
           cursor: 'pointer',
         }}
         hoverStyle={{ color: C.dark }}
