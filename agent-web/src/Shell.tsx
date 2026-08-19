@@ -26,7 +26,9 @@ import { MainHeader, type ToggleId, type Toggles } from './components/MainHeader
 import { type ActionItem } from './components/ActionBar'
 import { SearchHeaderLead } from './components/SearchHeaderLead'
 import { FAB } from './components/FAB'
+import { Button } from '@rdc-npm/rdc-ui-v4'
 import { PrototypeNotice } from './components/PrototypeNotice'
+import { RdcUiScanner } from '@rdc-npm/rdc-ui-scanner'
 import { HomeScreen, type NeedItem, type StageItem } from './screens/HomeScreen'
 import { SearchScreen } from './screens/SearchScreen'
 import { ToursScreen } from './screens/ToursScreen'
@@ -65,7 +67,6 @@ import {
   clientNeeds,
   feedFor,
   invitedClientCount,
-  requestClientCount,
   tourRequestsTotal,
   type Client,
   type UpcomingTour,
@@ -158,7 +159,7 @@ export function Shell() {
   // Subnav — clients
   const [clientQ, setClientQ] = useState('')
   const [selectedBuyer, setSelectedBuyer] = useState(DEFAULT_BUYER_ID)
-  const [clientTab, setClientTab] = useState<'active' | 'requests'>('active')
+  const [clientTab, setClientTab] = useState<'active' | 'invited' | 'requests'>('active')
 
   // Subnav — tours
   const [tourQ, setTourQ] = useState('')
@@ -467,9 +468,6 @@ export function Shell() {
         ? ''
         : `${filtered.length}${filter === 'all' ? ' clients' : ` of ${clients.length} clients`}`
 
-  const buyerQuery = clientQ.trim().toLowerCase()
-  const buyers = BUYERS.filter((b) => b.name.toLowerCase().includes(buyerQuery))
-
   const tourQuery = tourQ.trim().toLowerCase()
   // Only tours that have been created show in the subnav — the assistant-coordinated one
   // stays hidden until the flow books it (see `createdTourIds`).
@@ -661,6 +659,14 @@ export function Shell() {
       {/* Sample-data disclaimer, shown on load and dismissed with its "Okay" button. */}
       <PrototypeNotice />
 
+      {/*
+        In-page RDC UI inspector — highlights v4/v3 components, assets, and non-DS text.
+        `render="dev"` keeps it out of production bundles; default-off and localStorage-backed,
+        so it stays invisible until toggled. Anchored bottom-left to clear the bottom-right FAB,
+        then nudged 48px right in shell.css (see `[data-rdc-ui-scanner-ui]`).
+      */}
+      <RdcUiScanner render="dev" position="bottom-left" />
+
       <div style={{ flex: 1, display: 'flex', minHeight: 0, position: 'relative' }}>
         {!isMobile && <NavRail activeNav={activeNav} onNavigate={navigate} />}
 
@@ -670,15 +676,13 @@ export function Shell() {
           drawerMax={isMobile ? SUBNAV_DRAWER_MAX : undefined}
           variant={subnavVariant}
           onClose={() => setSubnavOpen(false)}
-          buyers={buyers}
+          buyers={BUYERS}
           clientQ={clientQ}
           onClientQ={setClientQ}
           selectedBuyer={selectedBuyer}
           onSelectBuyer={setSelectedBuyer}
           clientTab={clientTab}
           onClientTab={setClientTab}
-          activeCount={activeClientCount}
-          requestsCount={requestClientCount}
           tours={tourList}
           tourQ={tourQ}
           onTourQ={setTourQ}
@@ -741,8 +745,12 @@ export function Shell() {
             menuItems={headerMenuItems}
           />
 
-          <button
-            type="button"
+          {/* The FAB trigger is a real Haven v4 Button — `Ghost`/`size="inline"` strips the
+              recipe's chrome so the inline style below reproduces the floating pill exactly. */}
+          <Button
+            styleType="Ghost"
+            size="inline"
+            underline="never"
             onClick={(e) => {
               e.stopPropagation()
               setPushContent((p) => !p)
@@ -783,7 +791,7 @@ export function Shell() {
             }}
           >
             <FAB className="ra-fab" />
-          </button>
+          </Button>
 
           <div
             style={{

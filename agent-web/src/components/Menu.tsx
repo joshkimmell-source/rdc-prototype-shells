@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { IconMenuDots } from '../icons'
+import { HoverButton } from './primitives'
 import { C } from '../theme'
 
 export interface MenuItem {
@@ -45,18 +46,13 @@ export function MenuToggle({
   color,
   'aria-label': label = 'More',
 }: MenuToggleProps) {
-  const [hover, setHover] = useState(false)
-
   const filled = open && !bare
   return (
-    <button
-      type="button"
+    <HoverButton
       aria-label={label}
       aria-expanded={open}
       aria-haspopup="menu"
       onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       style={{
         width: size,
         height: size,
@@ -67,15 +63,20 @@ export function MenuToggle({
         justifyContent: 'center',
         border: bare ? 'none' : `1px solid ${open ? C.dark : C.border}`,
         // Bare: no border to darken, so the open state reads through the hover fill instead.
-        background: bare ? (open || hover ? hoverBg : 'transparent') : open ? C.dark : C.white,
+        background: bare ? (open ? hoverBg : 'transparent') : open ? C.dark : C.white,
         color: filled ? C.white : (color ?? C.dark),
         cursor: 'pointer',
         transition: 'all 120ms',
-        boxShadow: !bare && hover && !open ? '0 1px 4px rgba(26,24,22,0.16)' : 'none',
+        boxShadow: 'none',
+      }}
+      // Bare fills on hover; bordered lifts with a shadow. The open state is already at rest.
+      hoverStyle={{
+        background: bare ? hoverBg : open ? C.dark : C.white,
+        boxShadow: !bare && !open ? '0 1px 4px rgba(26,24,22,0.16)' : 'none',
       }}
     >
       <IconMenuDots />
-    </button>
+    </HoverButton>
   )
 }
 
@@ -255,20 +256,13 @@ export function Menu({
                 style={{ height: 1, background: C.hair, margin: '5px 8px' }}
               />
             ) : (
-              <button
+              <HoverButton
                 key={it.label}
-                type="button"
                 role="menuitem"
                 onClick={() => {
                   setOpen(false)
                   it.onSelect?.()
                   if (it.label) onSelect?.(it.label)
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = C.alt
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent'
                 }}
                 style={{
                   display: 'flex',
@@ -288,6 +282,7 @@ export function Menu({
                   whiteSpace: 'nowrap',
                   transition: 'background 120ms',
                 }}
+                hoverStyle={{ background: C.alt }}
               >
                 {it.icon && (
                   <span
@@ -304,7 +299,7 @@ export function Menu({
                   </span>
                 )}
                 {it.label}
-              </button>
+              </HoverButton>
             )
           )}
         </div>
