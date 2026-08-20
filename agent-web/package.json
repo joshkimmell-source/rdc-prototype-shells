@@ -15,6 +15,7 @@
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
+    "@rdc-npm/rdc-ui-scanner": "latest",
     "@rdc-npm/rdc-ui-v4": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

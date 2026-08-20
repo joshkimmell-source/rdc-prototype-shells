@@ -294,6 +294,7 @@ export const buyers: Buyer[] = [
       // listing counts are legible as five different counts.
       sub: `${n} ${n === 1 ? 'listing' : 'listings'} · ${c.lastSeen}`,
       online: isOnline(c.lastSeen),
+      status: c.status,
     }
   }),
 ]

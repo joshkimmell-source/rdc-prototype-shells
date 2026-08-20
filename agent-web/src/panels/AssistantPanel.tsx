@@ -26,6 +26,7 @@ import {
   IconCircleCheck,
   IconClose,
   IconCollapsePanel,
+  IconCompose,
   IconComposerSend,
   IconExpandPanel,
   IconHamburger,
@@ -489,8 +490,7 @@ function ToolGroupView({ card }: { card: ToolGroupCard }) {
       ) : (
         <>
           <TraceLine>
-            <button
-              type="button"
+            <HoverButton
               onClick={() => setOpen((o) => !o)}
               aria-expanded={open}
               style={{
@@ -509,7 +509,7 @@ function ToolGroupView({ card }: { card: ToolGroupCard }) {
             >
               Used {card.tools.length} tools
               <span style={{ fontSize: 11, transform: open ? 'rotate(180deg)' : 'none' }}>⌄</span>
-            </button>
+            </HoverButton>
           </TraceLine>
           {open &&
             card.tools.map((line, i) => (
@@ -626,8 +626,7 @@ function CatchUpToolsView({ card }: { card: CatchUpToolsCard }) {
       ) : (
         <>
           <TraceLine>
-            <button
-              type="button"
+            <HoverButton
               onClick={() => setOpen((o) => !o)}
               aria-expanded={open}
               style={{
@@ -646,7 +645,7 @@ function CatchUpToolsView({ card }: { card: CatchUpToolsCard }) {
             >
               Used {card.tools.length} tools
               <span style={{ fontSize: 11, transform: open ? 'rotate(180deg)' : 'none' }}>⌄</span>
-            </button>
+            </HoverButton>
           </TraceLine>
           {open &&
             card.tools.map((line, i) => (
@@ -821,8 +820,7 @@ function CatchUpBriefingView({ card }: { card: CatchUpBriefingCard }) {
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <button
-          type="button"
+        <HoverButton
           onClick={() => setShowReasoning((o) => !o)}
           aria-expanded={showReasoning}
           style={{
@@ -843,7 +841,7 @@ function CatchUpBriefingView({ card }: { card: CatchUpBriefingCard }) {
           <span style={{ fontSize: 11, transform: showReasoning ? 'rotate(180deg)' : 'none' }}>
             ⌄
           </span>
-        </button>
+        </HoverButton>
         {showReasoning &&
           card.preamble.map((line, i) => <TraceLine key={i}>{line}</TraceLine>)}
       </div>
@@ -891,8 +889,7 @@ function ActionPickerView({
     <div style={{ ...CHAT_CARD, padding: '14px 16px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ flex: 1, fontWeight: 700, fontSize: 13.5 }}>{card.title}</div>
-        <button
-          type="button"
+        <HoverButton
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-label={open ? 'Minimize' : 'Expand'}
@@ -907,15 +904,14 @@ function ActionPickerView({
           }}
         >
           ⌄
-        </button>
+        </HoverButton>
       </div>
 
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
           {picks.map((opt) => (
-            <button
+            <HoverButton
               key={opt.prompt}
-              type="button"
               onClick={() => onSend(opt.prompt)}
               style={{
                 display: 'flex',
@@ -943,7 +939,7 @@ function ActionPickerView({
                 }}
               />
               {opt.label}
-            </button>
+            </HoverButton>
           ))}
 
           <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
@@ -1107,8 +1103,7 @@ function SearchAnalysisView({ card }: { card: SearchAnalysisCard }) {
   return (
     <div style={{ ...CHAT_CARD, padding: '16px 16px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <button
-          type="button"
+        <HoverButton
           onClick={() => setShowReasoning((o) => !o)}
           aria-expanded={showReasoning}
           style={{
@@ -1127,7 +1122,7 @@ function SearchAnalysisView({ card }: { card: SearchAnalysisCard }) {
         >
           {showReasoning ? 'Hide reasoning' : 'Show reasoning'}
           <span style={{ fontSize: 11, transform: showReasoning ? 'rotate(180deg)' : 'none' }}>⌄</span>
-        </button>
+        </HoverButton>
         {showReasoning && card.reasoning.map((line, i) => <TraceLine key={i}>{line}</TraceLine>)}
       </div>
 
@@ -2405,12 +2400,17 @@ export function AssistantPanel({
               padding: mobile ? '12px 8px 10px 12px' : '16px 16px 12px 20px',
             }}
           >
+            {/*
+              Threads toggle — an icon-only button to the left of the panel label, opening the
+              threads subnav. Highlighted while that subnav is open. (The "New conversation"
+              button lives in the action group on the right.)
+            */}
             <CircleButton
               onClick={onToggleOver}
               hoverBg={C.hair}
               aria-label="Open threads"
               title="Open threads"
-              style={{ background: over ? C.hair : 'transparent' }}
+              style={{ background: over ? C.hair : 'transparent', flex: 'none' }}
             >
               <IconHamburger size={16} />
             </CircleButton>
@@ -2421,6 +2421,20 @@ export function AssistantPanel({
                 style={{ height: 28.6, display: 'block', flex: 'none' }}
               />
             </div>
+            {/*
+              New conversation — grouped with the panel actions. Hidden while the docked threads
+              list is showing (expanded + over), which carries its own "New conversation" button.
+            */}
+            {!(expanded && over) && (
+              <CircleButton
+                onClick={onNewChat}
+                hoverBg={C.hair}
+                aria-label="New conversation"
+                title="New conversation"
+              >
+                <IconCompose size={16} />
+              </CircleButton>
+            )}
             {/* Nothing to expand into on mobile — the panel already fills the viewport. */}
             {!mobile && (
               <CircleButton

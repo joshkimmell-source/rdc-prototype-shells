@@ -140,3 +140,13 @@ input {
 .ra-scroll-x::-webkit-scrollbar {
   display: none;
 }
+
+/*
+ * RDC UI scanner toggle — nudged 48px right of its bottom-left resting spot (the component
+ * only exposes corner presets, and pins the container with an inline `left: 16px`, so this
+ * override needs `!important`). Targets the toggle's light-DOM container; the scan overlay
+ * lives in a separate shadow root keyed by id and is untouched.
+ */
+[data-rdc-ui-scanner-ui] {
+  left: 64px !important;
+}

@@ -5,7 +5,16 @@
  * one into a static Panda recipe.
  */
 import { useState } from 'react'
-import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from 'react'
+import type {
+  ButtonHTMLAttributes,
+  ComponentProps,
+  CSSProperties,
+  FocusEvent,
+  HTMLAttributes,
+  MouseEvent,
+  ReactNode,
+} from 'react'
+import { Button } from '@rdc-npm/rdc-ui-v4'
 import { C, DISPLAY_FONT } from '../theme'
 
 type HoverProps<T> = T & {
@@ -44,35 +53,44 @@ export function HoverButton({
 }: HoverProps<ButtonHTMLAttributes<HTMLButtonElement>>) {
   const [hover, setHover] = useState(false)
   const [focus, setFocus] = useState(false)
-  return (
-    <button
-      type="button"
-      {...rest}
-      onMouseEnter={(e) => {
-        setHover(true)
-        onMouseEnter?.(e)
-      }}
-      onMouseLeave={(e) => {
-        setHover(false)
-        onMouseLeave?.(e)
-      }}
-      onFocus={(e) => {
-        setFocus(true)
-        onFocus?.(e)
-      }}
-      onBlur={(e) => {
-        setFocus(false)
-        onBlur?.(e)
-      }}
-      style={{
-        ...expandBorderShorthand(style),
-        ...(hover ? expandBorderShorthand(hoverStyle) : null),
-        ...(focus ? expandBorderShorthand(focusStyle) : null),
-      }}
-    >
-      {children}
-    </button>
-  )
+  // A genuine Haven v4 Button underneath (emits `data-rui="Button"`). `Ghost` is
+  // chromeless and `size="inline"` drops the recipe's min-height and padding, so the
+  // inline `style` below fully controls the look — inline styles beat the recipe's
+  // classes, so each caller's exact appearance (and its base/hover/focus overlays) is
+  // preserved. `underline="never"` suppresses Ghost's hover underline on text buttons.
+  const props = {
+    styleType: 'Ghost' as const,
+    size: 'inline' as const,
+    underline: 'never' as const,
+    type: 'button' as const,
+    ...rest,
+    children,
+    onMouseEnter: (e: MouseEvent<HTMLButtonElement>) => {
+      setHover(true)
+      onMouseEnter?.(e)
+    },
+    onMouseLeave: (e: MouseEvent<HTMLButtonElement>) => {
+      setHover(false)
+      onMouseLeave?.(e)
+    },
+    onFocus: (e: FocusEvent<HTMLButtonElement>) => {
+      setFocus(true)
+      onFocus?.(e)
+    },
+    onBlur: (e: FocusEvent<HTMLButtonElement>) => {
+      setFocus(false)
+      onBlur?.(e)
+    },
+    style: {
+      ...expandBorderShorthand(style),
+      ...(hover ? expandBorderShorthand(hoverStyle) : null),
+      ...(focus ? expandBorderShorthand(focusStyle) : null),
+    },
+  }
+  // A single cast of the whole props object bridges HoverButton's plain button-attribute
+  // props to Button's button|anchor union props — passing no extra JSX attributes alongside
+  // the spread keeps TS from re-merging (and failing to discriminate) the `iconOnly` union.
+  return <Button {...(props as ComponentProps<typeof Button>)} />
 }
 
 export function HoverDiv({
@@ -284,8 +302,7 @@ export function Tab({
   negativeMargin?: boolean
 }) {
   return (
-    <button
-      type="button"
+    <HoverButton
       onClick={onClick}
       style={{
         padding: '10px 2px',
@@ -300,7 +317,7 @@ export function Tab({
       }}
     >
       {label}
-    </button>
+    </HoverButton>
   )
 }
 
