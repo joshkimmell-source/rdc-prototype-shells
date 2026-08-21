@@ -25,6 +25,8 @@ export const C = {
   alt: '#F2F0EF',
   /** gray.200 */
   hair: '#E9E7E4',
+  /** AI panel threads subnav background */
+  threadsBg: '#F8F8F7',
   /** gray.300 — border.base */
   border: '#D3CFCA',
   /** gray.400 */

@@ -2346,7 +2346,7 @@ export function AssistantPanel({
           ? 'none'
           : `width 220ms ${EASE}, visibility 0s linear ${open ? 0 : 220}ms`,
         overflow: 'hidden',
-        background: C.canvas,
+        background: C.alt,
         display: 'flex',
       }}
     >
@@ -2359,7 +2359,7 @@ export function AssistantPanel({
             transition: `width 220ms ${EASE}`,
             flex: 'none',
             overflow: 'hidden',
-            background: C.hair,
+            background: C.threadsBg,
             display: 'flex',
           }}
         >
@@ -2707,7 +2707,7 @@ export function AssistantPanel({
               right: 0,
               bottom: 0,
               left: 0,
-              background: C.hair,
+              background: C.threadsBg,
               borderLeft: `1px solid ${C.border}`,
               boxShadow: '-4px 0 16px rgba(26,24,22,0.12)',
               display: 'flex',
