@@ -7,7 +7,7 @@
  * Desktop only: below 768px the shell renders `NavBar` in the footer instead, which reuses
  * the destinations and icons exported from here.
  */
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { token } from 'styled-system/tokens'
 import { C } from '../theme'
 import { HoverButton } from './primitives'
@@ -50,8 +50,9 @@ interface NavRailProps {
 }
 
 /**
- * One rail cell: icon over label, filling the rail's width. Active cells get a filled pill;
- * the inert footer entries pass `active={false}` and never take it.
+ * One rail cell: an icon wrapped in a rounded container, with its label sitting *outside*
+ * (below) that container. The hover/selected highlight fills only the icon container — never
+ * the label — so `cellBase` carries no background or radius; those live on `iconWrapStyle`.
  */
 const cellBase = {
   display: 'flex',
@@ -61,11 +62,18 @@ const cellBase = {
   gap: 5,
   width: '100%',
   flex: 'none',
-  paddingTop: 8,
-  paddingBottom: 8,
-  borderRadius: 14,
   cursor: 'pointer',
-  transition: 'background 120ms, color 120ms',
+  transition: 'color 120ms',
+} as const
+
+/** The visual button container — the rounded box that takes the hover/selected background, wrapping the icon alone. */
+const iconWrapStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '8px 12px',
+  borderRadius: 14,
+  transition: 'background 120ms',
 } as const
 
 const labelStyle = {
@@ -76,6 +84,60 @@ const labelStyle = {
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
 } as const
+
+/**
+ * One rail cell. The icon lives inside `iconWrapStyle` (the highlighted container); the label is
+ * a sibling below it, still inside the same activatable control so the cell stays one button with
+ * the label in its accessible name. `plain` cells (the Account entry) render as an inert div with
+ * no hover highlight; every other cell highlights the icon container on hover, and `active` cells
+ * keep it filled and emphasise the label.
+ */
+function RailCell({
+  icon,
+  label,
+  active = false,
+  onClick,
+  plain = false,
+  title,
+}: {
+  icon: ReactNode
+  label: string
+  active?: boolean
+  onClick?: () => void
+  plain?: boolean
+  title?: string
+}) {
+  const [hover, setHover] = useState(false)
+  const iconBackground = active
+    ? token('colors.bg.alternate', C.alt)
+    : !plain && hover
+      ? C.alt
+      : 'transparent'
+  const content = (
+    <>
+      <span style={{ ...iconWrapStyle, background: iconBackground }}>{icon}</span>
+      <span style={{ ...labelStyle, fontWeight: active ? 800 : 600 }}>{label}</span>
+    </>
+  )
+  if (plain) {
+    return (
+      <div style={{ ...cellBase, color: C.sub, cursor: 'default' }} title={title}>
+        {content}
+      </div>
+    )
+  }
+  return (
+    <HoverButton
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ ...cellBase, border: 'none', background: 'transparent', color: active ? C.dark : C.sub }}
+    >
+      {content}
+    </HoverButton>
+  )
+}
 
 export function NavRail({ activeNav, onNavigate }: NavRailProps) {
   return (
@@ -104,45 +166,24 @@ export function NavRail({ activeNav, onNavigate }: NavRailProps) {
         style={{ width: 34, height: 34, display: 'block', marginBottom: 8, flex: 'none' }}
       />
 
-      {NAV_ITEMS.map(({ id, label, icon }) => {
-        const active = activeNav === id
-        return (
-          <HoverButton
-            key={id}
-            onClick={() => onNavigate(id)}
-            aria-current={active ? 'page' : undefined}
-            style={{
-              ...cellBase,
-              border: 'none',
-              background: active ? token('colors.bg.alternate', C.alt) : 'transparent',
-              color: active ? C.dark : C.sub,
-            }}
-            hoverStyle={active ? {} : { background: C.alt }}
-          >
-            <span style={{ flex: 'none', display: 'flex' }}>{icon}</span>
-            <span style={{ ...labelStyle, fontWeight: active ? 800 : 600 }}>{label}</span>
-          </HoverButton>
-        )
-      })}
+      {NAV_ITEMS.map(({ id, label, icon }) => (
+        <RailCell
+          key={id}
+          icon={icon}
+          label={label}
+          active={activeNav === id}
+          onClick={() => onNavigate(id)}
+        />
+      ))}
 
       <div style={{ flex: 1 }} />
 
       {INERT_ITEMS.map(({ label, icon }) => (
-        <HoverButton
-          key={label}
-          style={{ ...cellBase, border: 'none', background: 'transparent', color: C.sub }}
-          hoverStyle={{ background: C.alt }}
-        >
-          <span style={{ flex: 'none', display: 'flex' }}>{icon}</span>
-          <span style={{ ...labelStyle, fontWeight: 600 }}>{label}</span>
-        </HoverButton>
+        <RailCell key={label} icon={icon} label={label} />
       ))}
 
       {/* Account — the shared headshot over its label, the rail's only photo. Inert, like on mobile. */}
-      <div style={{ ...cellBase, color: C.sub, cursor: 'default' }} title={AGENT_FULL_NAME}>
-        <AccountAvatar size={30} />
-        <span style={{ ...labelStyle, fontWeight: 600 }}>Account</span>
-      </div>
+      <RailCell icon={<AccountAvatar size={30} />} label="Account" plain title={AGENT_FULL_NAME} />
     </nav>
   )
 }
