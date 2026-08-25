@@ -31,7 +31,7 @@ const UNLOCK_KEY = 'ra-prototype-unlocked'
 const PASSWORD = 'B0bsYourUncle'
 /** URL bypass: `?key=<ACCESS_TOKEN>` pre-unlocks the gate. Distinct from PASSWORD by design. */
 const ACCESS_PARAM = 'key'
-const ACCESS_TOKEN = 'rp-preview-2026'
+const ACCESS_TOKEN = 'rp-preview-internal'
 
 /** Whether the current URL carries a valid bypass token. */
 function hasAccessToken() {
