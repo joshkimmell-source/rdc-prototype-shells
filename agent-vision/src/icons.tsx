@@ -499,6 +499,57 @@ export function IconChevronDown({ size = 12, ...p }: S) {
   )
 }
 
+/**
+ * Subnav toggle — a left rule beside descending list lines. From IconSubnav.zip; carries
+ * both the 24px and the 16px-tuned geometry and picks by size (sm at 16 and below).
+ */
+export function IconSubnav({ size = 16, ...p }: S) {
+  const sm = size <= 16
+  return (
+    <svg width={size} height={size} viewBox={sm ? '0 0 16 16' : '0 0 24 24'} fill="currentColor" {...p}>
+      {sm ? (
+        <path d="M1.75 1a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 1.75 1m12.5 3a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1 0-1.5zm0 3.25a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1 0-1.5zm-5.5 3.25a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1 0-1.5z" />
+      ) : (
+        <path d="M3 2a1 1 0 0 1 1 1v18a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1m18 5a1 1 0 1 1 0 2H7a1 1 0 1 1 0-2zm0 4a1 1 0 1 1 0 2H7a1 1 0 1 1 0-2zm-9 4a1 1 0 1 1 0 2H7a1 1 0 1 1 0-2z" />
+      )}
+    </svg>
+  )
+}
+
+/**
+ * Panel-open — a right rule with a chevron pointing into it, the "reveal the panel" affordance.
+ * From IconPanel.zip; picks the 16px-tuned geometry at size 16 and below, the 24px otherwise.
+ */
+export function IconPanelOpen({ size = 20, ...p }: S) {
+  const sm = size <= 16
+  return (
+    <svg width={size} height={size} viewBox={sm ? '0 0 16 16' : '0 0 24 24'} fill="currentColor" {...p}>
+      {sm ? (
+        <path d="M10.5 1.75a.75.75 0 0 1 1.5 0v12.5a.75.75 0 0 1-1.5 0zM4.97 5.47a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.75.75 0 1 1-1.06-1.06L6.44 8 4.97 6.53a.75.75 0 0 1 0-1.06" />
+      ) : (
+        <path d="M15 3a1 1 0 1 1 2 0v18a1 1 0 1 1-2 0zM8.293 8.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1 0 1.414l-3 3a1 1 0 1 1-1.414-1.414L10.586 12 8.293 9.707a1 1 0 0 1 0-1.414" />
+      )}
+    </svg>
+  )
+}
+
+/**
+ * Panel-close — a left rule with a chevron pointing out of it, the "collapse the panel"
+ * affordance. From IconPanel.zip; picks the 16px-tuned geometry at size 16 and below.
+ */
+export function IconPanelClose({ size = 16, ...p }: S) {
+  const sm = size <= 16
+  return (
+    <svg width={size} height={size} viewBox={sm ? '0 0 16 16' : '0 0 24 24'} fill="currentColor" {...p}>
+      {sm ? (
+        <path d="M5.5 1.75a.75.75 0 0 1 1.5 0v12.5a.75.75 0 0 1-1.5 0zm6.78 3.72a.75.75 0 0 0-1.06 0l-2 2a.75.75 0 0 0 0 1.06l2 2a.75.75 0 1 0 1.06-1.06L10.81 8l1.47-1.47a.75.75 0 0 0 0-1.06" />
+      ) : (
+        <path d="M9 3a1 1 0 1 1 2 0v18a1 1 0 1 1-2 0zm8.707 5.293a1 1 0 0 0-1.414 0l-3 3a1 1 0 0 0 0 1.414l3 3a1 1 0 1 0 1.414-1.414L15.414 12l2.293-2.293a1 1 0 0 0 0-1.414" />
+      )}
+    </svg>
+  )
+}
+
 /** Three-dot menu toggle glyph — ported from components/Menu.jsx. */
 export function IconMenuDots(p: SVGProps<SVGSVGElement>) {
   return (

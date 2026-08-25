@@ -9,7 +9,7 @@ import { Tabs } from '@rdc-npm/rdc-ui-v4'
 import { C, EASE } from '../theme'
 import { CircleButton, EmptyNote, Heading, HoverButton, HoverDiv, Initials, SearchField, Tab } from './primitives'
 import { Menu } from './Menu'
-import { IconClose, IconPlus } from '../icons'
+import { IconPanelClose, IconPlus } from '../icons'
 import {
   AGENT_FEED_ID,
   CLIENT_LIST_MENU_ITEMS,
@@ -247,7 +247,7 @@ function ClientsSubnav({
           <IconPlus />
         </CircleButton>
         <CircleButton onClick={onClose} aria-label="Close subnav" title="Close subnav">
-          <IconClose />
+          <IconPanelClose />
         </CircleButton>
       </div>
 
@@ -316,7 +316,7 @@ function ToursSubnav({
           <IconPlus />
         </CircleButton>
         <CircleButton onClick={onClose} aria-label="Close subnav" title="Close subnav">
-          <IconClose />
+          <IconPanelClose />
         </CircleButton>
       </div>
 

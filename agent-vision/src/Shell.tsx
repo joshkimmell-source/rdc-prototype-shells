@@ -9,8 +9,9 @@
  * the subnav and push panel leave the flow to become overlays over `main` — so `main` keeps
  * the full viewport width either way.
  *
- * `?ab=` selects where the "Ask RealAssist+" trigger lives: the floating FAB (`a`, default)
- * or an `ActionBar` action inline in every page header (`b`). See `abParam.ts`.
+ * `?ab=` selects where the "Ask RealAssist+" trigger lives: the floating FAB (`a`, default),
+ * an `ActionBar` action inline in every page header (`b`), or a responsive blend of the two
+ * (`c` — the FAB on mobile, the inline action at every other width). See `abParam.ts`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { C, EASE } from './theme'
@@ -26,7 +27,7 @@ import { MainHeader, type ToggleId, type Toggles } from './components/MainHeader
 import { type ActionItem } from './components/ActionBar'
 import { SearchHeaderLead } from './components/SearchHeaderLead'
 import { FAB } from './components/FAB'
-import { Button } from '@rdc-npm/rdc-ui-v4'
+import { Button, IconSettings } from '@rdc-npm/rdc-ui-v4'
 import { PrototypeNotice } from './components/PrototypeNotice'
 import { RdcUiScanner } from '@rdc-npm/rdc-ui-scanner'
 import { HomeScreen, type NeedItem, type StageItem } from './screens/HomeScreen'
@@ -175,7 +176,11 @@ export function Shell() {
   // Fixed for the life of the session: switching arms mid-test would defeat the point, and
   // a reload with a different `?ab=` gives a clean one.
   const [variant] = useState(readAbParam)
-  const actionBar = variant === 'b'
+  // Where the Ask trigger lives, as one boolean the header and FAB both read: true puts it in
+  // the header ActionBar, false leaves it on the floating FAB. B is always inline; C is inline
+  // everywhere but mobile, where it falls back to A's FAB; A is always the FAB. Derived from
+  // `isMobile` (reactive) so C flips live as the viewport crosses the mobile breakpoint.
+  const actionBar = variant === 'b' || (variant === 'c' && !isMobile)
   // Attribution tag from `?u=`, fixed for the session. Surfaced on the shell root (below) and
   // left in the URL so a shared link or observed session carries who the participant is.
   const [participant] = useState(readParticipant)
@@ -599,7 +604,20 @@ export function Shell() {
       ]
     : isSearch
       ? [{ id: 'save-search', label: 'Save search', icon: <IconBookmark size={14} />, tone: 'dark', onClick: () => {} }]
-      : undefined
+      : isLeads
+        ? // Icon-only Settings, first in the list so it lands between the overflow menu (the
+          // bar's leftmost item) and the pinned Ask on its right.
+          [
+            {
+              id: 'leads-settings',
+              label: 'Leads settings',
+              icon: <IconSettings size={2.5} />,
+              iconOnly: true,
+              tone: 'light',
+              onClick: () => {},
+            },
+          ]
+        : undefined
 
   const headerMenuItems = isTours
     ? ['Share with client', 'Print tour sheet', 'Duplicate tour', 'Cancel tour']
@@ -868,6 +886,15 @@ export function Shell() {
             showSubnavButton={!!subnavVariant && !subnavOpen}
             onOpenSubnav={openSubnav}
             lead={isSearch ? <SearchHeaderLead mobile={isMobile} /> : undefined}
+            brand={
+              isHome ? (
+                <img
+                  src="assets/logo-realtor-plus.svg"
+                  alt="realtor.com+"
+                  style={{ height: isMobile ? 18 : 24, width: 'auto', display: 'block' }}
+                />
+              ) : undefined
+            }
             title={pageTitle}
             countLabel={countLabel}
             showToggles={isClients}

@@ -14,7 +14,7 @@ import { C, DISPLAY_FONT } from '../theme'
 import { HoverButton } from './primitives'
 import { Menu, type MenuItem } from './Menu'
 import { ActionBar, type ActionItem } from './ActionBar'
-import { IconBell, IconChart, IconFlame, IconHamburger, IconRealAssist, IconStar } from '../icons'
+import { IconBell, IconChart, IconFlame, IconPanelOpen, IconRealAssist, IconStar } from '../icons'
 import { MENU_ITEMS } from '../data'
 
 export type ToggleId = 'bell' | 'flame' | 'chart' | 'star'
@@ -106,7 +106,7 @@ function DrawerButton({ label, onClick }: { label: string; onClick: () => void }
       }}
       hoverStyle={{ background: C.hair }}
     >
-      <IconHamburger size={18} />
+      <IconPanelOpen size={18} />
     </HoverButton>
   )
 }

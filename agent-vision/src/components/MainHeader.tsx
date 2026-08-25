@@ -14,7 +14,7 @@ import { C, DISPLAY_FONT } from '../theme'
 import { HoverButton } from './primitives'
 import { Menu, type MenuItem } from './Menu'
 import { ActionBar, type ActionItem } from './ActionBar'
-import { IconBell, IconChart, IconFlame, IconHamburger, IconRealAssist, IconStar } from '../icons'
+import { IconBell, IconChart, IconFlame, IconPanelOpen, IconRealAssist, IconStar } from '../icons'
 import { MENU_ITEMS } from '../data'
 
 export type ToggleId = 'bell' | 'flame' | 'chart' | 'star'
@@ -69,6 +69,12 @@ interface MainHeaderProps {
    * When set, the `title`/`countLabel` block is not rendered.
    */
   lead?: ReactNode
+  /**
+   * A brand mark shown in the title's place (Home has no page title). Like the title it grows
+   * to fill the row, so the trailing controls stay pinned to the right edge; it carries no
+   * count label. Ignored when `lead` is set.
+   */
+  brand?: ReactNode
   title: string
   countLabel: string
   showToggles: boolean
@@ -106,7 +112,7 @@ function DrawerButton({ label, onClick }: { label: string; onClick: () => void }
       }}
       hoverStyle={{ background: C.hair }}
     >
-      <IconHamburger size={18} />
+      <IconPanelOpen size={18} />
     </HoverButton>
   )
 }
@@ -121,6 +127,7 @@ export function MainHeader({
   showSubnavButton,
   onOpenSubnav,
   lead,
+  brand,
   title,
   countLabel,
   showToggles,
@@ -180,6 +187,12 @@ export function MainHeader({
         // title — it hands the free width to the `ActionBar` beside it rather than splitting it.
         <div style={{ flex: '0 1 auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
           {lead}
+        </div>
+      ) : brand ? (
+        // Grows to fill the row like the title it replaces, keeping the trailing controls
+        // right-aligned; the mark sits at the left of that space.
+        <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', alignItems: 'center' }}>
+          {brand}
         </div>
       ) : (
         <h1

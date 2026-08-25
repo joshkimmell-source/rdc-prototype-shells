@@ -7,7 +7,7 @@
  * distinct from Clients. The tabs split Buyer from Seller leads; search filters on
  * name/email/phone; the Lead name, Budget and Date columns sort; newest activity first.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Tag } from '@rdc-npm/rdc-ui-v4'
 import { C, DISPLAY_FONT } from '../theme'
 import { HoverButton, Initials, SearchField, Tab } from '../components/primitives'
@@ -47,6 +47,8 @@ function HeadCell({
   dir,
   onSort,
   align = 'left',
+  sticky = false,
+  stickyShadow = false,
 }: {
   label: string
   sortKey?: SortKey
@@ -54,6 +56,10 @@ function HeadCell({
   dir: SortDir
   onSort: (k: SortKey) => void
   align?: 'left' | 'right'
+  /** Freeze this header to the table's right edge so the other columns scroll behind it. */
+  sticky?: boolean
+  /** With `sticky`, cast the faint left-edge shadow (on only while columns are scrolled under). */
+  stickyShadow?: boolean
 }) {
   const active = sortKey !== undefined && sortKey === activeKey
   // Matches the "Clients" table header on the HomeScreen: 11px uppercase, wide tracking,
@@ -69,8 +75,15 @@ function HeadCell({
     whiteSpace: 'nowrap' as const,
     background: C.rowHover,
     borderBottom: `1px solid ${C.hair}`,
+    ...(sticky ? { position: 'sticky' as const, right: 0, zIndex: 3 } : null),
   }
-  if (!sortKey) return <th style={base}>{label}</th>
+  if (!sortKey)
+    return (
+      <th style={base}>
+        {sticky && stickyShadow && <PinnedShadow />}
+        {label}
+      </th>
+    )
   return (
     <th style={{ ...base, padding: 0 }}>
       <HoverButton
@@ -117,6 +130,32 @@ const CELL = {
   verticalAlign: 'top' as const,
 } as const
 
+/**
+ * Faint left-edge shadow for the frozen Actions column: an overlay strip that sits just
+ * outside the column and fades over the cells scrolling beneath it. Rendered as an element
+ * rather than a `box-shadow` on the cell — Chromium drops cell shadows on a
+ * `border-collapse: collapse` table, so the cell approach never painted. The cell must be
+ * positioned (it is — `position: sticky`) so this absolute strip anchors to its left edge.
+ */
+function PinnedShadow() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        left: 0,
+        width: 16,
+        // Shift fully left of the column so it lies over the scrolling cells, not the actions.
+        transform: 'translateX(-100%)',
+        pointerEvents: 'none',
+        background: 'linear-gradient(to right, rgba(26,24,22,0), rgba(26,24,22,0.16))',
+      }}
+    />
+  )
+}
+
 const TABS: LeadType[] = ['Buyer', 'Seller']
 
 export function LeadsScreen({ mobile, onOpenLead, promotedLeadIds, onInvite }: LeadsScreenProps) {
@@ -126,6 +165,31 @@ export function LeadsScreen({ mobile, onOpenLead, promotedLeadIds, onInvite }: L
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [rowsPerPage, setRowsPerPage] = useState(ROWS_PER_PAGE_OPTIONS[0])
   const [page, setPage] = useState(0)
+
+  // The Actions column is frozen to the right edge. While the table is too narrow to show
+  // every column, the rest scrolls behind it; `pinnedShadow` tracks whether any columns are
+  // currently hidden under it, so the faint left-edge shadow appears only then.
+  const tableScrollRef = useRef<HTMLDivElement>(null)
+  const [pinnedShadow, setPinnedShadow] = useState(false)
+
+  useEffect(() => {
+    const el = tableScrollRef.current
+    if (!el) return
+    const update = () => {
+      // True while content remains to the right of the viewport — i.e. columns are passing
+      // under the frozen Actions column. At the far-right scroll end it goes false.
+      setPinnedShadow(el.scrollWidth - el.clientWidth - el.scrollLeft > 1)
+    }
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    // Recompute when the container is resized (a wider container may remove the overflow).
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', update)
+      ro.disconnect()
+    }
+  }, [])
 
   // A new sort key starts on its natural direction (names A–Z, budget/date high-first);
   // clicking the active key flips it. Any of these resets to the first page.
@@ -330,7 +394,7 @@ export function LeadsScreen({ mobile, onOpenLead, promotedLeadIds, onInvite }: L
         </div>
 
         {/* Table. */}
-        <div style={{ overflowX: 'auto' }}>
+        <div ref={tableScrollRef} style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 880 }}>
             <thead>
               <tr>
@@ -340,7 +404,7 @@ export function LeadsScreen({ mobile, onOpenLead, promotedLeadIds, onInvite }: L
                 <HeadCell label={budgetLabel} sortKey="budget" activeKey={sortKey} dir={sortDir} onSort={onSort} align="right" />
                 <HeadCell label="Date" sortKey="date" activeKey={sortKey} dir={sortDir} onSort={onSort} />
                 <HeadCell label="Delivery" activeKey={sortKey} dir={sortDir} onSort={onSort} />
-                <HeadCell label="" activeKey={sortKey} dir={sortDir} onSort={onSort} align="right" />
+                <HeadCell label="" activeKey={sortKey} dir={sortDir} onSort={onSort} align="right" sticky stickyShadow={pinnedShadow} />
               </tr>
             </thead>
             <tbody>
@@ -435,8 +499,19 @@ export function LeadsScreen({ mobile, onOpenLead, promotedLeadIds, onInvite }: L
                       <div style={{ fontSize: 12, color: C.sub }}>{lead.delivery.product}</div>
                     </td>
 
-                    {/* Actions */}
-                    <td style={{ ...CELL, textAlign: 'right' }}>
+                    {/* Actions — frozen to the right edge; the rest of the row scrolls behind it. */}
+                    <td
+                      style={{
+                        ...CELL,
+                        textAlign: 'right',
+                        position: 'sticky',
+                        right: 0,
+                        zIndex: 2,
+                        // Opaque so the scrolling columns pass behind, not through.
+                        background: C.white,
+                      }}
+                    >
+                      {pinnedShadow && <PinnedShadow />}
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         {lead.readyToPromote && (
                           <HoverButton
