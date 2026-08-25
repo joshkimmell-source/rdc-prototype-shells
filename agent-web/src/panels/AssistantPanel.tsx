@@ -5,7 +5,9 @@
  */
 import {
   ActionCard,
+  Button,
   Tag,
+  Tooltip,
   IconUserAddToProfile,
   IconAgent,
   IconPerformance,
@@ -2401,19 +2403,23 @@ export function AssistantPanel({
             }}
           >
             {/*
-              Threads toggle — an icon-only button to the left of the panel label, opening the
-              threads subnav. Highlighted while that subnav is open. (The "New conversation"
-              button lives in the action group on the right.)
+              Threads toggle — the panel's primary button (Haven Primary style, icon-only), to the
+              left of the panel label; opens the threads subnav. Hidden while the docked threads
+              list is already showing (expanded + over), which carries its own header and close.
+              (The "New conversation" button lives in the action group on the right.)
             */}
-            <CircleButton
-              onClick={onToggleOver}
-              hoverBg={C.hair}
-              aria-label="Open threads"
-              title="Open threads"
-              style={{ background: over ? C.hair : 'transparent', flex: 'none' }}
-            >
-              <IconSubnav size={16} />
-            </CircleButton>
+            {!(expanded && over) && (
+              <Tooltip body="Open threads" placement="bottom">
+                <Button
+                  styleType="Primary"
+                  size="sm"
+                  iconOnly={<IconSubnav size={16} />}
+                  onClick={onToggleOver}
+                  aria-label="Open threads"
+                  css={{ flexShrink: 0 }}
+                />
+              </Tooltip>
+            )}
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <img
                 src="assets/logo-realassist-ai.svg"

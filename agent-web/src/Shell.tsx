@@ -739,6 +739,7 @@ export function Shell() {
             onAsk={openPush}
             askOpen={pushContent}
             showSubnavButton={!!subnavVariant && !subnavOpen}
+            subnavLabel={subnavVariant === 'clients' ? 'Clients' : subnavVariant === 'tours' ? 'Tours' : undefined}
             onOpenSubnav={openSubnav}
             lead={isSearch ? <SearchHeaderLead mobile={isMobile} /> : undefined}
             title={pageTitle}

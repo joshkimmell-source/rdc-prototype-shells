@@ -5,7 +5,7 @@
  * With `drawerMax` set (mobile, <=768px) it leaves the flow and slides in over `main`
  * instead, capped so a strip of scrim stays tappable beside it.
  */
-import { Tabs } from '@rdc-npm/rdc-ui-v4'
+import { Tabs, Tooltip } from '@rdc-npm/rdc-ui-v4'
 import { C, EASE } from '../theme'
 import { CircleButton, EmptyNote, Heading, HoverButton, HoverDiv, Initials, SearchField, Tab } from './primitives'
 import { Menu } from './Menu'
@@ -246,9 +246,11 @@ function ClientsSubnav({
         <CircleButton aria-label="Add client" title="Add client">
           <IconPlus />
         </CircleButton>
-        <CircleButton onClick={onClose} aria-label="Close subnav" title="Close subnav">
-          <IconPanelClose />
-        </CircleButton>
+        <Tooltip body="Hide Clients" placement="bottom">
+          <CircleButton onClick={onClose} aria-label="Hide Clients">
+            <IconPanelClose />
+          </CircleButton>
+        </Tooltip>
       </div>
 
       {agentFeed && (
@@ -315,9 +317,11 @@ function ToursSubnav({
         <CircleButton aria-label="Schedule tour" title="Schedule tour">
           <IconPlus />
         </CircleButton>
-        <CircleButton onClick={onClose} aria-label="Close subnav" title="Close subnav">
-          <IconPanelClose />
-        </CircleButton>
+        <Tooltip body="Hide Tours" placement="bottom">
+          <CircleButton onClick={onClose} aria-label="Hide Tours">
+            <IconPanelClose />
+          </CircleButton>
+        </Tooltip>
       </div>
 
       <SearchField
