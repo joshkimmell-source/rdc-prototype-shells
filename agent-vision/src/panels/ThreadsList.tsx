@@ -2,6 +2,7 @@
  * Threads list. Rendered twice by the push panel: inline in the 300px dock when the panel
  * is expanded, and as a sliding overlay when it isn't.
  */
+import { IconArrowLeft } from '@rdc-npm/rdc-ui-v4'
 import { C } from '../theme'
 import { CircleButton, EmptyNote, Heading, HoverDiv, HoverButton, SearchField } from '../components/primitives'
 import { IconClose, IconCompose, IconPencil, IconTrash } from '../icons'
@@ -13,16 +14,36 @@ interface ThreadsListProps {
   onQuery: (v: string) => void
   onClose: () => void
   onNewChat: () => void
+  /**
+   * Lead the header with a back arrow instead of trailing it with a close ✕. Set for the
+   * sliding overlay (panel docked, not expanded), where the list covers the panel's own
+   * toolbar, so "back" is the honest affordance — it returns to the conversation. The inline
+   * dock (expanded) keeps the ✕, since the toolbar stays visible beside it.
+   */
+  back?: boolean
 }
 
-export function ThreadsList({ threads, query, onQuery, onClose, onNewChat }: ThreadsListProps) {
+export function ThreadsList({ threads, query, onQuery, onClose, onNewChat, back = false }: ThreadsListProps) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 16px 12px 20px' }}>
+        {back && (
+          <CircleButton
+            onClick={onClose}
+            hoverBg={C.border}
+            aria-label="Back to conversation"
+            title="Back to conversation"
+            style={{ flex: 'none' }}
+          >
+            <IconArrowLeft size={2} />
+          </CircleButton>
+        )}
         <Heading style={{ flex: 1, whiteSpace: 'nowrap' }}>Threads</Heading>
-        <CircleButton onClick={onClose} hoverBg={C.border} aria-label="Close threads" title="Close threads">
-          <IconClose />
-        </CircleButton>
+        {!back && (
+          <CircleButton onClick={onClose} hoverBg={C.border} aria-label="Close threads" title="Close threads">
+            <IconClose />
+          </CircleButton>
+        )}
       </div>
 
       <div

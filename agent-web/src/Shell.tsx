@@ -9,8 +9,9 @@
  * the subnav and push panel leave the flow to become overlays over `main` — so `main` keeps
  * the full viewport width either way.
  *
- * `?ab=` selects where the "Ask RealAssist+" trigger lives: the floating FAB (`a`, default)
- * or an `ActionBar` action inline in every page header (`b`). See `abParam.ts`.
+ * `?ab=` selects where the "Ask RealAssist+" trigger lives: the floating FAB (`a`, default),
+ * an `ActionBar` action inline in every page header (`b`), or a responsive blend of the two
+ * (`c` — the FAB on mobile, the inline action at every other width). See `abParam.ts`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { C, EASE } from './theme'
@@ -145,7 +146,11 @@ export function Shell() {
   // Fixed for the life of the session: switching arms mid-test would defeat the point, and
   // a reload with a different `?ab=` gives a clean one.
   const [variant] = useState(readAbParam)
-  const actionBar = variant === 'b'
+  // Where the Ask trigger lives, as one boolean the header and FAB both read: true puts it in
+  // the header ActionBar, false leaves it on the floating FAB. B is always inline; C is inline
+  // everywhere but mobile, where it falls back to A's FAB; A is always the FAB. Derived from
+  // `isMobile` (reactive) so C flips live as the viewport crosses the mobile breakpoint.
+  const actionBar = variant === 'b' || (variant === 'c' && !isMobile)
   // Attribution tag from `?u=`, fixed for the session. Surfaced on the shell root (below) and
   // left in the URL so a shared link or observed session carries who the participant is.
   const [participant] = useState(readParticipant)

@@ -29,10 +29,10 @@ import {
   IconCompose,
   IconComposerSend,
   IconExpandPanel,
-  IconHamburger,
   IconHomeFilled,
   IconSend,
   IconSpark,
+  IconSubnav,
 } from '../icons'
 import type { Thread } from '../data'
 import type { ComponentType } from 'react'
@@ -2412,7 +2412,7 @@ export function AssistantPanel({
               title="Open threads"
               style={{ background: over ? C.hair : 'transparent', flex: 'none' }}
             >
-              <IconHamburger size={16} />
+              <IconSubnav size={16} />
             </CircleButton>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <img
@@ -2722,6 +2722,7 @@ export function AssistantPanel({
               onQuery={onThreadQuery}
               onClose={onCloseOver}
               onNewChat={onNewChat}
+              back
             />
           </div>
         </div>

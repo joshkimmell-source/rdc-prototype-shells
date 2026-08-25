@@ -43,6 +43,12 @@ export interface ActionItem {
   onClick: () => void
   /** Set for toggles, left undefined for plain actions so they get no pressed state. */
   pressed?: boolean
+  /**
+   * Always render as an icon circle — never expand to a labelled pill, at any width. For
+   * controls that read as icons by convention (e.g. Settings). The label still names it for
+   * screen readers and drives the hover tooltip.
+   */
+  iconOnly?: boolean
 }
 
 interface ActionBarProps {
@@ -97,8 +103,12 @@ function Action({
   tabbable?: boolean
 }) {
   const tone = item.tone ?? 'light'
-  // A visible label needs no tooltip repeating it.
-  const tip = collapsed ? onTip : undefined
+  // An `iconOnly` action is a circle at every width, exactly like a collapsed one — so the
+  // mirror (which measures with `collapsed={false}`) still sizes it as a circle and the
+  // fit calculation stays honest.
+  const circle = collapsed || !!item.iconOnly
+  // A visible label needs no tooltip repeating it; a circle (collapsed or icon-only) gets one.
+  const tip = circle ? onTip : undefined
   // The hover lift's shadow — the brand action lifts on its own red, the others on neutral.
   const hoverShadow =
     tone === 'brand'
@@ -130,10 +140,10 @@ function Action({
         gap: 8,
         flex: 'none',
         height: HEIGHT,
-        // A circle when collapsed; the padding is what the label needs when expanded.
-        width: collapsed ? HEIGHT : undefined,
-        padding: collapsed ? 0 : `0 ${PAD_X}px`,
-        borderRadius: collapsed ? '50%' : 40,
+        // A circle when collapsed (or icon-only); the padding is what the label needs expanded.
+        width: circle ? HEIGHT : undefined,
+        padding: circle ? 0 : `0 ${PAD_X}px`,
+        borderRadius: circle ? '50%' : 40,
         fontFamily: 'inherit',
         fontSize: FONT_SIZE,
         fontWeight: 700,
@@ -148,8 +158,8 @@ function Action({
       hoverStyle={{ transform: 'translateY(-1px)', boxShadow: hoverShadow }}
     >
       <span style={{ display: 'flex', flex: 'none', alignItems: 'center' }}>{item.icon}</span>
-      {/* Dropped from the DOM rather than hidden, so the collapsed circle has nothing to size to. */}
-      {!collapsed && <span>{item.label}</span>}
+      {/* Dropped from the DOM rather than hidden, so the circle has nothing to size to. */}
+      {!circle && <span>{item.label}</span>}
     </HoverButton>
   )
 }
