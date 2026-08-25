@@ -10,6 +10,7 @@
  * search controls always read as labelled pills that collapse and fold rather than icon circles.
  */
 import type { ReactNode } from 'react'
+import { Tooltip } from '@rdc-npm/rdc-ui-v4'
 import { C, DISPLAY_FONT } from '../theme'
 import { HoverButton } from './primitives'
 import { Menu, type MenuItem } from './Menu'
@@ -63,6 +64,8 @@ interface MainHeaderProps {
    */
   askOpen: boolean
   showSubnavButton: boolean
+  /** The subnav section's name (e.g. "Clients") — labels the drawer button "Show <name>". */
+  subnavLabel?: string
   onOpenSubnav: () => void
   /**
    * Left region in place of the title — the Search header's MLS selector and search field.
@@ -86,28 +89,29 @@ interface MainHeaderProps {
 /** Opens the subnav, which is an overlay drawer below the mobile breakpoint. */
 function DrawerButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <HoverButton
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      style={{
-        width: 32,
-        height: 32,
-        flex: 'none',
-        borderRadius: '50%',
-        border: 'none',
-        background: 'transparent',
-        color: C.dark,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        transition: 'background 120ms',
-      }}
-      hoverStyle={{ background: C.hair }}
-    >
-      <IconPanelOpen size={18} />
-    </HoverButton>
+    <Tooltip body={label} placement="bottom">
+      <HoverButton
+        onClick={onClick}
+        aria-label={label}
+        style={{
+          width: 32,
+          height: 32,
+          flex: 'none',
+          borderRadius: '50%',
+          border: 'none',
+          background: 'transparent',
+          color: C.dark,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          transition: 'background 120ms',
+        }}
+        hoverStyle={{ background: C.hair }}
+      >
+        <IconPanelOpen size={18} />
+      </HoverButton>
+    </Tooltip>
   )
 }
 
@@ -119,6 +123,7 @@ export function MainHeader({
   onAsk,
   askOpen,
   showSubnavButton,
+  subnavLabel,
   onOpenSubnav,
   lead,
   title,
@@ -173,7 +178,12 @@ export function MainHeader({
         flexWrap: mobile && !useActionBar ? 'wrap' : 'nowrap',
       }}
     >
-      {showSubnavButton && <DrawerButton label="Open subnav" onClick={onOpenSubnav} />}
+      {showSubnavButton && (
+        <DrawerButton
+          label={subnavLabel ? `Show ${subnavLabel}` : 'Show'}
+          onClick={onOpenSubnav}
+        />
+      )}
 
       {lead ? (
         // The Search header's MLS selector and field. Shrinks but never grows, so — like the
