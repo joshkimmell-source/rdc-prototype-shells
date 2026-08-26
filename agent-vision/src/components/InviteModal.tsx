@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Modal, Button, TextArea, Toggle, PropertyCard, Tag, Checkbox } from '@rdc-npm/rdc-ui-v4'
 import { C, DISPLAY_FONT } from '../theme'
+import { truncationTitle } from './primitives'
 import { IconCircleCheck } from '../icons'
 import { listingMatchesForLead, type ClientListing, type ListingMatch, type Lead } from '../data'
 
@@ -99,7 +100,10 @@ function SpotlightCard({ listing, score }: { listing: ClientListing; score: numb
             whiteSpace: 'nowrap',
           }}
         >
-          <span style={{ fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span
+            style={{ fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+            ref={truncationTitle(listing.status)}
+          >
             {listing.status}
           </span>
           <span style={{ flex: 'none', color: C.sub }}>| {listing.dom} DOM</span>
@@ -168,6 +172,7 @@ function MiniCard({
             overflow: 'hidden',
             textOverflow: 'ellipsis',
           }}
+          ref={truncationTitle(listing.address1)}
         >
           {listing.address1}
         </div>

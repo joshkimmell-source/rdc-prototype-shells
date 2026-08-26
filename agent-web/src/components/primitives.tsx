@@ -325,3 +325,32 @@ export function Tab({
 export function EmptyNote({ children }: { children: ReactNode }) {
   return <div style={{ padding: 12, fontSize: 12, color: C.muted }}>{children}</div>
 }
+
+/**
+ * Callback ref that keeps a native `title` in sync with whether the element's single-line text
+ * is actually clipped by `text-overflow: ellipsis`. A truncated label then reveals its full text
+ * on hover; an untruncated one shows no redundant tooltip. Safe inline and inside `.map()` — it
+ * is a ref callback, not a hook — and re-measures when the element resizes (e.g. dragging the
+ * viewport between breakpoints, which does not always re-render).
+ *
+ *   <span style={ellipsisStyle} ref={truncationTitle(fullText)}>{fullText}</span>
+ */
+export function truncationTitle(text: string) {
+  return (el: HTMLElement | null) => {
+    if (!el) return
+    // Stash the latest text on the node so the (once-created) observer always reads the current
+    // value rather than the string captured on first mount.
+    const store = el as HTMLElement & { _truncText?: string; _truncRO?: ResizeObserver }
+    store._truncText = text
+    const sync = () => {
+      const full = store._truncText ?? ''
+      if (el.scrollWidth > el.clientWidth) el.setAttribute('title', full)
+      else el.removeAttribute('title')
+    }
+    sync()
+    if (typeof ResizeObserver !== 'undefined' && !store._truncRO) {
+      store._truncRO = new ResizeObserver(sync)
+      store._truncRO.observe(el)
+    }
+  }
+}

@@ -4,7 +4,7 @@
  */
 import { IconArrowLeft } from '@rdc-npm/rdc-ui-v4'
 import { C } from '../theme'
-import { CircleButton, EmptyNote, Heading, HoverDiv, HoverButton, SearchField } from '../components/primitives'
+import { CircleButton, EmptyNote, Heading, HoverDiv, HoverButton, SearchField, truncationTitle } from '../components/primitives'
 import { IconClose, IconCompose, IconPencil, IconTrash } from '../icons'
 import type { Thread } from '../data'
 
@@ -130,6 +130,7 @@ export function ThreadsList({ threads, query, onQuery, onClose, onNewChat, back 
                   textOverflow: 'ellipsis',
                   maxWidth: '100%',
                 }}
+                ref={truncationTitle(t.title)}
               >
                 {t.title}
               </span>

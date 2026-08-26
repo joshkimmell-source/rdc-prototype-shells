@@ -10,7 +10,7 @@
  */
 import { token } from 'styled-system/tokens'
 import { C } from '../theme'
-import { HoverButton } from './primitives'
+import { HoverButton, truncationTitle } from './primitives'
 import { AccountAvatar } from './AccountAvatar'
 import { AGENT_FULL_NAME } from '../data'
 import { NAV_ITEMS, type NavId } from './NavRail'
@@ -83,7 +83,9 @@ export function NavBar({ activeNav, onNavigate }: NavBarProps) {
             hoverStyle={{ background: C.alt }}
           >
             <span style={{ flex: 'none', display: 'flex' }}>{icon}</span>
-            <span style={{ ...LABEL, fontWeight: active ? 800 : 700 }}>{label}</span>
+            <span style={{ ...LABEL, fontWeight: active ? 800 : 700 }} ref={truncationTitle(label)}>
+              {label}
+            </span>
           </HoverButton>
         )
       })}

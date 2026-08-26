@@ -7,7 +7,7 @@
 import type { ComponentType } from 'react'
 import { Tag } from '@rdc-npm/rdc-ui-v4'
 import { C, DISPLAY_FONT, CHART, TAG_CHART_COLOR } from '../theme'
-import { HoverButton, HoverDiv, Initials } from '../components/primitives'
+import { HoverButton, HoverDiv, Initials, truncationTitle } from '../components/primitives'
 import {
   IconChevronRight,
   IconSpark,
@@ -353,7 +353,7 @@ export function HomeScreen({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                     }}
-                    title={r.name}
+                    ref={truncationTitle(r.name)}
                   >
                     {r.name}
                   </div>
@@ -444,6 +444,7 @@ export function HomeScreen({
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                   }}
+                  ref={truncationTitle(t.address)}
                 >
                   {t.address}
                 </div>
@@ -632,6 +633,7 @@ export function HomeScreen({
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}
+                      ref={truncationTitle(r.name)}
                     >
                       {r.name}
                     </div>
@@ -655,6 +657,7 @@ export function HomeScreen({
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                   }}
+                  ref={truncationTitle(r.lastActivity)}
                 >
                   {r.lastActivity}
                 </div>
