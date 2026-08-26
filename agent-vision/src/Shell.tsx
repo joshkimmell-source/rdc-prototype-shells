@@ -550,13 +550,10 @@ export function Shell() {
           ? 'Leads'
           : ''
 
-  const countLabel = isClients
-    ? `${clientFeed.listingCount} ${clientFeed.listingCount === 1 ? 'listing' : 'listings'}`
-    : isTours
-      ? selectedMapTour?.date ?? ''
-      : // Home, Search and Leads carry no count in the header — Home is the dashboard, not the
-        // client table, so the "N clients" label doesn't belong on it.
-        ''
+  // Clients' listing count and Tours' date have moved out of the shared header — Clients
+  // drops the subtitle entirely, Tours draws its date beside the map's layout switcher
+  // instead. Home, Search and Leads never carried a header subtitle.
+  const countLabel = ''
 
   const tourQuery = tourQ.trim().toLowerCase()
   // Only tours that have been created show in the subnav — the assistant-coordinated one
