@@ -6,7 +6,7 @@
  */
 import { Tag } from '@rdc-npm/rdc-ui-v4'
 import { C, DISPLAY_FONT, CHART, TAG_CHART_COLOR } from '../theme'
-import { HoverButton, HoverDiv, Initials } from '../components/primitives'
+import { HoverButton, HoverDiv, Initials, truncationTitle } from '../components/primitives'
 import {
   IconChevronRight,
   IconSpark,
@@ -362,6 +362,7 @@ export function HomeScreen({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                     }}
+                    ref={truncationTitle(l.name)}
                   >
                     {l.name}
                   </div>
@@ -373,6 +374,7 @@ export function HomeScreen({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                     }}
+                    ref={truncationTitle(`${l.marketCity} · ${l.budget} · ${l.delivery.product}`)}
                   >
                     {l.marketCity} · {l.budget} · {l.delivery.product}
                   </div>
@@ -425,7 +427,7 @@ export function HomeScreen({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                     }}
-                    title={s.label}
+                    ref={truncationTitle(s.label)}
                   >
                     {s.label}
                   </div>
@@ -540,7 +542,7 @@ export function HomeScreen({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                     }}
-                    title={r.name}
+                    ref={truncationTitle(r.name)}
                   >
                     {r.name}
                   </div>
@@ -631,6 +633,7 @@ export function HomeScreen({
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                   }}
+                  ref={truncationTitle(t.address)}
                 >
                   {t.address}
                 </div>
@@ -819,6 +822,7 @@ export function HomeScreen({
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}
+                      ref={truncationTitle(r.name)}
                     >
                       {r.name}
                     </div>
@@ -845,6 +849,7 @@ export function HomeScreen({
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                   }}
+                  ref={truncationTitle(r.lastActivity)}
                 >
                   {r.lastActivity}
                 </div>

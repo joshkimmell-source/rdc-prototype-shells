@@ -10,7 +10,7 @@ import { defineConfig, devices } from '@playwright/test'
  *
  * `webServer` boots the Vite dev server (the same `npm run dev` used by hand) and waits for
  * it before the suite runs. `PORT` is honoured by vite.config.ts, so the URL is fixed here
- * rather than left to Vite's 5173→5174 walk, which would collide with consumer-web.
+ * rather than left to Vite's 5173→5174 walk, which would collide with another dev server.
  */
 const PORT = 4318
 const BASE_URL = `http://localhost:${PORT}`

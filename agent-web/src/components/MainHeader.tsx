@@ -12,7 +12,7 @@
 import type { ReactNode } from 'react'
 import { Tooltip } from '@rdc-npm/rdc-ui-v4'
 import { C, DISPLAY_FONT } from '../theme'
-import { HoverButton } from './primitives'
+import { HoverButton, truncationTitle } from './primitives'
 import { Menu, type MenuItem } from './Menu'
 import { ActionBar, type ActionItem } from './ActionBar'
 import { IconBell, IconChart, IconFlame, IconPanelOpen, IconRealAssist, IconStar } from '../icons'
@@ -200,6 +200,10 @@ export function MainHeader({
             // the title still ellipsizes rather than shoving the controls off, since it can
             // shrink past its content width.
             flex: '1 1 auto',
+            // Desktop only: never let the title take more than 45% of the header row, so the
+            // controls beside it keep their space (it ellipsizes within that cap). On mobile the
+            // controls wrap below, so the title gets the full width and shows in full instead.
+            maxWidth: mobile ? undefined : '45%',
             // A floor rather than 0: it is what forces the wrap instead of letting the title
             // ellipsize down to nothing beside the controls.
             minWidth: mobile ? 130 : 0,
@@ -216,10 +220,13 @@ export function MainHeader({
               fontSize: mobile ? 20 : 24,
               lineHeight: mobile ? '26px' : '28px',
               letterSpacing: '-0.02em',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              // On mobile the title is never truncated — it wraps to as many lines as it needs;
+              // on desktop it stays a single ellipsized line beside the controls.
+              whiteSpace: mobile ? 'normal' : 'nowrap',
+              overflow: mobile ? 'visible' : 'hidden',
+              textOverflow: mobile ? 'clip' : 'ellipsis',
             }}
+            ref={truncationTitle(title)}
           >
             {title}
           </span>

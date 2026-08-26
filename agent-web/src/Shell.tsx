@@ -666,11 +666,16 @@ export function Shell() {
 
       {/*
         In-page RDC UI inspector — highlights v4/v3 components, assets, and non-DS text.
-        `render="dev"` keeps it out of production bundles; default-off and localStorage-backed,
-        so it stays invisible until toggled. Anchored bottom-left to clear the bottom-right FAB,
-        then nudged 48px right in shell.css (see `[data-rdc-ui-scanner-ui]`).
+        Gate on Vite's build flag, not the scanner's own `render="dev"`: the scanner reads
+        `process.env?.NODE_ENV`, a form Vite can't statically replace, so `process` is undefined
+        in the built bundle and `"dev"` would still mount on gh-pages. `import.meta.env.DEV` is
+        replaced at build time (`true` under the dev server, `false` in the production build), so
+        this whole subtree is dead code Rollup strips from deployed prototypes — the scanner never
+        ships, not merely hidden. Default-off and localStorage-backed, so even in dev it stays
+        invisible until toggled. Anchored bottom-left to clear the bottom-right FAB, then nudged
+        48px right in shell.css (see `[data-rdc-ui-scanner-ui]`).
       */}
-      <RdcUiScanner render="dev" position="bottom-left" />
+      {import.meta.env.DEV && <RdcUiScanner render="dev" position="bottom-left" />}
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0, position: 'relative' }}>
         {!isMobile && <NavRail activeNav={activeNav} onNavigate={navigate} />}

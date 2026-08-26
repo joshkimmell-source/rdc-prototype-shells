@@ -10,7 +10,7 @@
 import { useState, type ReactNode } from 'react'
 import { token } from 'styled-system/tokens'
 import { C } from '../theme'
-import { HoverButton } from './primitives'
+import { HoverButton, truncationTitle } from './primitives'
 import { AccountAvatar } from './AccountAvatar'
 import { AGENT_FULL_NAME } from '../data'
 import { IconBell, IconCalendar, IconChat, IconClients, IconSearch, IconSupport } from '../icons'
@@ -112,7 +112,9 @@ function RailCell({
   const content = (
     <>
       <span style={{ ...iconWrapStyle, background: iconBackground }}>{icon}</span>
-      <span style={{ ...labelStyle, fontWeight: active ? 800 : 600 }}>{label}</span>
+      <span style={{ ...labelStyle, fontWeight: active ? 800 : 600 }} ref={truncationTitle(label)}>
+        {label}
+      </span>
     </>
   )
   if (plain) {

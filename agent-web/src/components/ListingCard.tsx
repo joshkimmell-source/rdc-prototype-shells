@@ -24,7 +24,7 @@ import { useState } from 'react'
 import { Checkbox, PropertyCard, Tag } from '@rdc-npm/rdc-ui-v4'
 import { token } from 'styled-system/tokens'
 import { C } from '../theme'
-import { HoverButton } from './primitives'
+import { HoverButton, truncationTitle } from './primitives'
 import { IconArrowDown, IconHeart, IconShare, IconTrash } from '../icons'
 import type { ClientListing, ListingPill } from '../data'
 
@@ -159,6 +159,7 @@ export function ListingCard({ listing }: { listing: ClientListing }) {
         >
           <span
             style={{ fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+            ref={truncationTitle(listing.status)}
           >
             {listing.status}
           </span>
