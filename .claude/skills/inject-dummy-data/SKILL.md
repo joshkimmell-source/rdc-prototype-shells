@@ -46,9 +46,9 @@ a real person.
 
 ### 1. Identify the target shell
 
-This repo has three: `agent-vision/`, `agent-web/`, `consumer-web/`. If the user
+This repo has two: `agent-vision/`, `agent-web/`. If the user
 named one, use it. If not, and more than one could plausibly be meant, ask which
-— don't populate all three on a guess.
+— don't populate both on a guess.
 
 ### 2. Copy the assets in
 
@@ -58,7 +58,7 @@ cp .claude/skills/inject-dummy-data/assets/sample-data.json <shell>/src/data/sam
 cp .claude/skills/inject-dummy-data/assets/index.ts        <shell>/src/data/sample/
 ```
 
-`resolveJsonModule` is already on in all three shells' `tsconfig.json`, so the
+`resolveJsonModule` is already on in both shells' `tsconfig.json`, so the
 JSON import in `index.ts` type-checks with no config change.
 
 **If `src/data/sample/` already exists**, the skill has run before. Overwrite
@@ -72,7 +72,6 @@ Grep the shell for the constants the screens read. As of this writing:
 - `agent-web/src/data.ts` — `CLIENTS`, `LISTINGS`, `TOURS`, `BUYERS`,
   `INITIAL_UPCOMING_TOURS`, `THREADS`, plus `TAGC` / `STAGES` / `CLIENT_PILLS`
   and the chip and menu label arrays.
-- `consumer-web/src/Shell.tsx` — `SAMPLE_LISTINGS`.
 
 Verify by grepping rather than trusting that list; the shells change.
 

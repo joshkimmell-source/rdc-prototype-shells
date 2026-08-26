@@ -41,8 +41,8 @@ export default defineConfig({
   ],
   /**
    * Vite ignores `PORT`, but that is how the launcher hands over the port it picked when
-   * 5173 was already taken — without this it would silently walk to 5174 instead, which is
-   * consumer-web's port.
+   * 5173 was already taken — without this it would silently walk to 5174 instead, colliding
+   * with another shell's dev server.
    */
   server: { port: process.env.PORT ? Number(process.env.PORT) : undefined },
   css: { postcss: './postcss.config.cjs' },
