@@ -20,8 +20,9 @@
   .pill:hover { box-shadow:0 2px 8px rgba(26,24,22,0.2); }
   .pill.light { border:1px solid #D3CFCA; background:#FFFFFF; color:#1A1816; }
   .pill.dark { border:none; background:#1A1816; color:#FFFFFF; }
-  .seg { display:flex; align-items:center; justify-content:flex-end; padding:4px 24px 8px; flex:none; }
-  .segwrap { display:inline-flex; background:var(--gray-100,#F2F0EF); border-radius:9999px; padding:4px; }
+  .seg { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:4px 24px 8px; flex:none; }
+  .tourdate { margin:0; font-family:var(--font-display,'Galano Grotesque Alt',sans-serif); font-weight:600; font-size:16px; line-height:20px; letter-spacing:-0.01em; }
+  .segwrap { display:inline-flex; flex:none; background:var(--gray-100,#F2F0EF); border-radius:9999px; padding:4px; }
   .segbtn { border:none; background:transparent; color:#1A1816; font-family:inherit; font-size:14px; font-weight:600; height:32px; padding:0 16px; border-radius:9999px; cursor:pointer; transition:background 120ms, box-shadow 120ms; }
   .segbtn:not(.on):hover { background:rgba(0,0,0,0.04); }
   .segbtn.on { background:#FFFFFF; box-shadow:var(--shadow-raised, 0 1px 3px rgba(26,24,22,0.16)); }
@@ -62,11 +63,11 @@
    * framed by it). The commute row wraps instead of squeezing, and the horizontal split
    * reverts to stacked — a 52% pane leaves neither the table nor the map usable below
    * ~700px. Since the layout is forced to stacked here, the Vertical/Horizontal switcher
-   * has nothing to toggle, so it is hidden. The table keeps its 1080px floor and goes on
-   * scrolling in `.tblwrap`.
+   * has nothing to toggle, so it is hidden — the tour date beside it stays, since that's
+   * still worth showing. The table keeps its 1080px floor and goes on scrolling in `.tblwrap`.
    */
   @media (max-width:768px) {
-    .seg { display:none; }
+    .seg .segwrap { display:none; }
     .tblwrap { padding:0 12px; }
     .midrow { flex-wrap:wrap; padding:10px 12px 12px; }
     .commute { margin-left:0; flex:1 1 100%; }
@@ -77,6 +78,7 @@
 </head>
 <body>
   <div class="seg">
+    <h3 class="tourdate" id="tourDate"></h3>
     <div class="segwrap">
     <button class="segbtn on" id="segV">Vertical</button>
     <button class="segbtn" id="segH">Horizontal</button>
@@ -172,7 +174,10 @@
     if (!tour || tour.id === currentTourId) return;
     currentTourId = tour.id;
 
-    // The tour's client and date now render in the shell's shared header, not here.
+    // The tour's client renders in the shell's shared header; the date renders here, beside
+    // the Vertical/Horizontal switcher.
+    document.getElementById('tourDate').textContent = tour.date || '';
+
     // A tour with fewer than two stops has no leg to drive or walk, so the commute is hidden.
     const commute = document.querySelector('.commute');
     if (tour.stops.length > 1) {

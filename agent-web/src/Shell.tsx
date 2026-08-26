@@ -465,13 +465,12 @@ export function Shell() {
         ? 'Search'
         : 'Home'
 
-  const countLabel = isClients
-    ? `${clientFeed.listingCount} ${clientFeed.listingCount === 1 ? 'listing' : 'listings'}`
-    : isTours
-      ? selectedMapTour?.date ?? ''
-      : isSearch
-        ? ''
-        : `${filtered.length}${filter === 'all' ? ' clients' : ` of ${clients.length} clients`}`
+  // Clients' listing count and Tours' date have moved out of the shared header — Clients
+  // drops the subtitle entirely, Tours draws its date beside the map's layout switcher instead.
+  const countLabel =
+    isSearch || isClients || isTours
+      ? ''
+      : `${filtered.length}${filter === 'all' ? ' clients' : ` of ${clients.length} clients`}`
 
   const tourQuery = tourQ.trim().toLowerCase()
   // Only tours that have been created show in the subnav — the assistant-coordinated one

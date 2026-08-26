@@ -152,7 +152,7 @@ export function NavRail({ activeNav, onNavigate }: NavRailProps) {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 4,
+        gap: '1rem',
         overflow: 'hidden',
         position: 'relative',
         zIndex: 30,
@@ -161,7 +161,7 @@ export function NavRail({ activeNav, onNavigate }: NavRailProps) {
       <img
         src="assets/logo-rail-collapsed.svg"
         alt="realtor.com+"
-        style={{ width: 34, height: 34, display: 'block', marginBottom: 8, flex: 'none' }}
+        style={{ width: 'auto', height: '3rem', display: 'block', marginBottom: 8, marginLeft: 4, flex: 'none' }}
       />
 
       {NAV_ITEMS.map(({ id, label, icon }) => (
