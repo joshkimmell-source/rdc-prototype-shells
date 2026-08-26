@@ -872,7 +872,9 @@ export function Shell() {
             display: 'flex',
             flexDirection: 'column',
             position: 'relative',
-            background: C.white,
+            // Home and Leads read as canvas-coloured pages (header included) rather than white
+            // ones with an inset panel — every other screen keeps the white content background.
+            background: isHome || isLeads ? C.canvas : C.white,
             marginRight: mainMarginRight,
             // Must match the panel: easing this mid-drag lags `main` behind the edge.
             transition: resizing ? 'none' : `margin-right 220ms ${EASE}`,
