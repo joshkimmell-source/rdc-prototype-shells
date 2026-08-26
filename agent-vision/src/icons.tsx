@@ -112,8 +112,9 @@ export function IconChat({ size = 20, ...p }: S) {
 
 /*
  * There is deliberately no bare three-dot icon here. A ⋯ in this shell always means an
- * overflow menu, so the glyph is only reachable through `Menu` (via `IconMenuDots` below) —
- * exporting it loose is what let inert copies of it appear in the subnav's rows.
+ * overflow menu, so the glyph is only reachable through `Menu` (which renders Haven's
+ * `IconMoreFilled`) — exporting one loose is what let inert copies of it appear in the
+ * subnav's rows.
  */
 
 export function IconPlus({ size = 15, ...p }: S) {
@@ -546,26 +547,6 @@ export function IconPanelClose({ size = 16, ...p }: S) {
       ) : (
         <path d="M6.5 3a1 1 0 0 1 2 0v18a1 1 0 1 1-2 0zm10.707 3.293a1 1 0 0 0-1.414 0l-5 5a1 1 0 0 0 0 1.414l5 5a1 1 0 1 0 1.414-1.414L12.914 12l4.293-4.293a1 1 0 0 0 0-1.414" />
       )}
-    </svg>
-  )
-}
-
-/** Three-dot menu toggle glyph — ported from components/Menu.jsx. */
-export function IconMenuDots(p: SVGProps<SVGSVGElement>) {
-  return (
-    <svg width={16} height={5} viewBox="0 0 22 6" fill="currentColor" {...p}>
-      <path
-        fillRule="evenodd"
-        d="M 3 6 C 4.657 6 6 4.657 6 3 C 6 1.343 4.657 0 3 0 C 1.343 0 0 1.343 0 3 C 0 4.657 1.343 6 3 6 Z M 2 3 C 2 2.448 2.448 2 3 2 C 3.552 2 4 2.448 4 3 C 4 3.552 3.552 4 3 4 C 2.448 4 2 3.552 2 3 Z"
-      />
-      <path
-        fillRule="evenodd"
-        d="M 14 3 C 14 4.657 12.657 6 11 6 C 9.343 6 8 4.657 8 3 C 8 1.343 9.343 0 11 0 C 12.657 0 14 1.343 14 3 Z M 11 2 C 10.448 2 10 2.448 10 3 C 10 3.552 10.448 4 11 4 C 11.552 4 12 3.552 12 3 C 12 2.448 11.552 2 11 2 Z"
-      />
-      <path
-        fillRule="evenodd"
-        d="M 22 3 C 22 4.657 20.657 6 19 6 C 17.343 6 16 4.657 16 3 C 16 1.343 17.343 0 19 0 C 20.657 0 22 1.343 22 3 Z M 19 2 C 18.448 2 18 2.448 18 3 C 18 3.552 18.448 4 19 4 C 19.552 4 20 3.552 20 3 C 20 2.448 19.552 2 19 2 Z"
-      />
     </svg>
   )
 }
