@@ -9,6 +9,9 @@ upload/
 styled-system/
 **/src/panda.css
 
+# TypeScript incremental build cache — regenerated on every build.
+*.tsbuildinfo
+
 # Licensed commercial fonts — DO NOT COMMIT.
 # Galano Grotesque Alt (René Bieder) is a paid face. This repo is public, so shipping
 # the binaries would breach its license. The Haven stylesheet and dev.html both load

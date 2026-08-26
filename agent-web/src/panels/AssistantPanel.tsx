@@ -2423,8 +2423,8 @@ export function AssistantPanel({
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <img
                 src="assets/logo-realassist-ai.svg"
-                alt="RealAssist AI+"
-                style={{ height: 28.6, display: 'block', flex: 'none' }}
+                alt="RealAssist+ AI"
+                style={{ height: 36, display: 'block', flex: 'none' }}
               />
             </div>
             {/*

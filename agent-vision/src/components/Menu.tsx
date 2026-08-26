@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { IconMenuDots } from '../icons'
+import { IconMoreFilled } from '@rdc-npm/rdc-ui-v4'
 import { HoverButton } from './primitives'
 import { C } from '../theme'
 
@@ -75,7 +75,7 @@ export function MenuToggle({
         boxShadow: !bare && !open ? '0 1px 4px rgba(26,24,22,0.16)' : 'none',
       }}
     >
-      <IconMenuDots />
+      <IconMoreFilled size={2} />
     </HoverButton>
   )
 }
