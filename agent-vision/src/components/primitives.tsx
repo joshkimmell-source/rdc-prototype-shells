@@ -170,8 +170,8 @@ export function CircleButton({
 export function Initials({
   initials,
   size = 40,
-  bg = C.hair,
-  fg = C.action,
+  bg = C.dark,
+  fg = C.white,
   fontSize = 13,
   radius = '50%',
 }: {
@@ -195,7 +195,7 @@ export function Initials({
         alignItems: 'center',
         justifyContent: 'center',
         fontFamily: DISPLAY_FONT,
-        fontWeight: 600,
+        fontWeight: 400,
         fontSize,
       }}
     >
