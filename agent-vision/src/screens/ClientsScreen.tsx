@@ -23,8 +23,8 @@ interface ClientsScreenProps {
 
 const TILE = {
   position: 'relative',
-  width: 164,
-  height: 164,
+  width: 124,
+  height: 124,
   flex: 'none',
   borderRadius: 16,
   overflow: 'hidden',
@@ -32,7 +32,7 @@ const TILE = {
 } as const
 
 /**
- * Two 164px tiles plus their gap need 344px. On mobile they split the row instead and stay
+ * Two 124px tiles plus their gap need 344px. On mobile they split the row instead and stay
  * square, so the pair fits at 320px without either being pushed off-screen.
  */
 const TILE_MOBILE = {
@@ -41,7 +41,7 @@ const TILE_MOBILE = {
   height: 'auto',
   flex: '1 1 0',
   minWidth: 0,
-  maxWidth: 164,
+  maxWidth: 124,
   aspectRatio: '1 / 1',
 } as const
 
