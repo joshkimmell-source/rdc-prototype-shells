@@ -5,7 +5,7 @@
  * With `drawerMax` set (mobile, <=768px) it leaves the flow and slides in over `main`
  * instead, capped so a strip of scrim stays tappable beside it.
  */
-import { Tabs, Tooltip } from '@rdc-npm/rdc-ui-v4'
+import { IconCalendarTime, IconUserAddToProfile, Tabs, Tooltip } from '@rdc-npm/rdc-ui-v4'
 import { C, EASE } from '../theme'
 import { CircleButton, EmptyNote, Heading, HoverButton, HoverDiv, Initials, SearchField, Tab } from './primitives'
 import { Menu } from './Menu'
@@ -242,10 +242,12 @@ function ClientsSubnav({
     <>
       <div style={HEADER_ROW}>
         <Heading style={{ flex: 1 }}>Clients</Heading>
-        <Menu aria-label="More" items={CLIENT_LIST_MENU_ITEMS} size={28} bare />
+        <Menu aria-label="More" items={CLIENT_LIST_MENU_ITEMS} size={36} bare />
+        <Tooltip body="Add Client" placement="bottom">
         <CircleButton aria-label="Add client" title="Add client">
-          <IconPlus />
+          <IconUserAddToProfile size={2} />
         </CircleButton>
+        </Tooltip>
         <Tooltip body="Hide Clients" placement="bottom">
           <CircleButton onClick={onClose} aria-label="Hide Clients">
             <IconPanelClose />
@@ -314,9 +316,11 @@ function ToursSubnav({
     <>
       <div style={HEADER_ROW}>
         <Heading style={{ flex: 1 }}>Tours</Heading>
-        <CircleButton aria-label="Schedule tour" title="Schedule tour">
-          <IconPlus />
-        </CircleButton>
+        <Tooltip body="Schedule Tour" placement="bottom">
+          <CircleButton aria-label="Schedule tour" title="Schedule tour">
+            <IconCalendarTime size={2} />
+          </CircleButton>
+        </Tooltip>
         <Tooltip body="Hide Tours" placement="bottom">
           <CircleButton onClick={onClose} aria-label="Hide Tours">
             <IconPanelClose />

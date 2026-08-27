@@ -50,7 +50,12 @@ export function HoverButton({
   onFocus,
   onBlur,
   ...rest
-}: HoverProps<ButtonHTMLAttributes<HTMLButtonElement>>) {
+}: HoverProps<ButtonHTMLAttributes<HTMLButtonElement>> & {
+  /** Overrides the underlying Haven Button's default `Ghost` styleType. */
+  styleType?: ComponentProps<typeof Button>['styleType'],
+  /** Overrides the underlying Haven Button's default `lg` size. */
+  size?: ComponentProps<typeof Button>['size']
+}) {
   const [hover, setHover] = useState(false)
   const [focus, setFocus] = useState(false)
   // A genuine Haven v4 Button underneath (emits `data-rui="Button"`). `Ghost` is
@@ -125,7 +130,7 @@ export function HoverDiv({
  * a borderless subnav button, a bordered white control, and an on/off toggle.
  */
 export function CircleButton({
-  size = 28,
+  size = 36,
   hoverBg = C.hair,
   bordered = false,
   style,

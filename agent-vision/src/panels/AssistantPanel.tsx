@@ -2159,6 +2159,7 @@ const CAPABILITIES: Capability[] = [
 
 function CapabilityCard({ cap, onClick }: { cap: Capability; onClick: () => void }) {
   const Icon = cap.icon
+  const [hover, setHover] = useState(false)
   return (
     <ActionCard
       // `ra-cap-card` flips ActionCard's inner media/body row to a column (see shell.css),
@@ -2173,6 +2174,12 @@ function CapabilityCard({ cap, onClick }: { cap: Capability; onClick: () => void
       }
       mediaPosition="start"
       linkProps={{ onClick, 'aria-label': cap.title }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        background: hover ? C.threadsBg : C.white,
+        transition: 'background 120ms',
+      }}
     >
       {cap.body}
     </ActionCard>
@@ -2411,7 +2418,7 @@ export function AssistantPanel({
             {!(expanded && over) && (
               <Tooltip body="Open threads" placement="bottom">
                 <Button
-                  styleType="Primary"
+                  styleType="Secondary"
                   size="sm"
                   iconOnly={<IconSubnav size={16} />}
                   onClick={onToggleOver}
@@ -2424,7 +2431,7 @@ export function AssistantPanel({
               <img
                 src="assets/logo-realassist-ai.svg"
                 alt="RealAssist+ AI"
-                style={{ height: 36, display: 'block', flex: 'none' }}
+                style={{ height: 32, display: 'block', flex: 'none' }}
               />
             </div>
             {/*
@@ -2432,25 +2439,29 @@ export function AssistantPanel({
               list is showing (expanded + over), which carries its own "New conversation" button.
             */}
             {!(expanded && over) && (
-              <CircleButton
-                onClick={onNewChat}
-                hoverBg={C.hair}
-                aria-label="New conversation"
-                title="New conversation"
-              >
-                <IconCompose size={16} />
-              </CircleButton>
+              <Tooltip body='New Thread' placement='bottom'>
+                <CircleButton
+                  onClick={onNewChat}
+                  hoverBg={C.hair}
+                  aria-label="New conversation"
+                  title="New conversation"
+                >
+                  <IconCompose size={16} />
+                </CircleButton>
+              </Tooltip>
             )}
             {/* Nothing to expand into on mobile — the panel already fills the viewport. */}
             {!mobile && (
+              <Tooltip body={expanded ? 'Collapse' : 'Full Screen'} placement="bottom">
               <CircleButton
                 onClick={onToggleExpand}
                 hoverBg={C.hair}
-                aria-label={expanded ? 'Collapse panel' : 'Expand panel'}
-                title={expanded ? 'Collapse panel' : 'Expand panel'}
+                aria-label={expanded ? 'Collapse' : 'Full screen'}
+                title={expanded ? 'Collapse' : 'Full screen'}
               >
                 {expanded ? <IconCollapsePanel /> : <IconExpandPanel />}
               </CircleButton>
+              </Tooltip>
             )}
             <CircleButton onClick={onClose} hoverBg={C.hair} aria-label="Close panel" title="Close panel">
               <IconClose />

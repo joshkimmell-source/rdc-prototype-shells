@@ -28,8 +28,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties, ReactNode } from 'react'
 import { Menu, type MenuItem } from './Menu'
 import { HoverButton } from './primitives'
-import { BRAND_GRADIENT_PILL, C, EASE } from '../theme'
+import { BRAND_GRADIENT_PILL, BRAND_GRADIENT_PILL_HOVER, C, EASE } from '../theme'
 import { useIsTouch } from '../useMobile'
+import { Tooltip } from '@rdc-npm/rdc-ui-v4/tooltip'
 
 /** `brand` is the primary action; `dark` reads as an engaged toggle, `light` as an idle one. */
 export type ActionTone = 'brand' | 'dark' | 'light'
@@ -78,7 +79,7 @@ function toneStyle(tone: ActionTone): CSSProperties {
   if (tone === 'dark') {
     return { border: `1px solid ${C.dark}`, background: C.dark, color: C.white }
   }
-  return { border: `1px solid ${C.border}`, background: C.white, color: C.dark }
+  return { border: `0px solid ${C.border}`, color: C.dark }
 }
 
 /**
@@ -88,17 +89,17 @@ function toneStyle(tone: ActionTone): CSSProperties {
 function Action({
   item,
   collapsed,
-  onTip,
+  suppressTooltip,
   tabbable = true,
 }: {
   item: ActionItem
   collapsed: boolean
-  onTip?: (label: string, el: HTMLElement | null) => void
+  /** Touch can't hover, and a tap would leave the tooltip stuck with no `mouseleave` to close it. */
+  suppressTooltip?: boolean
   tabbable?: boolean
 }) {
   const tone = item.tone ?? 'light'
-  // A visible label needs no tooltip repeating it.
-  const tip = collapsed ? onTip : undefined
+  const [tipOpen, setTipOpen] = useState(false)
   // The hover lift's shadow — the brand action lifts on its own red, the others on neutral.
   const hoverShadow =
     tone === 'brand'
@@ -107,22 +108,19 @@ function Action({
         ? '0 1px 4px rgba(26,24,22,0.16)'
         : '0 2px 8px rgba(26,24,22,0.2)'
 
-  return (
+  const button = (
     <HoverButton
       onClick={() => {
         // Clicking an icon-only action opens the panel but leaves the pointer over the
         // button, so no `mouseleave` fires to retract its tooltip — dismiss it here, or it
         // lingers over whatever the click revealed.
-        tip?.(item.label, null)
+        setTipOpen(false)
         item.onClick()
       }}
       aria-label={item.label}
       aria-pressed={item.pressed}
       tabIndex={tabbable ? undefined : -1}
-      onMouseEnter={(e) => tip?.(item.label, e.currentTarget)}
-      onMouseLeave={() => tip?.(item.label, null)}
-      onFocus={(e) => tip?.(item.label, e.currentTarget)}
-      onBlur={() => tip?.(item.label, null)}
+      styleType="Secondary"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -134,23 +132,41 @@ function Action({
         width: collapsed ? HEIGHT : undefined,
         padding: collapsed ? 0 : `0 ${PAD_X}px`,
         borderRadius: collapsed ? '50%' : 40,
-        fontFamily: 'inherit',
-        fontSize: FONT_SIZE,
-        fontWeight: 700,
-        lineHeight: 1,
+        // fontFamily: 'inherit',
+        // fontSize: FONT_SIZE,
+        // fontWeight: 500,
+        // lineHeight: 1,
         whiteSpace: 'nowrap',
         cursor: 'pointer',
-        transition: `box-shadow 120ms, transform 120ms ${EASE}`,
+        transition: `all 120ms, transform 120ms ${EASE}`,
         transform: 'none',
-        boxShadow: 'none',
+        // boxShadow: 'none',
         ...toneStyle(tone),
       }}
-      hoverStyle={{ transform: 'translateY(-1px)', boxShadow: hoverShadow }}
+      hoverStyle={tone === 'brand' ? { background: BRAND_GRADIENT_PILL_HOVER } : undefined}
+      // hoverStyle={{ transform: 'translateY(0px)', }}
+      // hoverStyle={{ transform: 'translateY(0px)', boxShadow: hoverShadow, }}
     >
       <span style={{ display: 'flex', flex: 'none', alignItems: 'center' }}>{item.icon}</span>
       {/* Dropped from the DOM rather than hidden, so the collapsed circle has nothing to size to. */}
       {!collapsed && <span>{item.label}</span>}
     </HoverButton>
+  )
+
+  // A visible label needs no tooltip repeating it; only a collapsed (icon-only) action does,
+  // and only on a pointer device.
+  if (!collapsed || suppressTooltip) return button
+
+  return (
+    <Tooltip
+      body={item.label}
+      placement="bottom"
+      open={tipOpen}
+      onOpen={() => setTipOpen(true)}
+      onClose={() => setTipOpen(false)}
+    >
+      {button}
+    </Tooltip>
   )
 }
 
@@ -166,7 +182,6 @@ export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionB
    */
   const [collapsedCount, setCollapsedCount] = useState(0)
   const [foldedCount, setFoldedCount] = useState(0)
-  const [tip, setTip] = useState<{ label: string; left: number; top: number } | null>(null)
   // A touch device can't hover, and a tap would leave the tooltip stuck on screen with no
   // pointer-leave to dismiss it — so the collapsed action's tooltip is disabled there.
   const touch = useIsTouch()
@@ -255,22 +270,6 @@ export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionB
     return () => ro.disconnect()
   }, [measure])
 
-  const onTip = useCallback((label: string, el: HTMLElement | null) => {
-    if (!el) {
-      setTip((prev) => (prev?.label === label ? null : prev))
-      return
-    }
-    const r = el.getBoundingClientRect()
-    setTip({
-      label,
-      // Kept off both edges — a right-hand action's tooltip would otherwise run off-screen.
-      left: Math.min(Math.max(r.left + r.width / 2, 76), window.innerWidth - 76),
-      top: r.bottom + 8,
-    })
-  }, [])
-
-  const tipShown = !!tip
-
   // Static rows first, then the folded actions below a separator — each carrying its own icon
   // and firing its original handler, so a folded control does exactly what its pill did.
   const staticItems: MenuItem[] = menuItems.map((it) =>
@@ -311,7 +310,7 @@ export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionB
         rows plus whatever has folded in, so an open panel updates as the width changes.
       */}
       <div ref={leadRef} style={{ display: 'flex', flex: 'none' }}>
-        <Menu aria-label={menuLabel} items={resolvedMenu} />
+        <Menu aria-label={menuLabel} items={resolvedMenu} bare />
       </div>
 
       <div
@@ -329,7 +328,7 @@ export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionB
             key={item.id}
             item={item}
             collapsed={i + foldedCount < collapsedCount}
-            onTip={touch ? undefined : onTip}
+            suppressTooltip={touch}
           />
         ))}
       </div>
@@ -357,31 +356,6 @@ export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionB
         {items.map((item) => (
           <Action key={item.id} item={item} collapsed={false} tabbable={false} />
         ))}
-      </div>
-
-      <div
-        aria-hidden
-        data-testid="actionbar-tooltip"
-        style={{
-          position: 'fixed',
-          left: tip?.left ?? 0,
-          top: tip?.top ?? 0,
-          transform: `translate(-50%, ${tipShown ? 0 : -4}px)`,
-          zIndex: 200,
-          background: C.dark,
-          color: C.white,
-          fontSize: 12,
-          fontWeight: 700,
-          padding: '7px 12px',
-          borderRadius: 8,
-          whiteSpace: 'nowrap',
-          boxShadow: '0 2px 8px rgba(26,24,22,0.24)',
-          pointerEvents: 'none',
-          opacity: tipShown ? 1 : 0,
-          transition: `opacity 160ms ease-out, transform 160ms ${EASE}`,
-        }}
-      >
-        {tip?.label}
       </div>
     </div>
   )

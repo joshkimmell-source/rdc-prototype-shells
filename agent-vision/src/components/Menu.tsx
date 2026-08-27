@@ -53,6 +53,7 @@ export function MenuToggle({
       aria-expanded={open}
       aria-haspopup="menu"
       onClick={onClick}
+      styleType='Secondary'
       style={{
         width: size,
         height: size,
@@ -61,9 +62,9 @@ export function MenuToggle({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        border: bare ? 'none' : `1px solid ${open ? C.dark : C.border}`,
+        border: bare ? 'none' : `none`,
         // Bare: no border to darken, so the open state reads through the hover fill instead.
-        background: bare ? (open ? hoverBg : 'transparent') : open ? C.dark : C.white,
+        background: bare ? (open ? hoverBg : undefined) : open ? C.dark : C.white,
         color: filled ? C.white : (color ?? C.dark),
         cursor: 'pointer',
         transition: 'all 120ms',

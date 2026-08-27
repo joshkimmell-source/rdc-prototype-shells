@@ -98,6 +98,17 @@ export const BRAND_GRADIENT =
 export const BRAND_GRADIENT_PILL =
   'linear-gradient(95deg, rgb(240,67,73) 0%, rgb(217,34,40) 62%, rgb(194,41,138) 150%)'
 
+/**
+ * Hover state for `BRAND_GRADIENT` — each stop darkened ~17.5%, the same ratio the send
+ * button already uses to go from `C.brand` to `C.sendHover`.
+ */
+export const BRAND_GRADIENT_HOVER =
+  'linear-gradient(-29.445deg, rgb(160,34,114) 8.38%, rgb(198,55,60) 49.20%, rgb(180,28,33) 101.69%)'
+
+/** Hover state for `BRAND_GRADIENT_PILL` — same darkened stops, pill angle. */
+export const BRAND_GRADIENT_PILL_HOVER =
+  'linear-gradient(95deg, rgb(198,55,60) 0%, rgb(180,28,33) 62%, rgb(160,34,114) 150%)'
+
 /** The shell's single easing curve, used on every width/margin/transform transition. */
 export const EASE = 'cubic-bezier(0.2,0.8,0.2,1)'
 export const PANEL_TRANSITION = `220ms ${EASE}`

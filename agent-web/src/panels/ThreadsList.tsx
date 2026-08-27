@@ -31,8 +31,8 @@ export function ThreadsList({ threads, query, onQuery, onClose, onNewChat, back 
           <CircleButton
             onClick={onClose}
             hoverBg={C.border}
-            aria-label="Back to conversation"
-            title="Back to conversation"
+            aria-label="Back"
+            title="Back"
             style={{ flex: 'none' }}
           >
             <IconArrowLeft size={2} />
@@ -71,18 +71,18 @@ export function ThreadsList({ threads, query, onQuery, onClose, onNewChat, back 
             border: `1px solid ${C.action}`,
             background: C.action,
             color: C.white,
-            fontSize: 12.5,
-            fontWeight: 600,
+            fontSize: undefined,
+            fontWeight: undefined,
             cursor: 'pointer',
             transition: 'background 120ms',
           }}
           hoverStyle={{ background: C.dark }}
         >
           <IconCompose size={16} />
-          New conversation
+          New thread
         </HoverButton>
 
-        <SearchField
+        {/* <SearchField
           value={query}
           onChange={onQuery}
           placeholder="Search threads"
@@ -90,7 +90,7 @@ export function ThreadsList({ threads, query, onQuery, onClose, onNewChat, back 
           fontSize={12.5}
           iconSize={13}
           style={{ marginBottom: 8 }}
-        />
+        /> */}
 
         {threads.map((t) => (
           <HoverDiv

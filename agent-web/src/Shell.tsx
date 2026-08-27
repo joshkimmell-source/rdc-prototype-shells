@@ -800,7 +800,7 @@ export function Shell() {
               transform: fabHover ? 'scale(1.05)' : 'none',
             }}
           >
-            <FAB className="ra-fab" />
+            <FAB className="ra-fab" hover={fabHover} />
           </Button>
 
           <div
