@@ -4,15 +4,17 @@
  */
 import type { CSSProperties, ReactNode } from 'react'
 import { IconRealAssist } from '../icons'
-import { BRAND_GRADIENT } from '../theme'
+import { BRAND_GRADIENT, BRAND_GRADIENT_HOVER } from '../theme'
 
 interface FABProps {
   icon?: ReactNode
   className?: string
   style?: CSSProperties
+  /** The trigger `Button` wrapping this tracks hover — darkens the gradient to match. */
+  hover?: boolean
 }
 
-export function FAB({ icon, className, style }: FABProps) {
+export function FAB({ icon, className, style, hover = false }: FABProps) {
   return (
     <div
       className={className}
@@ -32,7 +34,7 @@ export function FAB({ icon, className, style }: FABProps) {
         style={{
           position: 'relative',
           borderRadius: 9999,
-          background: BRAND_GRADIENT,
+          background: hover ? BRAND_GRADIENT_HOVER : BRAND_GRADIENT,
           color: '#FFFFFF',
           display: 'flex',
           flexDirection: 'row',

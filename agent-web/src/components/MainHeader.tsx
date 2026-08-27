@@ -175,7 +175,8 @@ export function MainHeader({
         // At 320px the title and the five Clients controls cannot share a line, so the
         // control group drops below rather than squeezing any of them out of reach.
         // `ActionBar` collapses to circles instead, and stays on the title's line.
-        flexWrap: mobile && !useActionBar ? 'wrap' : 'nowrap',
+        flexWrap: 'nowrap',
+        // flexWrap: mobile && !useActionBar ? 'wrap' : 'nowrap',
       }}
     >
       {showSubnavButton && (
@@ -246,7 +247,8 @@ export function MainHeader({
         </h1>
       )}
 
-      {useActionBar ? (
+      <ActionBar items={barItems} menuItems={menuItems} menuLabel="More" />
+      {/* {useActionBar ? (
         // Collapses its own labels to fit and folds what still will not fit into its overflow
         // menu, so unlike the cluster below it never wraps. `menuItems` are the menu's static
         // rows; folded actions append below them.
@@ -267,33 +269,33 @@ export function MainHeader({
             TOGGLES.map(({ id, label, icon }) => {
               const on = toggles[id]
               return (
-                <HoverButton
-                  key={id}
-                  onClick={() => onToggle(id)}
-                  aria-label={label}
-                  aria-pressed={on}
-                  title={label}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: `1px solid ${on ? C.dark : C.border}`,
-                    background: on ? C.dark : C.white,
-                    color: on ? C.white : C.dark,
-                    cursor: 'pointer',
-                    transition: 'all 120ms',
-                  }}
-                  hoverStyle={{ boxShadow: '0 1px 4px rgba(26,24,22,0.16)' }}
-                >
-                  {icon}
-                </HoverButton>
+                <Tooltip key={id} body={label} placement="bottom">
+                  <HoverButton
+                    onClick={() => onToggle(id)}
+                    aria-label={label}
+                    aria-pressed={on}
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: `1px solid ${on ? C.dark : C.border}`,
+                      background: on ? C.dark : C.white,
+                      color: on ? C.white : C.dark,
+                      cursor: 'pointer',
+                      transition: 'all 120ms',
+                    }}
+                    hoverStyle={{ boxShadow: '0 1px 4px rgba(26,24,22,0.16)' }}
+                  >
+                    {icon}
+                  </HoverButton>
+                </Tooltip>
               )
             })}
         </div>
-      )}
+      )} */}
     </div>
   )
 }

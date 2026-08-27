@@ -194,22 +194,26 @@ export function ClientsScreen({ mobile, feed, pill, onPill, view, onView }: Clie
             <HoverButton
               key={id}
               onClick={() => onPill(id)}
+              styleType={ on ? "Primary" : "Tertiary"}
+              size="sm"
               style={{
-                height: 40,
-                flex: 'none',
-                padding: '0 16px',
-                borderRadius: 40,
-                border: `1px solid ${on ? C.dark : C.border}`,
-                background: on ? C.dark : C.white,
-                color: on ? C.white : C.dark,
+              //   // height: 40,
+              //   // flex: 'none',
+              // padding: '8px 16px',
+              //   // borderRadius: 40,
+              //   // border: `1px solid ${on ? C.dark : C.border}`,
+              // backgroundColor: on ? C.dark : undefined,
+              //   // background: on ? C.dark : C.white,
+              //   color: on ? C.white : C.dark,
                 fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 120ms',
+              //   fontWeight: 600,
+              //   cursor: 'pointer',
+              //   whiteSpace: 'nowrap',
+              //   transition: 'all 120ms',
               }}
-              hoverStyle={{ borderColor: C.dark }}
-            >
+              // hoverStyle={{ backgroundColor: 'inherit' }}
+              // hoverStyle={{ borderColor: C.dark }}
+              >
               {label}
             </HoverButton>
           )

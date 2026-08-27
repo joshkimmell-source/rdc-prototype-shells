@@ -80,7 +80,9 @@ test.describe('React ActionBar (Clients, ?ab=b)', () => {
 test.describe('React ActionBar tooltip on minimized actions', () => {
   const url = '/?ab=b&view=clients'
   const COLLAPSE_WIDTH = 1300
-  const tooltip = (page: Page) => page.getByTestId('actionbar-tooltip')
+  // The Haven `Tooltip` only mounts its floating content while open, so idle there is no
+  // element at all rather than one with empty text.
+  const tooltip = (page: Page) => page.getByRole('tooltip')
 
   test('shows the tooltip when a collapsed icon-only action is hovered (pointer)', async ({ page }) => {
     await page.setViewportSize({ width: COLLAPSE_WIDTH, height: 800 })
@@ -91,8 +93,8 @@ test.describe('React ActionBar tooltip on minimized actions', () => {
     // It is a minimized circle: its label span has been dropped from the DOM.
     await expect(circle.getByText('Agent notifications')).toHaveCount(0)
 
-    // Idle, the tooltip is empty; hovering the circle names it.
-    await expect(tooltip(page)).toHaveText('')
+    // Idle, no tooltip is mounted; hovering the circle summons it.
+    await expect(tooltip(page)).toHaveCount(0)
     await circle.hover()
     await expect(tooltip(page)).toHaveText('Agent notifications')
   })
@@ -114,7 +116,7 @@ test.describe('React ActionBar tooltip on minimized actions', () => {
     await expect(tooltip(page)).toHaveText(/Ask RealAssist/)
     await ask.click()
     await expect(page.getByRole('button', { name: 'Close panel' })).toBeVisible()
-    await expect(tooltip(page)).toHaveText('')
+    await expect(tooltip(page)).toHaveCount(0)
   })
 
   test.describe('touch interface', () => {
@@ -130,7 +132,7 @@ test.describe('React ActionBar tooltip on minimized actions', () => {
       // Neither a synthesized hover nor a tap (which focuses the button) summons it.
       await circle.hover()
       await circle.tap()
-      await expect(tooltip(page)).toHaveText('')
+      await expect(tooltip(page)).toHaveCount(0)
     })
   })
 })
