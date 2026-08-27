@@ -27,7 +27,7 @@ import { MainHeader, type ToggleId, type Toggles } from './components/MainHeader
 import { type ActionItem } from './components/ActionBar'
 import { SearchHeaderLead } from './components/SearchHeaderLead'
 import { FAB } from './components/FAB'
-import { Button, IconSettings } from '@rdc-npm/rdc-ui-v4'
+import { Button, IconSettings, Tooltip } from '@rdc-npm/rdc-ui-v4'
 import { PrototypeNotice } from './components/PrototypeNotice'
 import { RdcUiScanner } from '@rdc-npm/rdc-ui-scanner'
 import { HomeScreen, type NeedItem, type StageItem } from './screens/HomeScreen'
@@ -910,52 +910,53 @@ export function Shell() {
           />
 
           {/* The FAB trigger is a real Haven v4 Button — `Ghost`/`size="inline"` strips the
-              recipe's chrome so the inline style below reproduces the floating pill exactly. */}
-          <Button
-            styleType="Ghost"
-            size="inline"
-            underline="never"
-            onClick={(e) => {
-              e.stopPropagation()
-              setPushContent((p) => !p)
-              setPushExpanded(false)
-              setPushOver(false)
-            }}
-            aria-label="Ask RealAssist+"
-            tabIndex={fabVisible ? 1 : -1}
-            onMouseEnter={() => setFabHover(true)}
-            onMouseLeave={() => setFabHover(false)}
-            onFocus={(e) => {
-              setFabHover(true)
-              e.currentTarget.style.outline = `2px solid ${C.dark}`
-              e.currentTarget.style.outlineOffset = '2px'
-            }}
-            onBlur={(e) => {
-              setFabHover(false)
-              e.currentTarget.style.outline = 'none'
-            }}
-            style={{
-              display: fabVisible ? 'flex' : 'none',
-              position: 'fixed',
-              right: isMobile ? 16 : 24,
-              // Clears the tab bar on mobile — the FAB is fixed to the viewport, so it
-              // would otherwise land on top of it.
-              bottom: isMobile ? NAV_BAR_HEIGHT + 16 : 36,
-              zIndex: 60,
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: 'none',
-              background: 'transparent',
-              padding: 0,
-              borderRadius: 9999,
-              cursor: 'pointer',
-              transition: 'transform 120ms',
-              outline: 'none',
-              transform: fabHover ? 'scale(1.05)' : 'none',
-            }}
+              recipe's chrome so the inline style below reproduces the floating pill exactly.
+              Wrapped in a Tooltip rather than the Button's own onMouseEnter/onFocus: Tooltip
+              clones its hover/focus handlers onto its child, which would otherwise silently
+              replace (not compose with) a plain Button's own handlers — so `fabHover` and the
+              focus outline are driven from Tooltip's `onOpen`/`onClose` instead. */}
+          <Tooltip
+            body="Ask RealAssist+"
+            placement="left"
+            onOpen={() => setFabHover(true)}
+            onClose={() => setFabHover(false)}
           >
-            <FAB className="ra-fab" hover={fabHover} />
-          </Button>
+            <Button
+              styleType="Ghost"
+              size="inline"
+              underline="never"
+              onClick={(e) => {
+                e.stopPropagation()
+                setPushContent((p) => !p)
+                setPushExpanded(false)
+                setPushOver(false)
+              }}
+              aria-label="Ask RealAssist+"
+              tabIndex={fabVisible ? 1 : -1}
+              style={{
+                display: fabVisible ? 'flex' : 'none',
+                position: 'fixed',
+                right: isMobile ? 16 : 24,
+                // Clears the tab bar on mobile — the FAB is fixed to the viewport, so it
+                // would otherwise land on top of it.
+                bottom: isMobile ? NAV_BAR_HEIGHT + 16 : 36,
+                zIndex: 60,
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: 'none',
+                background: 'transparent',
+                padding: 0,
+                borderRadius: 9999,
+                cursor: 'pointer',
+                transition: 'transform 120ms',
+                outline: fabHover ? `2px solid ${C.dark}` : 'none',
+                outlineOffset: 2,
+                transform: fabHover ? 'scale(1.05)' : 'none',
+              }}
+            >
+              <FAB className="ra-fab" hover={fabHover} />
+            </Button>
+          </Tooltip>
 
           <div
             style={{
