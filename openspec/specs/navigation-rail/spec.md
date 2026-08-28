@@ -77,6 +77,20 @@ The label-outside-container treatment SHALL be applied consistently to every rai
 - **WHEN** the navigation rail is displayed in agent-web and in agent-vision
 - **THEN** both use the same label-outside-container cell composition
 
+### Requirement: Rail items are generously spaced with a legible collapsed logo
+
+The navigation rail SHALL space its items generously rather than tightly packing them, and its collapsed logo mark SHALL render large enough to read clearly, in both the agent-web and agent-vision apps.
+
+#### Scenario: Rail items are spaced generously
+
+- **WHEN** the navigation rail is displayed
+- **THEN** its items are separated by generous spacing rather than a tight, cramped gap
+
+#### Scenario: Collapsed logo scales by height, not a fixed square
+
+- **WHEN** the rail's collapsed logo mark is displayed
+- **THEN** it renders at a height large enough to read clearly, with its width scaling proportionally rather than being forced into a fixed square
+
 ### Requirement: Interactive cells remain single activatable controls
 
 Restructuring the cell SHALL NOT change how interactive rail cells are activated. Each interactive cell MUST remain a single control activatable by pointer and keyboard, with its label included in the control's accessible name.
