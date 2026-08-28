@@ -24,13 +24,14 @@ The shell SHALL render a single shared header component above every screen — C
 
 ### Requirement: Screens supply their own header content
 
-The shared header SHALL accept its title, count label, an optional lead region, per-screen actions, and overflow-menu rows from the screen it sits above, while keeping one shared header structure. When a lead region is provided, the header MUST render it in place of the title/count block.
+The shared header SHALL accept its title, count label, an optional lead region, per-screen actions, and overflow-menu rows from the screen it sits above, while keeping one shared header structure. When a lead region is provided, the header MUST render it in place of the title/count block. A count label is no longer shown for every screen: agent-web shows one only on Home; agent-vision shows none.
 
-#### Scenario: Each screen shows its own title and count
+#### Scenario: Only agent-web's Home screen shows a count label
 
-- **WHEN** a screen is displayed
-- **THEN** the header shows that screen's title
-- **AND** any count label is shown on a second line below the title
+- **WHEN** the agent-web Home screen is displayed
+- **THEN** the header shows a count label ("N clients," or "N of M clients" when a filter is active) on a second line below the title
+- **WHEN** any other agent-web screen is displayed, or any agent-vision screen is displayed
+- **THEN** the header shows only the title, with no count label below it
 
 #### Scenario: Search shows a lead region instead of a title
 
