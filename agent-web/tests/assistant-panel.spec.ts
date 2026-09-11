@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test'
 
 /**
- * The RealAssist+ assistant panel is closed on arrival at every width — the agent opens it
+ * The RealAssist™ AI assistant panel is closed on arrival at every width — the agent opens it
  * deliberately (the FAB, an Ask action, a deep link) rather than it occupying the content on
  * load. Earlier it docked open on desktop; these pin the closed-by-default contract.
  *
  * The floating FAB is the reliable signal: it is the panel's toggle, shown only while the
- * panel is closed (several content CTAs share the "Ask RealAssist+" name, so it is located by
+ * panel is closed (several content CTAs share the "Ask RealAssist™ AI" name, so it is located by
  * its `.ra-fab` mark, not by name alone).
  */
 test.describe('assistant panel default', () => {

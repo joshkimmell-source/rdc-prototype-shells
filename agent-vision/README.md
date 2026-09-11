@@ -1,4 +1,4 @@
-# RealAssist+ Content Orchestration Shell (`agent-web`)
+# RealAssist™ AI Content Orchestration Shell (`agent-web`)
 
 Agent-facing prototype shell for the Design AI Infrastructure Studio. Ported from
 `ContentOrchestrationShell.dc.html` to React + TypeScript + Vite, using the Haven
@@ -94,7 +94,7 @@ src/
   Shell.tsx          root: all shell state + derived layout
   theme.ts           color/font tokens
   data.ts            seeded book of business
-  assistant.ts       RealAssist+ responder
+  assistant.ts       RealAssist™ AI responder
   icons.tsx
   components/        NavRail, Subnav, MainHeader, FAB, Menu, primitives, ImageSlot,
                      ResizeHandle
@@ -133,7 +133,7 @@ defaults.
 
 ## Resizing the push panel
 
-`components/ResizeHandle.tsx` puts a drag handle on the left edge of the RealAssist+
+`components/ResizeHandle.tsx` puts a drag handle on the left edge of the RealAssist™ AI
 panel. `Shell.tsx` owns the width (`pushW`) and passes it down; the handle is rendered
 only while the panel is docked open, since the expanded width belongs to the expand
 control and a closed panel has no edge to grab.

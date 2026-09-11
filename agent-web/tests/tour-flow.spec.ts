@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 /**
- * The RealAssist+ tour-coordination flow, now broken into a stepwise, question-driven
+ * The RealAssist™ AI tour-coordination flow, now broken into a stepwise, question-driven
  * sequence centred on an existing client — Jordan & Mia Castellanos (`cli_02`), the busiest
  * active client, carrying the sample dataset's richest upcoming tour (`tour_01`, Aug 15,
  * three stops).
@@ -57,7 +57,7 @@ const clientChip = (page: Page) =>
 const upcomingToursCard = (page: Page) =>
   page.getByRole('heading', { name: 'Upcoming tours' }).locator('..').locator('..')
 
-test.describe('RealAssist+ stepwise tour-coordination flow', () => {
+test.describe('RealAssist™ AI stepwise tour-coordination flow', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/?view=home')

@@ -186,7 +186,7 @@ export function IconStar({ size = 17, ...p }: S) {
   )
 }
 
-/** The four-point RealAssist+ spark. */
+/** The four-point RealAssist™ AI spark. */
 export function IconSpark({ size = 15, ...p }: S) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="currentColor" {...p}>
@@ -340,7 +340,7 @@ export function IconArrowDown({ size = 11, ...p }: S) {
 }
 
 /**
- * RealAssist+ mark — ported from components/FAB.jsx (figma node 21:212).
+ * RealAssist™ AI mark — ported from components/FAB.jsx (figma node 21:212).
  * `aura` is omitted; the shell mounts it with aura=false.
  *
  * The artwork is 20 units square sitting 2 units in from each edge of a 24-unit box, which
@@ -383,7 +383,7 @@ export function IconRealAssist({ size = 24, ...p }: { size?: number; className?:
 }
 
 /* ---------------------------------------------------------------------------
- * Capability-menu glyphs. The assistant's home state lists what RealAssist+ can
+ * Capability-menu glyphs. The assistant's home state lists what RealAssist™ AI can
  * do, one outline icon per card. Drawn to the same 24-box stroke grid as the
  * other line icons here so they sit consistently at ~20px.
  * ------------------------------------------------------------------------- */

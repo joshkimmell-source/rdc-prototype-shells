@@ -5,7 +5,7 @@
  * own header inside the iframe.
  *
  * The four toggle circles only appear on Clients. Under `?ab=b` the control cluster is the
- * `ActionBar` — which labels the toggles and carries the inline "Ask RealAssist+" action — but
+ * `ActionBar` — which labels the toggles and carries the inline "Ask RealAssist™ AI" action — but
  * Tours and Search use the `ActionBar` in either arm, so their Export / Add to calendar / Save
  * search controls always read as labelled pills that collapse and fold rather than icon circles.
  */
@@ -51,7 +51,7 @@ interface MainHeaderProps {
    */
   useActionBar: boolean
   /**
-   * Include the inline "Ask RealAssist+" action in the bar. Set in the `?ab=b` arm; in the FAB
+   * Include the inline "Ask RealAssist™ AI" action in the bar. Set in the `?ab=b` arm; in the FAB
    * arm the trigger floats in the corner instead, so it is left out here.
    */
   showAsk: boolean
@@ -162,7 +162,7 @@ export function MainHeader({
       ? [
           {
             id: 'ask',
-            label: 'Ask RealAssist™+ AI',
+            label: 'Ask RealAssist™ AI',
             // 16, matching the map pages' Ask pill — the same control at the same scale.
             icon: <IconRealAssist size={16} />,
             tone: 'brand' as const,

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 /**
- * The RealAssist+ "Search Optimization" AI flow — agent-initiated, client-scoped:
+ * The RealAssist™ AI "Search Optimization" AI flow — agent-initiated, client-scoped:
  *
  *   0. "Search Optimization" capability → the thread titles "Search Optimization", the assistant
  *                                         greets and asks which client to analyze.
@@ -34,7 +34,7 @@ async function runToAnalysis(page: Page) {
   await transcript(page).getByRole('button', { name: /Jordan & Mia Castellanos.*Last seen/ }).click()
 }
 
-test.describe('RealAssist+ Search Optimization flow', () => {
+test.describe('RealAssist™ AI Search Optimization flow', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/?view=home')

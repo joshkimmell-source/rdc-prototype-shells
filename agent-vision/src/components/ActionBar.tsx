@@ -3,7 +3,7 @@
  *
  * Built for the `?ab=b` arm of the FAB-placement test, but not specific to it: any content
  * page can hand it a set of actions. The `•••` overflow menu is the bar's far-left item and
- * the primary action its rightmost, rendered in the RealAssist+ brand gradient; secondary
+ * the primary action its rightmost, rendered in the RealAssist™ AI brand gradient; secondary
  * actions sit between them as light or dark pills. Items are spacing-300 (8px) apart.
  *
  * Responsive behaviour is measured, not guessed at a breakpoint, and it degrades in two
@@ -14,7 +14,7 @@
  *   2. if every action is already a circle and the row still overflows, it folds circles into
  *      the overflow menu one at a time from the left. Folded actions appear as labelled rows
  *      below the menu's static items, fenced off by a separator. The primary action (the
- *      RealAssist+ Ask, in the brand gradient) is exempt: it collapses to a circle like the
+ *      RealAssist™ AI Ask, in the brand gradient) is exempt: it collapses to a circle like the
  *      rest but never folds, so it stays one click away at the right of the `•••`.
  *
  * Folding rather than scrolling keeps every action reachable at any width without a
@@ -196,7 +196,7 @@ export function ActionBar({ items, menuItems = [], menuLabel = 'More' }: ActionB
   // pointer-leave to dismiss it — so the collapsed action's tooltip is disabled there.
   const touch = useIsTouch()
 
-  // The primary action — the RealAssist+ Ask in the brand gradient, always the rightmost item
+  // The primary action — the RealAssist™ AI Ask in the brand gradient, always the rightmost item
   // — is pinned: it collapses to a circle with the rest but never folds into the menu, so the
   // assistant stays a click away at the right of the `•••`. Held in a ref so `measure` can read
   // it without taking `items` (a fresh array each render) as a dependency.

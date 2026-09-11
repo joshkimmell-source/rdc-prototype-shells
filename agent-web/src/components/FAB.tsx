@@ -1,5 +1,5 @@
 /**
- * RealAssist+ floating action button — ported from components/FAB.jsx (figma node 21:212).
+ * RealAssist™ AI floating action button — ported from components/FAB.jsx (figma node 21:212).
  * Mounted with aura=false in the shell, so the aura layer is omitted.
  */
 import type { CSSProperties, ReactNode } from 'react'
