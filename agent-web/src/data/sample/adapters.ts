@@ -78,7 +78,7 @@ const ROSTER_TOURS: SampleTour[] = SAMPLE_TOURS.filter(t => ROSTER_IDS.includes(
 
 /**
  * Clients whose upcoming tour is *coordinated through the assistant*, not pre-baked into the
- * displayed lists. Their tour data still exists (the RealAssist+ flow reads it to build the
+ * displayed lists. Their tour data still exists (the RealAssist™ AI flow reads it to build the
  * plan), but the tour stays out of the Home "Upcoming tours" card and the Tours subnav until
  * the flow schedules it — the shell reveals it on "Confirm & schedule". Jordan & Mia
  * (`cli_02`) is the flow's subject; Priyanka (`cli_03`) and the rest read as already-created
@@ -508,7 +508,7 @@ export interface ClientNeed {
   text: string
   /** `brand` for time-sensitive, `amber` for a nudge — resolved to a colour in the shell. */
   tone: 'brand' | 'amber'
-  /** The question to send RealAssist+ when the spark button is pressed. */
+  /** The question to send RealAssist™ AI when the spark button is pressed. */
   prompt: string
 }
 

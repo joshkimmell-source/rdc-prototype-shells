@@ -477,7 +477,7 @@ export function HomeScreen({
                   <div style={{ fontSize: 13.5, fontWeight: 700 }}>{n.client}</div>
                   <div style={{ fontSize: 11.5, color: C.sub }}>{n.text}</div>
                 </div>
-                <AskButton onClick={n.ask} label="Ask RealAssist" />
+                <AskButton onClick={n.ask} label="Ask RealAssist™ AI" />
               </div>
             ))}
           </div>

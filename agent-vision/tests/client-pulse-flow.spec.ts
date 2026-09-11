@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 /**
- * The RealAssist+ "Client Pulse" AI flow — agent-initiated, single-group scoped:
+ * The RealAssist™ AI "Client Pulse" AI flow — agent-initiated, single-group scoped:
  *
  *   0. "Client Pulse" capability → the thread titles "Client Pulse", the assistant asks which
  *                                  client to analyze and shows the "Select group" picker.
@@ -33,7 +33,7 @@ async function runToReport(page: Page) {
   await transcript(page).getByRole('button', { name: /Jordan & Mia Castellanos.*Last seen/ }).click()
 }
 
-test.describe('RealAssist+ Client Pulse flow', () => {
+test.describe('RealAssist™ AI Client Pulse flow', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/?view=home')

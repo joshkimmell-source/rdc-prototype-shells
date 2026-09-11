@@ -1,5 +1,5 @@
 /**
- * Which placement of the "Ask RealAssist+" trigger is under test, read from `?ab=`.
+ * Which placement of the "Ask RealAssist™ AI" trigger is under test, read from `?ab=`.
  *
  *   a           — the floating FAB, fixed to the bottom-right corner.
  *   b           — an `ActionBar` primary action, inline at the right of every page header.

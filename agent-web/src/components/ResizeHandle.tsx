@@ -93,7 +93,7 @@ export function ResizeHandle({ width, min, max, defaultWidth, onWidth, onInterac
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize RealAssist+ panel"
+      aria-label="Resize RealAssist™ AI panel"
       aria-valuenow={Math.round(width)}
       aria-valuemin={min}
       aria-valuemax={max}

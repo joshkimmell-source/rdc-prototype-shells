@@ -1,5 +1,5 @@
 /**
- * RealAssist+ push panel: threads dock, chat header, nudge cards, transcript, composer,
+ * RealAssist™ AI push panel: threads dock, chat header, nudge cards, transcript, composer,
  * and the sliding threads overlay. Slides in from the right of `main` and can expand to
  * fill everything but the nav rail.
  */
@@ -2094,7 +2094,7 @@ function DateTimeCardView({ card, onPick }: { card: DateTimeCard; onPick: (dayLa
 }
 
 /**
- * The assistant's home state is a menu of what RealAssist+ can do. Each card names a
+ * The assistant's home state is a menu of what RealAssist™ AI can do. Each card names a
  * capability and, when tapped, sends its `prompt` to kick that flow off in the transcript.
  */
 interface Capability {
@@ -2216,10 +2216,17 @@ function BusyBubble() {
   )
 }
 
+/** Panda's `shadows.lifted` token recoloured onto brand red, for the composer's focus ring. */
+const FOCUS_SHADOW = '0px 0px 8px rgba(217,34,40,0.08), 0px 2px 8px rgba(217,34,40,0.16)'
+
 /**
  * The message composer. `variant` switches between the home state — a pill with an
  * outline arrow and the placeholder the design specifies — and the conversation state,
  * which keeps the filled brand send button. Both submit on Enter and on the arrow.
+ *
+ * The send button is ghost while the field is empty and switches to the filled brand
+ * treatment the moment there's text to send, in both variants — a filled button when
+ * there's nothing to submit would read as always-actionable.
  */
 function Composer({
   input,
@@ -2232,6 +2239,7 @@ function Composer({
   onSend: (text: string) => void
   variant: 'home' | 'chat'
 }) {
+  const [focused, setFocused] = useState(false)
   const disabled = !input.trim()
   const home = variant === 'home'
   return (
@@ -2241,9 +2249,11 @@ function Composer({
         alignItems: 'flex-end',
         gap: 8,
         background: C.white,
-        border: `1px solid ${C.border}`,
+        border: `1px solid ${focused ? C.brand : C.border}`,
         borderRadius: 24,
         padding: '5px 5px 5px 18px',
+        boxShadow: focused ? FOCUS_SHADOW : 'none',
+        transition: 'border-color 120ms, box-shadow 120ms',
       }}
     >
       <input
@@ -2255,6 +2265,8 @@ function Composer({
             onSend(input)
           }
         }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         placeholder={home ? 'How can I help you today?' : 'Ask about clients, tours, or listings'}
         style={{
           flex: 1,
@@ -2272,10 +2284,10 @@ function Composer({
         aria-label="Send"
         title="Send"
         style={
-          home
+          disabled
             ? {
-                width: 40,
-                height: 40,
+                width: home ? 40 : 36,
+                height: home ? 40 : 36,
                 flex: 'none',
                 borderRadius: '50%',
                 border: 'none',
@@ -2285,12 +2297,12 @@ function Composer({
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                opacity: disabled ? 0.45 : 1,
-                transition: 'background 120ms',
+                opacity: home ? 0.45 : 0.4,
+                transition: 'all 120ms',
               }
             : {
-                width: 36,
-                height: 36,
+                width: home ? 40 : 36,
+                height: home ? 40 : 36,
                 flex: 'none',
                 borderRadius: '50%',
                 border: `1px solid ${C.brand}`,
@@ -2300,11 +2312,11 @@ function Composer({
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                opacity: disabled ? 0.4 : 1,
+                opacity: 1,
                 transition: 'all 120ms',
               }
         }
-        hoverStyle={home ? { background: C.alt } : { background: C.sendHover, borderColor: C.sendHover }}
+        hoverStyle={disabled ? { background: C.alt } : { background: C.sendHover, borderColor: C.sendHover }}
       >
         {home ? <IconComposerSend /> : <IconSend />}
       </HoverButton>
@@ -2430,7 +2442,7 @@ export function AssistantPanel({
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <img
                 src="assets/logo-realassist-ai.svg"
-                alt="RealAssist+ AI"
+                alt="RealAssist™ AI"
                 style={{ height: 32, display: 'block', flex: 'none' }}
               />
             </div>
@@ -2491,7 +2503,7 @@ export function AssistantPanel({
                 }}
               >
                 {/*
-                  Home state: the composer leads, and below it a menu of what RealAssist+
+                  Home state: the composer leads, and below it a menu of what RealAssist™ AI
                   can do. Once the first message lands it gives way to the transcript, and
                   the composer drops to its usual place at the foot of the panel.
                 */}
@@ -2711,7 +2723,7 @@ export function AssistantPanel({
                 <Composer input={input} onInput={onInput} onSend={onSend} variant="chat" />
 
                 <div style={{ textAlign: 'center', fontSize: 10.5, color: C.muted }}>
-                  RealAssist+ can make mistakes. Verify listing details before sharing.
+                  RealAssist™ AI can make mistakes. Verify listing details before sharing.
                 </div>
               </div>
             )}

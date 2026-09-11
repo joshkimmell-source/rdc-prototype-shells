@@ -84,7 +84,7 @@ export const TAG_CHART_COLOR: Record<string, string> = {
 }
 
 /**
- * The RealAssist+ brand gradient, shared by the floating FAB and the action bar's primary
+ * The RealAssist™ AI brand gradient, shared by the floating FAB and the action bar's primary
  * action — the two placements the `?ab=` test compares. Defined once so the control reads
  * as the same thing in a different position rather than as two different buttons.
  */

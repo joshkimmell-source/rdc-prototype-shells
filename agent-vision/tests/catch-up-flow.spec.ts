@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 /**
- * The RealAssist+ "Catch Up" AI daily-briefing flow — agent-initiated, single-shot:
+ * The RealAssist™ AI "Catch Up" AI daily-briefing flow — agent-initiated, single-shot:
  *
  *   0. "Catch Up" capability      → the thread titles "Catch Up", a three-state processing
  *                                    stream runs, then the tools collapse to "Used 19 tools".
@@ -22,7 +22,7 @@ const fab = (page: Page) => page.locator('button:has(.ra-fab)')
 /** The chat transcript. */
 const transcript = (page: Page) => page.locator('.ra-scroll')
 
-test.describe('RealAssist+ Catch Up daily-briefing flow', () => {
+test.describe('RealAssist™ AI Catch Up daily-briefing flow', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/?view=home')

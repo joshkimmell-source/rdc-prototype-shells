@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 /**
- * The RealAssist+ "Add Client" onboarding flow — a chat-driven, multi-turn sequence that
+ * The RealAssist™ AI "Add Client" onboarding flow — a chat-driven, multi-turn sequence that
  * collects the client's people and search preferences, then runs the backend tool stubs:
  *
  *   0. "Add Client" capability          → State 1: "Let's get your new client set up!"
@@ -36,7 +36,7 @@ async function ask(page: Page, text: string) {
   await input.press('Enter')
 }
 
-test.describe('RealAssist+ Add Client onboarding flow', () => {
+test.describe('RealAssist™ AI Add Client onboarding flow', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/?view=home')

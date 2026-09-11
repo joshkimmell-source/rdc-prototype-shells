@@ -2,7 +2,7 @@
   "name": "agent-web-shell",
   "type": "module",
   "version": "1.0.0",
-  "description": "Agent (RealAssist+ content orchestration) web prototype shell for Design AI Infrastructure Studio",
+  "description": "Agent (RealAssist™ AI content orchestration) web prototype shell for Design AI Infrastructure Studio",
   "scripts": {
     "dev": "panda codegen && panda cssgen --outfile src/panda.css && vite",
     "build": "panda codegen && panda cssgen --outfile src/panda.css && vite build",

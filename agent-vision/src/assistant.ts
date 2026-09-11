@@ -1,5 +1,5 @@
 /**
- * RealAssist+ responder.
+ * RealAssist™ AI responder.
  *
  * The DC prototype called `window.claude.complete({ system, messages, max_tokens, tools })`,
  * which only exists inside the Claude Design runtime. A Vite app has no such global, so this
@@ -591,12 +591,12 @@ export interface AssistantResult {
 }
 
 export const SYSTEM_PROMPT_INTRO =
-  'You are RealAssist+, the AI assistant built into the realtor.com+ agent workspace. ' +
+  'You are RealAssist™ AI, the assistant built into the realtor.com+ agent workspace. ' +
   `The user is ${AGENT_FIRST_NAME}, a buyer’s agent at ${AGENT_BROKERAGE}. ` +
   'Every client and property in this workspace is fictional sample data.'
 
 export const ERROR_REPLY =
-  'RealAssist+ couldn’t reach the model just now. Give it a few seconds and try again.'
+  'RealAssist™ AI couldn’t reach the model just now. Give it a few seconds and try again.'
 
 declare global {
   interface Window {

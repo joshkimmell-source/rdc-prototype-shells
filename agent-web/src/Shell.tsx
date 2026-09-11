@@ -1,5 +1,5 @@
 /**
- * Root of the RealAssist+ content-orchestration shell.
+ * Root of the RealAssist™ AI content-orchestration shell.
  *
  * Holds every piece of state the DC original kept on `Component.state` and derives the
  * layout values its `renderVals()` computed. Layout is
@@ -9,7 +9,7 @@
  * the subnav and push panel leave the flow to become overlays over `main` — so `main` keeps
  * the full viewport width either way.
  *
- * `?ab=` selects where the "Ask RealAssist+" trigger lives: the floating FAB (`a`, default),
+ * `?ab=` selects where the "Ask RealAssist™ AI" trigger lives: the floating FAB (`a`, default),
  * an `ActionBar` action inline in every page header (`b`), or a responsive blend of the two
  * (`c` — the FAB on mobile, the inline action at every other width). See `abParam.ts`.
  */
@@ -198,13 +198,17 @@ export function Shell() {
   // Header toggles
   const [toggles, setToggles] = useState<Toggles>({ bell: false, flame: true, chart: false, star: false })
 
-  // Push panel — the RealAssist+ assistant. Closed by default everywhere; the agent opens it
+  // Push panel — the RealAssist™ AI assistant. Closed by default everywhere; the agent opens it
   // deliberately (the FAB, an Ask action, or a deep link), rather than it occupying the
   // content on arrival.
   const [pushContent, setPushContent] = useState(false)
   const [pushExpanded, setPushExpanded] = useState(false)
   const [pushOver, setPushOver] = useState(false)
   const [fabHover, setFabHover] = useState(false)
+  // Real keyboard focus only — see the native-listener effect below for why this can't come
+  // from the Tooltip-wrapped Button's own `onFocus`.
+  const [fabFocused, setFabFocused] = useState(false)
+  const fabRef = useRef<HTMLButtonElement>(null)
   const [pushW, setPushW] = useState(readStoredPushWidth)
   const [pushMax, setPushMax] = useState(pushCeiling)
   const [resizing, setResizing] = useState(false)
@@ -269,6 +273,23 @@ export function Shell() {
     }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  // The FAB's focus outline must track real keyboard focus only, not the hover-or-focus
+  // `fabHover` the wrapping Tooltip drives (see the FAB's Tooltip call site below) — so it's
+  // read here via native `focus`/`blur` listeners on the underlying DOM node instead of a
+  // handler prop, which Tooltip's `cloneElement` would otherwise silently replace.
+  useEffect(() => {
+    const el = fabRef.current
+    if (!el) return
+    const onFocus = () => setFabFocused(true)
+    const onBlur = () => setFabFocused(false)
+    el.addEventListener('focus', onFocus)
+    el.addEventListener('blur', onBlur)
+    return () => {
+      el.removeEventListener('focus', onFocus)
+      el.removeEventListener('blur', onBlur)
+    }
   }, [])
 
   useEffect(() => {
@@ -600,7 +621,7 @@ export function Shell() {
     mirrorState('subnav', onSubnavScreen ? (subnavOpen ? 'open' : 'closed') : null)
   }, [activeNav, subnavOpen])
 
-  // The active RealAssist+ assistant flow, if any — the persistent "which prompt am I in"
+  // The active RealAssist™ AI assistant flow, if any — the persistent "which prompt am I in"
   // state. One-off prompts aren't mirrored: they're events, not current state.
   useEffect(() => {
     const flow = addFlow
@@ -650,7 +671,7 @@ export function Shell() {
 
   return (
     <div
-      data-screen-label="RealAssist+ agent workspace"
+      data-screen-label="RealAssist™ AI agent workspace"
       data-participant={participant ?? undefined}
       className="ra-shell"
       style={{
@@ -759,50 +780,66 @@ export function Shell() {
               recipe's chrome so the inline style below reproduces the floating pill exactly.
               Wrapped in a Tooltip rather than the Button's own onMouseEnter/onFocus: Tooltip
               clones its hover/focus handlers onto its child, which would otherwise silently
-              replace (not compose with) a plain Button's own handlers — so `fabHover` and the
-              focus outline are driven from Tooltip's `onOpen`/`onClose` instead. */}
-          <Tooltip
-            body="Ask RealAssist+"
-            placement="left"
-            onOpen={() => setFabHover(true)}
-            onClose={() => setFabHover(false)}
+              replace (not compose with) a plain Button's own handlers — so `fabHover` (scale +
+              gradient-darken + the tooltip itself) is driven from Tooltip's `onOpen`/`onClose`.
+              The focus outline is deliberately *not* on that signal, since Tooltip's onOpen
+              fires for hover too — it reads `fabFocused` instead, tracked natively via `fabRef`
+              above, so a mouse hover shows the tooltip without the outline, and only real
+              keyboard focus shows both.
+              The `position: fixed` lives on this outer div, not the Button, because Tooltip
+              anchors to the plain (`display: inline-flex`, static-positioned) wrapper div it
+              renders around its child — if the Button itself were the fixed element, that
+              wrapper would collapse to a zero-size box wherever it falls in normal flow (up
+              near the header) and the tooltip would anchor there instead of at the FAB.
+              Fixing this div instead gives the wrapper a correct in-flow position to measure. */}
+          <div
+            style={{
+              display: fabVisible ? 'flex' : 'none',
+              position: 'fixed',
+              right: isMobile ? 16 : 24,
+              // Clears the tab bar on mobile — the FAB is fixed to the viewport, so it
+              // would otherwise land on top of it.
+              bottom: isMobile ? NAV_BAR_HEIGHT + 16 : 36,
+              zIndex: 60,
+            }}
           >
-            <Button
-              styleType="Ghost"
-              size="inline"
-              underline="never"
-              onClick={(e) => {
-                e.stopPropagation()
-                setPushContent((p) => !p)
-                setPushExpanded(false)
-                setPushOver(false)
-              }}
-              aria-label="Ask RealAssist+"
-              tabIndex={fabVisible ? 1 : -1}
-              style={{
-                display: fabVisible ? 'flex' : 'none',
-                position: 'fixed',
-                right: isMobile ? 16 : 24,
-                // Clears the tab bar on mobile — the FAB is fixed to the viewport, so it
-                // would otherwise land on top of it.
-                bottom: isMobile ? NAV_BAR_HEIGHT + 16 : 36,
-                zIndex: 60,
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: 'none',
-                background: 'transparent',
-                padding: 0,
-                borderRadius: 9999,
-                cursor: 'pointer',
-                transition: 'transform 120ms',
-                outline: fabHover ? `2px solid ${C.dark}` : 'none',
-                outlineOffset: 2,
-                transform: fabHover ? 'scale(1.05)' : 'none',
-              }}
+            <Tooltip
+              body="Ask RealAssist™ AI"
+              placement={isMobile ? 'top-start' : 'left'}
+              onOpen={() => setFabHover(true)}
+              onClose={() => setFabHover(false)}
             >
-              <FAB className="ra-fab" hover={fabHover} />
-            </Button>
-          </Tooltip>
+              <Button
+                ref={fabRef}
+                styleType="Ghost"
+                size="inline"
+                underline="never"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setPushContent((p) => !p)
+                  setPushExpanded(false)
+                  setPushOver(false)
+                }}
+                aria-label="Ask RealAssist™ AI"
+                tabIndex={fabVisible ? 1 : -1}
+                style={{
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 'none',
+                  background: 'transparent',
+                  padding: 0,
+                  borderRadius: 9999,
+                  cursor: 'pointer',
+                  transition: 'transform 120ms',
+                  outline: fabFocused ? `2px solid ${C.dark}` : 'none',
+                  outlineOffset: 2,
+                  transform: fabHover ? 'scale(1.05)' : 'none',
+                }}
+              >
+                <FAB className="ra-fab" hover={fabHover} />
+              </Button>
+            </Tooltip>
+          </div>
           <div
             style={{
               position: 'fixed',
@@ -823,7 +860,7 @@ export function Shell() {
               transition: `opacity 160ms ease-out, transform 160ms ${EASE}`,
             }}
           >
-            Ask RealAssist+
+            Ask RealAssist™ AI
           </div>
 
           {isHome && (
